@@ -15,7 +15,7 @@ const Section_a = () => {
   const [selectedMermber, setSelectedMember] = useState(
     editMode && project?.team_members ? project.team_members : []
   );
-
+  const [teams, setTeams] = useState([]);
   const [form, setForm] = useState({
     projectName: editMode ? project?.project_name || "" : "",
     description: editMode ? project?.project_description || "" : "",
@@ -25,13 +25,12 @@ const Section_a = () => {
     startDate: editMode ? project?.start_date || "" : "",
     endDate: editMode ? project?.end_date || "" : "",
     projectMember: "",
+    teamId: editMode ? project?.team_id || "" : "",
   });
-
   const [errors, setErrors] = useState({});
   const [teamLeads, setTeamLeads] = useState([]);
   const [teamMember, setTeamMember] = useState([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
-
   const startDateRef = useRef(null);
   const endDateRef = useRef(null);
 
@@ -80,6 +79,20 @@ const Section_a = () => {
   }, []);
 
   useEffect(() => {
+    // Fetch all teams for the team assignment dropdown
+    const fetchTeams = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await apiHandler.GetApi(api_url.getAllTeams, token);
+        setTeams(Array.isArray(res.teams) ? res.teams : []);
+      } catch {
+        setTeams([]);
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
     // If editing, pre-select team members in the dropdown
     if (editMode && project?.team_members && teamMember.length > 0) {
       setSelectedMember(project.team_members);
@@ -105,6 +118,8 @@ const Section_a = () => {
     if (!form.status.trim()) newErrors.status = "Status is required.";
     if (!form.startDate.trim()) newErrors.startDate = "Start date is required.";
     if (!form.endDate.trim()) newErrors.endDate = "End date is required.";
+    if (!form.teamId)
+      newErrors.teamId = "Please select a team for this project.";
     return newErrors;
   };
 
@@ -124,6 +139,7 @@ const Section_a = () => {
       end_date: form.endDate,
       project_lead: form.projectLead,
       team_members: selectedMermber,
+      team_id: form.teamId,
     };
 
     try {
@@ -284,6 +300,28 @@ const Section_a = () => {
               }}
               value={selectedMermber}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Assign Project to Team
+            </label>
+            <select
+              name="teamId"
+              value={form.teamId}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Team</option>
+              {teams.map((team) => (
+                <option key={team._id} value={team._id}>
+                  {team.teamName}
+                </option>
+              ))}
+            </select>
+            {errors.teamId && (
+              <p className="text-red-500 text-sm mt-1">{errors.teamId}</p>
+            )}
           </div>
 
           <div>

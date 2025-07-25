@@ -22,6 +22,7 @@ exports.createProject = async (req, res) => {
       project_lead, // teamMemberId of the project lead
       team_members = [], // Array of teamMemberIds
       project_status,
+      team_id,
     } = req.body;
 
     // Count existing projects to generate next ID
@@ -64,6 +65,7 @@ exports.createProject = async (req, res) => {
       project_lead: lead.teamMemberId,
       team_members: validMembers.map((m) => m.teamMemberId),
       project_status,
+      team_id,
     });
 
     await newProject.save();

@@ -9,9 +9,10 @@ const Section_a = () => {
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [originalEndDate, setOriginalEndDate] = useState(null);
 
@@ -56,21 +57,27 @@ const Section_a = () => {
     fetchEmployees();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-6 text-center text-gray-500">Loading project...</div>
-    );
-  }
+  useEffect(() => {
+    // Fetch tasks for this project
+    const fetchTasks = async () => {
+      if (!project) return;
+      const token = localStorage.getItem("token");
+      try {
+        const response = await apiHandler.GetApi(api_url.getAllTasks, token);
+        if (Array.isArray(response.tasks)) {
+          setTasks(
+            response.tasks.filter((t) => t.project_id === project.project_id)
+          );
+        } else {
+          setTasks([]);
+        }
+      } catch {
+        setTasks([]);
+      }
+    };
+    if (project) fetchTasks();
+  }, [project]);
 
-  if (!project) {
-    return (
-      <div className="p-6 text-center text-red-500">
-        No project data found. Please go back and select a project.
-      </div>
-    );
-  }
-
-  // Map project_lead and team_members to names
   const getEmployeeName = (id) => {
     const emp = employees.find((e) => e.teamMemberId === id);
     return emp ? emp.name : id;
@@ -102,7 +109,7 @@ const Section_a = () => {
     setCompleting(true);
     const token = localStorage.getItem("token");
     const today = new Date().toISOString().slice(0, 10);
-    setOriginalEndDate(project.end_date); // Save the original planned end date
+    setOriginalEndDate(project.end_date);
     try {
       const response = await apiHandler.PutApi(
         api_url.getAllProjects + "/" + project.project_id,
@@ -125,174 +132,88 @@ const Section_a = () => {
     }
   };
 
+  if (loading || !project) {
+    return (
+      <div className="p-6 text-center text-gray-500">Loading project...</div>
+    );
+  }
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-gray-500 hover:text-black text-xl font-semibold"
-          >
-            &larr;
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Project Details</h1>
-        </div>
-
-        <div className="flex justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">
-              {project.project_name || project.title}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              <span className="font-semibold">Client:</span>{" "}
-              {project.client_name || "-"}
-            </p>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <CalendarDays className="w-4 h-4" />
-              <p className="text-sm text-gray-500">
-                {project.start_date
-                  ? `${new Date(project.start_date).toLocaleDateString(
-                      "en-GB"
-                    )} - Ongoing`
-                  : "No start date - Ongoing"}
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-100 flex justify-center px-4 py-10">
+      <div className="w-full max-w-6xl flex gap-8">
+        {/* Left: Project Details Card */}
+        <div className="w-1/2 bg-white p-8 rounded-xl shadow-lg border flex flex-col">
+          <div className="mb-6 flex items-center gap-2">
+            <button
+              onClick={() => navigate(-1)}
+              className="text-gray-500 hover:text-black text-xl font-semibold"
+            >
+              &larr;
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Project Details
+            </h1>
           </div>
-          <div className="flex gap-3 items-center">
-            {project.project_status !== "completed" && (
-              <button
-                className="flex items-center gap-1 bg-green-100 text-green-700 text-sm px-3 py-1 rounded-full"
-                onClick={handleMarkAsCompleted}
-                disabled={completing}
-              >
-                <CheckCircle className="w-4 h-4" />
-                {completing ? "Marking..." : "Mark as Completed"}
-              </button>
-            )}
-            <Edit
-              className="text-gray-500 w-4 h-4 cursor-pointer"
-              onClick={() =>
-                navigate("/CreateProject", { state: { project, mode: "edit" } })
-              }
-            />
-            <Trash2
-              className="text-red-500 w-4 h-4 cursor-pointer"
-              onClick={() => setShowDeleteDialog(true)}
-            />
+          <h3 className="text-lg font-semibold mb-2">{project.project_name}</h3>
+          <p className="text-gray-600 mb-2">{project.project_description}</p>
+          <div className="mb-2">
+            <span className="font-semibold">Status:</span>{" "}
+            <span
+              className={`px-2 py-1 rounded text-xs font-semibold ${
+                project.project_status === "completed"
+                  ? "bg-green-100 text-green-700"
+                  : project.project_status === "on hold"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {project.project_status}
+            </span>
+          </div>
+          <div className="mb-2">
+            <span className="font-semibold">Team:</span> {project.team_id}
+          </div>
+          <div className="mb-2">
+            <span className="font-semibold">Lead:</span>{" "}
+            {getEmployeeName(project.project_lead)}
+          </div>
+          <div className="mb-2">
+            <span className="font-semibold">Members:</span>{" "}
+            {project.team_members?.length || 0}
+          </div>
+          <div className="mb-2">
+            <span className="font-semibold">Start:</span> {project.start_date}
+          </div>
+          <div className="mb-2">
+            <span className="font-semibold">End:</span> {project.end_date}
           </div>
         </div>
-
-        {/* Delete Confirmation Dialog */}
-        {showDeleteDialog && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-              <h3 className="text-lg font-bold mb-2">Delete Project</h3>
-              <p className="mb-4">
-                Are you sure you want to delete this project? This action cannot
-                be undone.
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-                  onClick={() => setShowDeleteDialog(false)}
-                  disabled={deleting}
+        {/* Right: Tasks for this Project */}
+        <div className="w-1/2 bg-white p-8 rounded-xl shadow-lg border flex flex-col">
+          <h2 className="text-xl font-bold mb-4 text-blue-700">
+            Project Tasks
+          </h2>
+          {tasks.length === 0 ? (
+            <div className="text-gray-500">No tasks for this project.</div>
+          ) : (
+            <ul>
+              {tasks.map((task) => (
+                <li
+                  key={task._id}
+                  className="mb-4 p-4 bg-gray-50 rounded shadow"
                 >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Project Meta Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <h4 className="font-semibold">Status</h4>
-            <span className="bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full capitalize">
-              {project.project_status || project.status || "Not set"}
-            </span>
-          </div>
-          <div>
-            <h4 className="font-semibold">Description</h4>
-            <p className="text-sm text-gray-700">
-              {project.project_description ||
-                project.description ||
-                "No description provided."}
-            </p>
-          </div>
-        </div>
-
-        {/* Project Lead */}
-        <div className="mb-4">
-          <h4 className="font-semibold mb-2">Project Lead</h4>
-          <div className="flex items-center gap-2 border px-3 py-2 rounded bg-gray-50">
-            <User className="w-4 h-4 text-gray-500" />
-            <span>
-              {getEmployeeName(project.project_lead)}
-              {project.project_lead ? ` (${project.project_lead})` : ""}
-            </span>
-          </div>
-        </div>
-        <div className="mb-5">
-          <div className="flex items-center gap-2">
-            <h4 className="font-semibold">Project Members:</h4>
-            <span className="text-sm text-gray-800">
-              {project?.team_members?.length ?? 0}
-            </span>
-          </div>
-
-          <div className="ml-4 mt-2 text-sm text-gray-700">
-            {project?.team_members?.length > 0 ? (
-              <ul className="list-disc list-inside">
-                {project.team_members.map((memberId, index) => (
-                  <li key={index}>
-                    {getEmployeeName(memberId)} ({memberId})
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No members assigned.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Project Timeline */}
-        <div>
-          <h4 className="font-semibold mb-2">Project Timeline</h4>
-          {project.project_status === "completed" &&
-            originalEndDate &&
-            originalEndDate !== project.end_date && (
-              <div className="mb-2 text-sm text-yellow-700 bg-yellow-100 rounded px-3 py-2">
-                <span className="font-semibold">Note:</span> Original planned
-                completion date was {originalEndDate}, but project was completed
-                on {project.end_date}.
-              </div>
-            )}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border px-3 py-2 rounded bg-gray-50">
-              <p className="text-xs text-gray-500">Start Date</p>
-              <p className="text-sm text-gray-500">
-                {project.start_date
-                  ? new Date(project.start_date).toLocaleDateString("en-GB")
-                  : "Not set"}
-              </p>
-            </div>
-            <div className="border px-3 py-2 rounded bg-gray-50">
-              <p className="text-xs text-gray-500">End Date</p>
-              <p className="text-sm text-gray-500">
-                {project.end_date
-                  ? new Date(project.end_date).toLocaleDateString("en-GB")
-                  : "Not set"}
-              </p>
-            </div>
-          </div>
+                  <div className="font-semibold text-lg">{task.title}</div>
+                  <div className="text-gray-600">{task.description}</div>
+                  <div className="text-xs text-gray-500">
+                    Assigned to: {getEmployeeName(task.assignedTo)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Status: {task.status}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
