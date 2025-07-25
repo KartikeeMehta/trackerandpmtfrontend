@@ -22,6 +22,7 @@ const taskSchema = new mongoose.Schema({
     enum: ['owner', 'admin', 'team_lead'],
     required: true,
   },
+  deletionReason: { type: String },
   createdAt: { type: Date, default: Date.now },
   completedAt: Date,
 });

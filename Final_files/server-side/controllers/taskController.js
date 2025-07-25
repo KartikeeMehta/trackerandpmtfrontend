@@ -80,8 +80,11 @@ exports.getAllTasks = async (req, res) => {
 exports.getTaskHistoryByMemberId = async (req, res) => {
   try {
     const { teamMemberId } = req.params;
-    const tasks = await Task.find({ assignedTo: teamMemberId });
-    res.json(tasks);
+    const tasks = await Task.find({
+      assignedTo: teamMemberId,
+      status: { $in: ["completed", "deleted", "Completed", "Deleted"] },
+    });
+    res.json({ tasks });
   } catch (error) {
     res.status(500).json({ message: "Error fetching task history.", error });
   }
@@ -89,12 +92,12 @@ exports.getTaskHistoryByMemberId = async (req, res) => {
 
 exports.getOngoingTasks = async (req, res) => {
   try {
-    const { teamMemberId } = req.params;
-    const tasks = await Task.find({
-      assignedTo: teamMemberId,
-      status: "In Progress",
-    });
-    res.json(tasks);
+    let filter = { status: { $in: ["pending", "in progress", "In Progress"] } };
+    if (req.params.teamMemberId) {
+      filter.assignedTo = req.params.teamMemberId;
+    }
+    const tasks = await Task.find(filter);
+    res.json({ tasks });
   } catch (error) {
     res.status(500).json({ message: "Error fetching ongoing tasks.", error });
   }
@@ -191,5 +194,38 @@ exports.deleteTasksByTeamMemberId = async (req, res) => {
     res.json({ message: "All tasks for this team member have been deleted." });
   } catch (error) {
     res.status(500).json({ message: "Error deleting tasks.", error });
+  }
+};
+
+exports.updateTaskById = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, status } = req.body;
+    const updatePayload = {};
+    if (title) updatePayload.title = title;
+    if (description) updatePayload.description = description;
+    if (status) updatePayload.status = status;
+    const task = await Task.findByIdAndUpdate(taskId, updatePayload, {
+      new: true,
+    });
+    if (!task) return res.status(404).json({ message: "Task not found." });
+    res.json({ message: "Task updated successfully.", task });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating task.", error });
+  }
+};
+
+exports.deleteTaskById = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { reason } = req.body;
+    const task = await Task.findById(taskId);
+    if (!task) return res.status(404).json({ message: "Task not found." });
+    task.status = "deleted";
+    if (reason) task.deletionReason = reason;
+    await task.save();
+    res.json({ message: "Task marked as deleted.", task });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting task.", error });
   }
 };

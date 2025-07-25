@@ -22,7 +22,13 @@ router.get('/ongoing', authMiddleware, taskController.getOngoingTasks);
 // 🔹 Update task(s) for a team member (includes reassignment/status update)
 router.put('/update/:teamMemberId', authMiddleware, isAuthorizedToAssign, taskController.updateTasksByTeamMemberId);
 
+// 🔹 Update a single task by its taskId
+router.put('/updateTask/:taskId', authMiddleware, isAuthorizedToAssign, taskController.updateTaskById);
+
 // 🔹 Delete all tasks assigned to a team member
 router.delete('/delete/:teamMemberId',  authMiddleware, isAuthorizedToAssign, taskController.deleteTasksByTeamMemberId);
+
+// 🔹 Delete a single task by its taskId
+router.delete('/deleteTask/:taskId', authMiddleware, isAuthorizedToAssign, taskController.deleteTaskById);
 
 module.exports = router;
