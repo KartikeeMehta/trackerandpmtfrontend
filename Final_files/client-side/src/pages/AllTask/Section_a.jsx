@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
+import { useNavigate } from "react-router-dom";
 
 const Section_a = () => {
   const [members, setMembers] = useState([]);
@@ -38,10 +39,7 @@ const Section_a = () => {
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
-  const [role, setRole] = useState("");
-  const roles = ["Low", "Medium", "High", "Critical"];
-
-
+  const navigate = useNavigate();
   useEffect(() => {
     const fetchMembers = async () => {
       setLoading(true);
@@ -256,8 +254,8 @@ const Section_a = () => {
               <li
                 key={index}
                 className={`p-4 hover:bg-gray-50 cursor-pointer ${selectedMember?.teamMemberId === member.teamMemberId
-                  ? "bg-blue-50"
-                  : ""
+                    ? "bg-blue-50"
+                    : ""
                   }`}
                 onClick={() => {
                   setSelectedMember(member);
@@ -282,7 +280,7 @@ const Section_a = () => {
               </h2>
               <button
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                onClick={() => setShowAddTaskModal(true)}
+                onClick={() => navigate("/CreateTask")}
               >
                 <Plus size={18} /> Add Task
               </button>
@@ -452,38 +450,9 @@ const Section_a = () => {
                   required
                 />
               </div>
-
-              <div className="w-full">
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full border border-gray-300 p-2 rounded focus:outline-none"
-                >
-                  <option value="">Select Status</option>
-                  {roles.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
               {addTaskError && (
                 <div className="text-red-600 text-sm">{addTaskError}</div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full border rounded-md p-2"
-                  value={newTask.title}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, title: e.target.value })
-                  }
-                  required
-                />
-              </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

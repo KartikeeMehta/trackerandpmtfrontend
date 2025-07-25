@@ -15,6 +15,7 @@ import CreateProject from "./pages/CreateProject";
 import EmpLogin from "./pages/Login/emp_login";
 import AllTask from "./pages/AllTask";
 import ProjectDetails from "./pages/ProjectDetails";
+import CreateTask from "./pages/CreateTask";
 
 function App() {
   return (
@@ -54,6 +55,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/CreateTask"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <CreateTask />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+
 
         <Route
           path="/DashBoard"
