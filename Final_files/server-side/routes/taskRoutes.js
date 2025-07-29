@@ -29,6 +29,6 @@ router.put('/updateTask/:taskId', authMiddleware, isAuthorizedToAssign, taskCont
 router.delete('/delete/:teamMemberId',  authMiddleware, isAuthorizedToAssign, taskController.deleteTasksByTeamMemberId);
 
 // 🔹 Delete a single task by its taskId
-router.delete('/deleteTask/:taskId', authMiddleware, isAuthorizedToAssign, taskController.deleteTaskById);
+router.post('/deleteTask/:task_id', authMiddleware, isAuthorizedToAssign, taskController.deleteTaskById);
 
 module.exports = router;

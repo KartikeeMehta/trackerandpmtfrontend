@@ -5,7 +5,7 @@ const taskSchema = new mongoose.Schema({
   description: String,
   status: {
     type: String,
-    enum: ['pending', 'verification', 'in-progress', 'completed'],
+    enum: ['pending', 'verification', 'in-progress', 'completed', "deleted"],
     default: 'pending',
   },
   assignedTo: {
@@ -35,6 +35,7 @@ const taskSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  task_id: { type: String, unique: true },
   deletionReason: { type: String },
   createdAt: { type: Date, default: Date.now },
   completedAt: Date,
