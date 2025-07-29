@@ -13,17 +13,17 @@ router.get('/my-tasks', authMiddleware, taskController.getTasksForSelf);
 // 🔹 Get all tasks in the system (Owner/Admin/TeamLead only)
 router.get('/all', authMiddleware, isAuthorizedToAssign, taskController.getAllTasks);
 
-// 🔹 Get all tasks assigned to a specific employee (by teamMemberId) — history view
+// 🔹 Get all tasks assigned to a specific employee (by teamMemberId) — only returning tasks with status "completed" or "deleted"
 router.get('/history/:teamMemberId', authMiddleware, isAuthorizedToAssign, taskController.getTaskHistoryByMemberId);
 
 // 🔹 Get ongoing tasks (can be used by any role if needed)
 router.get('/ongoing', authMiddleware, taskController.getOngoingTasks);
 
-// 🔹 Update task(s) for a team member (includes reassignment/status update)
+// 🔹 Update task(s) for a team member (includes reassignment/status update)[currently not being used]
 router.put('/update/:teamMemberId', authMiddleware, isAuthorizedToAssign, taskController.updateTasksByTeamMemberId);
 
 // 🔹 Update a single task by its taskId
-router.put('/updateTask/:taskId', authMiddleware, isAuthorizedToAssign, taskController.updateTaskById);
+router.put('/updateTask/:task_id', authMiddleware, isAuthorizedToAssign, taskController.updateTaskById);
 
 // 🔹 Delete all tasks assigned to a team member
 router.delete('/delete/:teamMemberId',  authMiddleware, isAuthorizedToAssign, taskController.deleteTasksByTeamMemberId);

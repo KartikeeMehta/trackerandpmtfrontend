@@ -52,7 +52,7 @@ exports.createTask = async (req, res) => {
       task_id: newTaskId,
       title: title.trim(),
       description: description?.trim(),
-      assignedTo,
+      assignedTo: assignedTo.trim(),
       assignedBy: req.user._id,
       assignedByRole: req.user.role.toLowerCase(),
       project,
@@ -128,7 +128,7 @@ exports.getTaskHistoryByMemberId = async (req, res) => {
 
 exports.getOngoingTasks = async (req, res) => {
   try {
-    let filter = { status: { $in: ["pending", "in progress", "In Progress"] } };
+    let filter = { status: { $in: ["pending", "in-progress", "verification"] } };
     if (req.params.teamMemberId) {
       filter.assignedTo = req.params.teamMemberId;
     }
@@ -276,18 +276,87 @@ exports.deleteTasksByTeamMemberId = async (req, res) => {
 
 exports.updateTaskById = async (req, res) => {
   try {
-    const { taskId } = req.params;
-    const { title, description, status } = req.body;
+    const { task_id } = req.params;
+    const currentUserRole = req.user.role;
+    const currentUserTeamMemberId = req.user.teamMemberId;
+
+    if (!task_id || task_id.trim() === "") {
+      return res.status(400).json({ message: "task_id is required." });
+    }
+
+    const task = await Task.findOne({ task_id });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found with the given task_id." });
+    }
+
+    const assignedToId = task.assignedTo;
+    const isOwner = currentUserRole === 'owner';
+    const isAdmin = currentUserRole === 'admin';
+    const isTeamLead = currentUserRole === 'team_lead';
+    const isEmployee = currentUserRole === 'employee';
+    const isUpdatingOwnTask = assignedToId === currentUserTeamMemberId;
+
+    // Restriction logic
+    if (isEmployee && !isUpdatingOwnTask) {
+      return res.status(403).json({ message: "Employees can only update their own task status." });
+    }
+
+    if (
+      (isAdmin && task.assignedByRole === 'owner') ||
+      (isTeamLead && (task.assignedByRole === 'owner' || task.assignedByRole === 'admin')) ||
+      (isTeamLead && isUpdatingOwnTask) // team_lead cannot update own tasks
+    ) {
+      return res.status(403).json({ message: "You are not authorized to update this task." });
+    }
+
+    // Build update payload
+    const {
+      title,
+      description,
+      status,
+      assignedTo,
+      assignedBy,
+      assignedByRole,
+      project,
+      priority,
+      dueDate,
+      completedAt,
+      deletionReason,
+      comments,
+    } = req.body;
+
     const updatePayload = {};
-    if (title) updatePayload.title = title;
-    if (description) updatePayload.description = description;
-    if (status) updatePayload.status = status;
-    const task = await Task.findByIdAndUpdate(taskId, updatePayload, {
+
+    // If employee, allow only status
+    if (isEmployee) {
+      if (typeof status === 'string') {
+        updatePayload.status = status;
+      } else {
+        return res.status(400).json({ message: "Employees can only update the status field." });
+      }
+    } else {
+      if (title) updatePayload.title = title;
+      if (description) updatePayload.description = description;
+      if (status) updatePayload.status = status;
+      if (assignedTo) updatePayload.assignedTo = assignedTo;
+      if (assignedBy) updatePayload.assignedBy = assignedBy;
+      if (assignedByRole) updatePayload.assignedByRole = assignedByRole;
+      if (project) updatePayload.project = project;
+      if (priority) updatePayload.priority = priority;
+      if (dueDate) updatePayload.dueDate = dueDate;
+      if (completedAt) updatePayload.completedAt = completedAt;
+      if (deletionReason) updatePayload.deletionReason = deletionReason;
+      if (comments) updatePayload.comments = comments;
+    }
+
+    const updatedTask = await Task.findOneAndUpdate({ task_id }, updatePayload, {
       new: true,
     });
-    if (!task) return res.status(404).json({ message: "Task not found." });
-    res.json({ message: "Task updated successfully.", task });
+
+    res.json({ message: "Task updated successfully.", task: updatedTask });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error updating task.", error });
   }
 };
