@@ -1,16 +1,20 @@
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Section_a = () => {
     const token = localStorage.getItem("token");
-    const [members, setMembers] = useState([]);
+
     const navigate = useNavigate();
+    const location = useLocation();
+    const dateInputRef = useRef(null);
+    const { taskDetails } = location.state || {};
     const [loading, setLoading] = useState(false);
-    const [projects, setProjects] = useState([]);
-    const dateInputRef = useRef(null);    
     const [error, setError] = useState("");
+    const [members, setMembers] = useState([]);
+    const [projects, setProjects] = useState([]);
+
     const [taskForm, setTaskForm] = useState({
         title: "",
         description: "",
@@ -23,20 +27,34 @@ const Section_a = () => {
         dueDate: "",
     });
 
+
+    useEffect(() => {
+        if (taskDetails) {
+            setTaskForm({
+                title: taskDetails.title || "",
+                description: taskDetails.description || "",
+                status: taskDetails.status?.toLowerCase() || "",
+                assignedTo: taskDetails.assignedTo || "",
+                assignedBy: taskDetails.assignedBy || "",
+                assignedByRole: taskDetails.assignedByRole || "",
+                project: taskDetails.project || "",
+                priority: taskDetails.priority || "",
+                dueDate: taskDetails.dueDate ? taskDetails.dueDate.substring(0, 10) : "",
+
+            });
+        }
+    }, [taskDetails]);
+
     useEffect(() => {
         const fetchProjects = async () => {
             setLoading(true);
-            setError("");
-            const token = localStorage.getItem("token");
             try {
                 const response = await apiHandler.GetApi(api_url.getAllProjects, token);
                 if (Array.isArray(response.projects)) {
-                    setProjects(
-                        response.projects.filter(
-                            (p) =>
-                                p.project_status === "ongoing" || p.project_status === "on hold"
-                        )
+                    const filtered = response.projects.filter(
+                        (p) => p.project_status === "ongoing" || p.project_status === "on hold"
                     );
+                    setProjects(filtered);
                 } else {
                     setError(response?.message || "Failed to fetch projects");
                 }
@@ -50,22 +68,11 @@ const Section_a = () => {
     }, []);
 
 
-
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setTaskForm((prev) => ({ ...prev, [name]: value }));
-    };
-
-
     useEffect(() => {
         const fetchMembers = async () => {
             setLoading(true);
-            setError("");
-
             try {
                 const response = await apiHandler.GetApi(api_url.getAllEmployees, token);
-
                 if (Array.isArray(response)) {
                     setMembers(response);
                 } else {
@@ -77,75 +84,66 @@ const Section_a = () => {
                 setLoading(false);
             }
         };
-
         fetchMembers();
-
-        // Set assignedBy and assignedByRole from localStorage
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (user) {
-            setTaskForm((prev) => ({
-                ...prev,
-                assignedBy: `${user.firstName} ${user.lastName}`,
-                assignedByRole: user.role,
-            }));
-        }
     }, []);
 
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        console.log("Submitting task with data:", taskForm);
-        try {
-            const response = await apiHandler.postApiWithToken(api_url.addTask, taskForm, token);
-
-            if (response?.message == 'Task created successfully.') {
-                navigate("/AllTask")
-            }
-            else {
-
-            }
-
-        } catch (error) {
-            setError({ general: error.message || "Something went wrong." });
-        }
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setTaskForm((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleDivClick = () => {
         if (dateInputRef.current) {
             if (typeof dateInputRef.current.showPicker === "function") {
-                dateInputRef.current.showPicker(); // Modern browsers
+                dateInputRef.current.showPicker();
             } else {
-                dateInputRef.current.focus(); // Fallback
+                dateInputRef.current.focus();
             }
         }
     };
 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const token = localStorage.getItem("token");
+
+  const url = `http://localhost:8000/api/tasks/updateTask/${taskDetails.task_id}`;
+  const response = await apiHandler.PutApi(url, taskForm, token);
+
+  if (response?.message === "Task updated successfully.") {
+    navigate("/AllTask");
+  } else {
+    alert(response?.message || "Failed to update task");
+  }
+};
+
+
+
 
     return (
         <div className="max-w-4xl mx-auto mt-6">
-            <div className="mb-4 flex items-center justify-between ">
+            <div className="mb-4 flex items-center justify-between">
                 <button
                     onClick={() => navigate(-1)}
                     className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
                 >
                     ← Back
                 </button>
-                <h1 className="text-2xl font-bold text-center flex-grow text-gray-800">Create New Task</h1>
+                <h1 className="text-2xl font-bold text-center flex-grow text-gray-800">Edit Task</h1>
             </div>
 
             {error && <p className="text-red-600 mb-2">{error}</p>}
             {loading ? (
-                <p>Loading members...</p>
+                <p>Loading data...</p>
             ) : (
-                <div className="grid gap-4 border p-6 rounded-md bg-white shadow">
+                <form onSubmit={handleSubmit} className="grid gap-4 border p-6 rounded-md bg-white shadow">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                         <input
                             name="title"
                             value={taskForm.title}
                             onChange={handleInputChange}
-                            placeholder="Title"
                             className="border p-2 rounded w-full"
+                            placeholder="Title"
                         />
                     </div>
 
@@ -155,8 +153,8 @@ const Section_a = () => {
                             name="description"
                             value={taskForm.description}
                             onChange={handleInputChange}
-                            placeholder="Description"
                             className="border p-2 rounded w-full"
+                            placeholder="Description"
                         />
                     </div>
 
@@ -164,13 +162,14 @@ const Section_a = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                         <select
                             name="status"
-                            value={taskForm.status}
+                            value={taskForm.status?.toLowerCase() || ""}
                             onChange={handleInputChange}
                             className="border p-2 rounded w-full"
                         >
                             <option value="">Select Status</option>
                             <option value="pending">Pending</option>
-                            <option value="in progress">In Progress</option>
+                            <option value="in progress">In-Progress</option>
+                            <option value="in progress">Verification</option>
                             <option value="completed">Completed</option>
                         </select>
                     </div>
@@ -192,7 +191,6 @@ const Section_a = () => {
                         </select>
                     </div>
 
-                    {/* Assigned By - read-only input */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Assigned By</label>
                         <input
@@ -203,7 +201,6 @@ const Section_a = () => {
                         />
                     </div>
 
-                    {/* Assigned By Role - read-only input */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Assigned By Role</label>
                         <input
@@ -230,13 +227,11 @@ const Section_a = () => {
                         </select>
                     </div>
 
-
-
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
                         <select
                             name="project"
-                            value={taskForm.project}
+                            value={taskForm?.project || ""}
                             onChange={handleInputChange}
                             className="border p-2 rounded w-full"
                         >
@@ -249,11 +244,8 @@ const Section_a = () => {
                         </select>
                     </div>
 
-
                     <div onClick={handleDivClick} className="cursor-pointer">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Due Date
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                         <input
                             ref={dateInputRef}
                             type="date"
@@ -266,13 +258,13 @@ const Section_a = () => {
 
                     <div>
                         <button
-                            onClick={handleSubmit}
+                            type="submit"
                             className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
                         >
-                            Submit
+                            Update Task
                         </button>
                     </div>
-                </div>
+                </form>
             )}
         </div>
     );

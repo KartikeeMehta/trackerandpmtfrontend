@@ -39,6 +39,7 @@ const Section_a = () => {
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
+
   const navigate = useNavigate();
   useEffect(() => {
     const fetchMembers = async () => {
@@ -79,9 +80,8 @@ const Section_a = () => {
     setSelectedTask(null);
     const token = localStorage.getItem("token");
     try {
-      // Fetch all ongoing tasks and filter by assignedTo
       const response = await apiHandler.GetApi(api_url.getOngoingTasks, token);
-      if (Array.isArray(response.tasks)) {
+            if (Array.isArray(response.tasks)) {
         setTasks(response.tasks.filter((t) => t.assignedTo === memberId));
       } else {
         setTasks([]);
@@ -196,38 +196,40 @@ const Section_a = () => {
     }
   };
 
+
   const handleDeleteTask = async () => {
-    setDeleteTaskLoading(true);
-    setDeleteTaskError("");
-    const token = localStorage.getItem("token");
-    try {
-      const response = await apiHandler.PutApi(
-        api_url.updateTaskById + selectedTask._id,
-        {
-          status: "deleted",
-          deletionReason: deleteReason,
-        },
-        token
-      );
-      if (
-        response?.message?.toLowerCase().includes("deleted") ||
-        response?.success
-      ) {
-        setShowDeleteConfirm(false);
-        setSelectedTask(null);
-        setDeleteReason("");
-        setShowTaskHistory(true);
-        // Refresh the page after delete
-        window.location.reload();
-      } else {
-        setDeleteTaskError(response?.message || "Failed to delete task");
-      }
-    } catch (err) {
-      setDeleteTaskError(err?.message || "Failed to delete task");
-    } finally {
-      setDeleteTaskLoading(false);
+  setDeleteTaskLoading(true);
+  setDeleteTaskError("");
+  const token = localStorage.getItem("token");
+
+  try {
+    const response = await apiHandler.postApiWithToken(
+      api_url.deleteTaskById + selectedTask.task_id,
+      {
+        reason: deleteReason, 
+      },
+      token
+    );
+
+    if (
+      response?.message?.toLowerCase().includes("deleted") ||
+      response?.success
+    ) {
+      setShowDeleteConfirm(false);
+      setSelectedTask(null);
+      setDeleteReason("");
+      setShowTaskHistory(true);
+      window.location.reload();
+    } else {
+      setDeleteTaskError(response?.message || "Failed to delete task");
     }
-  };
+  } catch (err) {
+    setDeleteTaskError(err?.message || "Failed to delete task");
+  } finally {
+    setDeleteTaskLoading(false);
+  }
+};
+
 
   function formatName(name) {
     if (!name) return "";
@@ -254,8 +256,8 @@ const Section_a = () => {
               <li
                 key={index}
                 className={`p-4 hover:bg-gray-50 cursor-pointer ${selectedMember?.teamMemberId === member.teamMemberId
-                    ? "bg-blue-50"
-                    : ""
+                  ? "bg-blue-50"
+                  : ""
                   }`}
                 onClick={() => {
                   setSelectedMember(member);
@@ -302,11 +304,11 @@ const Section_a = () => {
                           }`}
                         onClick={() => setSelectedTask(task)}
                       >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-800">
+                        <div className="flex justify-between items-center ">
+                          <span className="font-medium text-gray-800 capitalize ">
                             {task.title}
                           </span>
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full capitalize">
                             {task.status}
                           </span>
                         </div>
@@ -373,7 +375,18 @@ const Section_a = () => {
                   <div className="flex gap-2">
                     <button
                       className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-                      onClick={handleEditTaskOpen}
+
+                      onClick={() => {
+                        if (selectedMember) {
+                          navigate("/EditTask", {
+                            state: {
+                              taskDetails: selectedTask,
+                            },
+                          });
+                        } else {
+                          console.warn("No member selected to edit.");
+                        }
+                      }}
                     >
                       <Edit size={16} /> Edit
                     </button>
@@ -474,7 +487,6 @@ const Section_a = () => {
           </div>
         </div>
       )}
-      {/* Edit Task Modal */}
       {showEditTaskModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
@@ -484,8 +496,8 @@ const Section_a = () => {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold mb-4">Edit Task</h3>
-            <form onSubmit={handleEditTask} className="space-y-4">
+            <h3 className="text-lg font-bold mb-4">Edit Task ssss</h3>
+            <form  className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Title

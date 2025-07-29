@@ -27,7 +27,8 @@ export const api_url = {
   deleteTask: BASE_URL + "/tasks/delete/", // append taskId or memberId
   updateTaskById: BASE_URL + "/tasks/updateTask/", // append taskId
   deleteTaskById: BASE_URL + "/tasks/deleteTask/", // append taskId
-  addTask: BASE_URL + "/tasks/createTask"
+  addTask: BASE_URL + "/tasks/createTask",
+
 };
 
 export const Methods = {

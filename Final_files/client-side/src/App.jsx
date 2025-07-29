@@ -16,6 +16,7 @@ import EmpLogin from "./pages/Login/emp_login";
 import AllTask from "./pages/AllTask";
 import ProjectDetails from "./pages/ProjectDetails";
 import CreateTask from "./pages/CreateTask";
+import EditTask from "./pages/EditTask";
 
 function App() {
   return (
@@ -65,6 +66,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+          <Route
+          path="/EditTask"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <EditTask />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        
 
 
         <Route

@@ -62,7 +62,6 @@ const TopBar = () => {
 
     const data = await response.json(); // ✅ Parse response
     setUserDetails(data); // ✅ Save to state
-    console.log(data, "data=====>");
   };
 
   return (
