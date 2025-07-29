@@ -322,7 +322,6 @@ exports.updateTaskById = async (req, res) => {
       priority,
       dueDate,
       completedAt,
-      deletionReason,
       comments,
     } = req.body;
 
@@ -346,7 +345,6 @@ exports.updateTaskById = async (req, res) => {
       if (priority) updatePayload.priority = priority;
       if (dueDate) updatePayload.dueDate = dueDate;
       if (completedAt) updatePayload.completedAt = completedAt;
-      if (deletionReason) updatePayload.deletionReason = deletionReason;
       if (comments) updatePayload.comments = comments;
     }
 
