@@ -306,72 +306,109 @@ const Section_a = () => {
               {filteredTeams.map((team) => (
                 <div
                   key={team._id}
-                  className="bg-white rounded-2xl shadow p-4 flex flex-col gap-2 w-full sm:w-[32%] md:w-[32%] lg:w-[32%] hover:bg-gray-100 transition min-w-[300px] max-w-[400px] cursor-pointer"
+                  className="group relative bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 transition-all duration-500 transform hover:-translate-y-3 overflow-hidden cursor-pointer min-w-[300px] max-w-[400px] flex flex-col"
                   onClick={() => setSelectedTeam(team)}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-blue-100 text-blue-700 font-bold flex items-center justify-center rounded-full text-xl">
-                      {team.teamName ? team.teamName[0] : "T"}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg">{team.teamName}</h3>
-                      <p className="text-gray-500 text-sm">
-                        Lead: {formatName(getLeadName(team))}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Members: {getMemberNames(team).length}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Projects: {getTeamProjects(team).length}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Tasks: {getTeamTasks(team).length}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {getMemberNames(team)
-                      .slice(0, 5)
-                      .map((member, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-blue-50 text-blue-700 rounded-full px-2 py-1 text-xs"
-                        >
-                          {member
-                            .split(" ")
-                            .map((w) => w[0])
-                            .join("")
-                            .toUpperCase()}
-                        </span>
-                      ))}
-                    {getMemberNames(team).length > 5 && (
-                      <span className="text-xs text-gray-400">
-                        +{getMemberNames(team).length - 5} more
+                  {/* Card Header */}
+                  <div className="p-6 pb-4 flex items-center gap-4 border-b border-gray-100">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+                      <span className="text-white font-bold text-2xl">
+                        {team.teamName ? team.teamName[0].toUpperCase() : "T"}
                       </span>
-                    )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900 mb-1">{team.teamName}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <p className="text-gray-600 text-xs font-medium">Lead: {formatName(getLeadName(team))}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button onClick={() => viewProjects(team)} size="sm">
-                      View Projects
-                    </Button>
-                    <Button
-                      onClick={() => viewTasks(team)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      View Tasks
-                    </Button>
+                  {/* Team Stats */}
+                  <div className="grid grid-cols-3 gap-2 px-6 py-4 border-b border-gray-100">
+                    <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-100">
+                      <div className="text-lg font-bold text-blue-700">{getMemberNames(team).length}</div>
+                      <div className="text-xs text-blue-600 font-semibold">Members</div>
+                    </div>
+                    <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-100">
+                      <div className="text-lg font-bold text-green-700">{getTeamProjects(team).length}</div>
+                      <div className="text-xs text-green-600 font-semibold">Projects</div>
+                    </div>
+                    <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-100">
+                      <div className="text-lg font-bold text-purple-700">{getTeamTasks(team).length}</div>
+                      <div className="text-xs text-purple-600 font-semibold">Tasks</div>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  {/* Team Members */}
+                  <div className="px-6 py-4 border-b border-gray-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide">Team Members</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {getMemberNames(team)
+                        .slice(0, 5)
+                        .map((member, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 p-1 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 shadow-sm"
+                          >
+                            <span className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                              {member
+                                .split(" ")
+                                .map((w) => w[0])
+                                .join("")
+                                .toUpperCase()}
+                            </span>
+                            <span className="text-xs text-gray-800 font-semibold">{member}</span>
+                          </div>
+                        ))}
+                      {getMemberNames(team).length > 5 && (
+                        <div className="flex items-center gap-2 p-1 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 shadow-sm">
+                          <span className="text-xs text-gray-600 font-semibold">
+                            +{getMemberNames(team).length - 5} more
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2 p-6">
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          viewProjects(team);
+                        }}
+                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        size="sm"
+                      >
+                        <Activity size={14} className="mr-1" />
+                        View Projects
+                      </Button>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          viewTasks(team);
+                        }}
+                        className="flex-1 bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Clock size={14} className="mr-1" />
+                        View Tasks
+                      </Button>
+                    </div>
                     <Button
-                      className="bg-red-500 text-white hover:bg-red-600"
+                      className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteTeam(team);
                       }}
                       size="sm"
                     >
-                      Delete
+                      <Trash2 size={14} className="mr-1" />
+                      Delete Team
                     </Button>
                   </div>
                 </div>

@@ -331,61 +331,78 @@ const Section_a = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Sidebar: Members */}
-      <div className="w-64 bg-white shadow h-screen overflow-y-auto border-r">
-        {/* <h2 className="text-xl font-bold text-gray-800 p-6 pb-2">
-          All Team Members
-        </h2> */}
+      <div className="w-80 bg-white/90 backdrop-blur-sm shadow-xl h-screen overflow-y-auto border-r border-gray-200">
+        <div className="p-6">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Team Members</h2>
+            <p className="text-gray-600 text-sm">Select a member to view their tasks</p>
+          </div>
 
-        <div className="max-w-md mx-auto space-y-4 mt-4">
-          <CustomDropdown
-            title="Select Team Role"
-            items={teamMembers}
-            itemKey="id"
-            itemLabel="label"
-            onClick={handleRoleSelect}
-            className="w-60 ml-2"
-          />
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <CustomDropdown
+                title="Select Team Role"
+                items={teamMembers}
+                itemKey="id"
+                itemLabel="label"
+                onClick={handleRoleSelect}
+                className="w-full"
+              />
+            </div>
 
-          <div className={`bg-white rounded p-4 ${selectedRole !== "" ? "shadow" : ""}`}>
             {selectedRole !== "" && (
-              <h3 className="font-semibold text-gray-700 mb-2 capitalize">
-                All {selectedRole}
-              </h3>
-            )}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                  <h3 className="font-bold text-gray-800 capitalize">
+                    All {selectedRole}
+                  </h3>
+                </div>
 
-            {/* Search Input */}
-            {selectedRole !== "" && (
-              <div className="relative mb-3">
-                <input
-                  type="text"
-                  placeholder="Search members..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                  🔍
-                </span>
-              </div>
-            )}
+                {/* Search Input */}
+                <div className="relative mb-4">
+                  <input
+                    type="text"
+                    placeholder="Search members..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-4 pr-10 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-gray-50"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    🔍
+                  </span>
+                </div>
 
-            {/* Members List */}
-            {filteredMembersBySearch.length > 0 && (
-              <div className="bg-white p-2 rounded">
-                {filteredMembersBySearch.map((member) => (
-                  <button
-                    key={member._id}
-                    onClick={() => {
-                      setSelectedMember(member);
-                      setShowTaskHistory(false);
-                    }}
-                    className="w-full text-left px-4 py-2 mb-1 rounded bg-gray-100 hover:bg-blue-100 transition"
-                  >
-                    {member.name}
-                  </button>
-                ))}
+                {/* Members List */}
+                {filteredMembersBySearch.length > 0 && (
+                  <div className="space-y-2">
+                    {filteredMembersBySearch.map((member) => (
+                      <button
+                        key={member._id}
+                        onClick={() => {
+                          setSelectedMember(member);
+                          setShowTaskHistory(false);
+                        }}
+                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                          selectedMember?._id === member._id
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                            : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                          selectedMember?._id === member._id
+                            ? "bg-white/20 text-white"
+                            : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                        }`}>
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium">{member.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -421,101 +438,139 @@ const Section_a = () => {
       <div className="flex-1 p-8">
         {selectedMember ? (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
-                Tasks for {formatName(selectedMember.name)}
-              </h2>
-              <div className="flex items-center gap-4  ">
-                 {/* Project Dropdown */}
-            <div className="">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Project
-              </label>
-              {projectsLoading ? (
-                <div className="text-gray-500">Loading projects...</div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedProject ? selectedProject.project_id : ""}
-                    onChange={(e) => {
-                      const project = projects.find(p => p.project_id === e.target.value);
-                      setSelectedProject(project);
-                    }}
-                    className="flex-1 max-w-md border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  >
-                    <option value="">Select a project</option>
-                    {projects.map((project) => (
-                      <option key={project.project_id} value={project.project_id}>
-                        {project.project_name}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedProject && (
-                    <button
-                      onClick={() => {
-                        setSelectedProject(null);
-                        fetchOngoingTasks(selectedMember.teamMemberId);
-                      }}
-                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                      Clear
-                    </button>
-                  )}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    Tasks for {formatName(selectedMember.name)}
+                  </h1>
+                  <p className="text-gray-600">Manage and track task progress</p>
                 </div>
-              )}
-            </div>
- <button
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                onClick={() => navigate("/CreateTask")}
-              >
-                <Plus size={18} /> Add Task
-              </button>
+                <button
+                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  onClick={() => navigate("/CreateTask")}
+                >
+                  <Plus size={18} /> Add Task
+                </button>
               </div>
-             
+
+              {/* Project Selection */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Filter by Project
+                    </label>
+                    {projectsLoading ? (
+                      <div className="text-gray-500 text-sm">Loading projects...</div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={selectedProject ? selectedProject.project_id : ""}
+                          onChange={(e) => {
+                            const project = projects.find(p => p.project_id === e.target.value);
+                            setSelectedProject(project);
+                          }}
+                          className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
+                        >
+                          <option value="">Select a project</option>
+                          {projects.map((project) => (
+                            <option key={project.project_id} value={project.project_id}>
+                              {project.project_name}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedProject && (
+                          <button
+                            onClick={() => {
+                              setSelectedProject(null);
+                              fetchOngoingTasks(selectedMember.teamMemberId);
+                            }}
+                            className="px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
             
            
             
             {!showTaskHistory ? (
               <>
-                <h3 className="text-lg font-semibold mb-2">
-                  {selectedProject ? `Tasks in ${selectedProject.project_name}` : "Ongoing Tasks"}
-                </h3>
-                {tasksLoading ? (
-                  <div className="text-gray-500">Loading tasks...</div>
-                ) : tasks.length === 0 ? (
-                  <div className="text-gray-500">No ongoing tasks.</div>
-                ) : (
-                  <ul className="divide-y divide-gray-200 mb-4">
-                    {tasks.map((task) => (
-                      <li
-                        key={task._id}
-                        className={`p-4 hover:bg-blue-100 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {selectedProject ? `Tasks in ${selectedProject.project_name}` : "Ongoing Tasks"}
+                    </h3>
+                  </div>
+                  
+                  {tasksLoading ? (
+                    <div className="text-center py-12">
+                      <div className="inline-flex items-center gap-3 text-gray-500">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        Loading tasks...
+                      </div>
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="bg-gray-50 rounded-2xl p-8 max-w-md mx-auto">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CalendarDays size={24} className="text-gray-400" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h4>
+                        <p className="text-gray-500 text-sm">
+                          {selectedProject 
+                            ? `No tasks found in ${selectedProject.project_name}`
+                            : "No ongoing tasks for this member."}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {tasks.map((task) => (
+                        <div
+                          key={task._id}
+                          className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                            selectedTask?._id === task._id 
+                              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg" 
+                              : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
                           }`}
-                        onClick={() => setSelectedTask(task)}
-                      >
-                        <div className="flex justify-between items-center ">
-                          <span className="font-medium text-gray-800 capitalize   ">
-                            {task.title}
-                          </span>
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full capitalize">
-                            {task.status}
-                          </span>
+                          onClick={() => setSelectedTask(task)}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <h4 className="font-bold text-gray-900 capitalize text-lg">
+                              {task.title}
+                            </h4>
+                            <span className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                              task.status === 'completed' 
+                                ? 'bg-green-100 text-green-700'
+                                : task.status === 'in-progress'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {task.status}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            {task.description}
+                          </p>
                         </div>
-                        <div className="text-sm text-gray-500 mt-1">
-                          {task.description}
-                        </div>
-                      </li>
-
-                    
-                    ))}
-                  </ul>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
                 <button
-                  className="flex items-center gap-2 text-blue-600 hover:underline mt-4"
+                  className="flex items-center gap-3 text-blue-600 hover:text-blue-700 font-semibold transition-all duration-200 hover:scale-105"
                   onClick={() => setShowTaskHistory(true)}
                 >
-                  <History size={16} /> Task History
+                  <History size={18} /> Task History
                 </button>
               </>
             ) : (
@@ -609,16 +664,21 @@ const Section_a = () => {
             )}
           </>
         ) : (
-          <div className="text-gray-500 flex items-center justify-center h-full">
-            <button
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              onClick={() => navigate("/CreateTask")}
-            >
-              <Plus size={18} /> Add Task
-            </button>
+          <div className="text-center py-20">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 max-w-md mx-auto shadow-xl border border-gray-100">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Users size={32} className="text-blue-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to All Tasks</h3>
+              <p className="text-gray-600 text-lg mb-6">
+                Select a team member from the sidebar to view and manage their tasks.
+              </p>
+              <div className="flex items-center justify-center gap-2 text-gray-500">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <span className="text-sm">Choose a role and member to get started</span>
+              </div>
+            </div>
           </div>
-
-
         )}
       </div>
       {/* Add Task Modal */}
