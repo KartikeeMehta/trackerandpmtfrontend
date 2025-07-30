@@ -11,6 +11,8 @@ import {
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import { useNavigate } from "react-router-dom";
+import CustomDropDown from "@/components/CustomDropDown";
+import CustomDropdown from "@/components/CustomDropDown";
 
 const Section_a = () => {
   const [members, setMembers] = useState([]);
@@ -37,6 +39,9 @@ const Section_a = () => {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("");
+  console.log(selectedRole, "------>");
+
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
 
@@ -51,6 +56,8 @@ const Section_a = () => {
           api_url.getAllEmployees,
           token
         );
+        console.log(response, "respose=======>");
+
         if (Array.isArray(response)) {
           setMembers(response);
         } else {
@@ -81,7 +88,7 @@ const Section_a = () => {
     const token = localStorage.getItem("token");
     try {
       const response = await apiHandler.GetApi(api_url.getOngoingTasks, token);
-            if (Array.isArray(response.tasks)) {
+      if (Array.isArray(response.tasks)) {
         setTasks(response.tasks.filter((t) => t.assignedTo === memberId));
       } else {
         setTasks([]);
@@ -198,37 +205,37 @@ const Section_a = () => {
 
 
   const handleDeleteTask = async () => {
-  setDeleteTaskLoading(true);
-  setDeleteTaskError("");
-  const token = localStorage.getItem("token");
+    setDeleteTaskLoading(true);
+    setDeleteTaskError("");
+    const token = localStorage.getItem("token");
 
-  try {
-    const response = await apiHandler.postApiWithToken(
-      api_url.deleteTaskById + selectedTask.task_id,
-      {
-        reason: deleteReason, 
-      },
-      token
-    );
+    try {
+      const response = await apiHandler.postApiWithToken(
+        api_url.deleteTaskById + selectedTask.task_id,
+        {
+          reason: deleteReason,
+        },
+        token
+      );
 
-    if (
-      response?.message?.toLowerCase().includes("deleted") ||
-      response?.success
-    ) {
-      setShowDeleteConfirm(false);
-      setSelectedTask(null);
-      setDeleteReason("");
-      setShowTaskHistory(true);
-      window.location.reload();
-    } else {
-      setDeleteTaskError(response?.message || "Failed to delete task");
+      if (
+        response?.message?.toLowerCase().includes("deleted") ||
+        response?.success
+      ) {
+        setShowDeleteConfirm(false);
+        setSelectedTask(null);
+        setDeleteReason("");
+        setShowTaskHistory(true);
+        window.location.reload();
+      } else {
+        setDeleteTaskError(response?.message || "Failed to delete task");
+      }
+    } catch (err) {
+      setDeleteTaskError(err?.message || "Failed to delete task");
+    } finally {
+      setDeleteTaskLoading(false);
     }
-  } catch (err) {
-    setDeleteTaskError(err?.message || "Failed to delete task");
-  } finally {
-    setDeleteTaskLoading(false);
-  }
-};
+  };
 
 
   function formatName(name) {
@@ -238,6 +245,19 @@ const Section_a = () => {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
       .join(" ");
   }
+  const teamMembers = [
+    { id: 'teamMember', label: 'teamMember' },
+    { id: 'teamLead', label: 'teamLead' },
+    { id: 'admin', label: 'admin' },
+  ];
+  const handleRoleSelect = (item) => {
+    console.log(item, "item---->");
+
+    setSelectedRole(item.label);
+  };
+
+  const filteredMembers = members.filter((member) => member.role === selectedRole);
+  console.log("Filtered Members ===>", filteredMembers);
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -246,7 +266,40 @@ const Section_a = () => {
         <h2 className="text-xl font-bold text-gray-800 p-6 pb-2">
           All Team Members
         </h2>
-        {loading ? (
+
+        <div className="max-w-md mx-auto space-y-4">
+          <CustomDropdown
+            title="Select Team Role"
+            items={teamMembers}
+            itemKey="id"
+            itemLabel="label"
+            onClick={handleRoleSelect}
+            className="w-60 ml-2"
+          />
+
+          <div className="bg-white rounded shadow p-4">
+            <h3 className="font-semibold text-gray-700 mb-2 capitalize">
+              All  {' '}{selectedRole}</h3>
+
+            {filteredMembers.length > 0 ? (
+              <ul className="list-disc list-inside text-gray-800 bg-white p-2 rounded">
+                {filteredMembers.map((member) => (
+                  <button
+                    key={member._id}
+                    onClick={() => console.log("Clicked:", member)}
+                    className="w-full text-left px-4 py-2 mb-1 rounded bg-gray-100 hover:bg-blue-100 transition"
+                  >
+                    {member.name}
+                  </button>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No members found.</p>
+            )}
+          </div>
+        </div>
+
+        {/* {loading ? (
           <div className="text-gray-500 p-6">Loading members...</div>
         ) : error ? (
           <div className="text-red-600 p-6">{error}</div>
@@ -270,7 +323,7 @@ const Section_a = () => {
               </li>
             ))}
           </ul>
-        )}
+        )} */}
       </div>
       {/* Main Content: Tasks */}
       <div className="flex-1 p-8">
@@ -497,7 +550,7 @@ const Section_a = () => {
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold mb-4">Edit Task ssss</h3>
-            <form  className="space-y-4">
+            <form className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Title

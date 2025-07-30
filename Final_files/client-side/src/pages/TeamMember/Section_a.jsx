@@ -346,7 +346,7 @@ const Section_a = () => {
                   <Users className="w-5 h-5 text-blue-300" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-gray-900 capitalize">
                     {member.name}
                   </h3>
                   <p className="text-sm text-gray-500">{member.role}</p>

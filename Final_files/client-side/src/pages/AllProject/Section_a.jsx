@@ -104,7 +104,7 @@ const Section_a = () => {
                 </span>
                 <div className="flex-1 flex flex-col justify-between mt-2">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1 truncate capitalize">
                       {project.project_name}
                     </h3>
                     <p className="text-sm text-gray-600 mb-2 line-clamp-2 min-h-[2.5em]">
