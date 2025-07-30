@@ -10,6 +10,8 @@ const sampleLogo = <img src="/vite.svg" alt="Logo" className="h-8 w-8" />;
 const TopBar = () => {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState({});
+  
+console.log(userDetails,"userDetails--->");
 
   useEffect(() => {
     fetchUserData();
@@ -83,7 +85,12 @@ const TopBar = () => {
           onClick={() => setOpen((prev) => !prev)}
         >
           <img
-            src={`${image_url}${userDetails?.companyLogo}`}
+              src={
+                            
+                            (userDetails?.user?.companyLogo
+                              ? image_url + userDetails?.user?.companyLogo
+                              : "/vite.svg")
+                          }
             alt="Company Logo"
             className="h-8 w-8 rounded-full border object-cover"
           />

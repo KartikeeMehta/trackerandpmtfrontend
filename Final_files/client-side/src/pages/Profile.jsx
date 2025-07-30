@@ -46,6 +46,7 @@ const Profile = () => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : {};
   });
+  
   const [userType, setUserType] = useState(getUserType());
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(
