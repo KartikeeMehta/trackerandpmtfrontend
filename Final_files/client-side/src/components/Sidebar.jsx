@@ -38,12 +38,10 @@ const navLinks = [
     ],
   },
 ];
-const Sidebar = ({ isOpen, onToggle }) => {
+const Sidebar = () => {
   const location = useLocation();
   return (
-    <aside className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
-      isOpen ? "w-64" : "w-16"
-    }`}>
+    <aside className="w-64 bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20">
       <div className="flex items-center justify-between p-4 shadow-sm mt-3">
         <div className="flex items-center gap-2">
           <svg
@@ -62,29 +60,18 @@ const Sidebar = ({ isOpen, onToggle }) => {
               strokeLinejoin="round"
             />
           </svg>
-          {isOpen && (
-            <span className="text-blue-700 font-semibold text-xl">
-              Project Flow
-            </span>
-          )}
+          <span className="text-blue-700 font-semibold text-xl">
+            Project Flow
+          </span>
         </div>
-        <button
-          onClick={onToggle}
-          className="text-gray-700 hover:text-gray-900 transition-colors"
-        >
-          <ChevronLeft className={`w-5 h-5 transition-transform duration-300 ${
-            isOpen ? "rotate-0" : "rotate-180"
-          }`} size={18} />
-        </button>
+        <ChevronLeft className="text-gray-700 w-5 h-5" size={18} />
       </div>
       <nav className="p-4">
         {navLinks.map((section, index) => (
           <div key={index} className="mb-4">
-            {isOpen && (
-              <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-                {section.label}
-              </h4>
-            )}
+            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
+              {section.label}
+            </h4>
             <ul className="space-y-1 mb-4">
               {section.items.map((item) => (
                 <li key={item.to}>
@@ -95,15 +82,14 @@ const Sidebar = ({ isOpen, onToggle }) => {
                         ? "bg-blue-50 text-blue-700 border-blue-700 rounded"
                         : "text-gray-700 hover:bg-gray-100 border-transparent"
                     }`}
-                    title={!isOpen ? item.label : ""}
                   >
                     {item.icon}
-                    {isOpen && <span>{item.label}</span>}
+                    <span>{item.label}</span>
                   </Link>
                 </li>
               ))}
             </ul>
-            {isOpen && <hr />}
+            <hr />
           </div>
         ))}
       </nav>
