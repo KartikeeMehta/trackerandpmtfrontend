@@ -117,157 +117,176 @@ const Section_a = () => {
   return (
     <div className="min-h-screen w-full flex justify-center items-start px-4 py-10">
       <div className="w-full max-w-8xl flex flex-col md:flex-row gap-8">
-        {/* Left: Project Details (simple card) */}
+        {/* Left: Project Details */}
         <div className="flex-1 pr-0 md:pr-8 py-8 bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
           <div className="mb-6 flex items-center gap-2">
             <button
               onClick={() => navigate(-1)}
               className="text-gray-500 hover:text-black text-3xl font-semibold"
             >
-            <ArrowLeft color="black" />          
+              <ArrowLeft color="black" />          
             </button>
             <h1 className="text-2xl font-bold text-gray-900">
               Project Details
             </h1>
           </div>
-          {/* Project Name and Status */}
-          <div className="mb-4">
-            <h2 className="text-2xl font-extrabold text-blue-900 tracking-tight mb-1">
-              {project.project_name || "-"}
-            </h2>
-            <span
-              className={`inline-block px-4 py-1 rounded-full text-sm font-bold mt-1 ${
-                project.project_status === "completed"
-                  ? "bg-green-100 text-green-700"
-                  : project.project_status === "on hold"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {project.project_status ? project.project_status.charAt(0).toUpperCase() + project.project_status.slice(1) : "-"}
-            </span>
-          </div>
-          {/* Description */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-1 flex items-center gap-2">
-              <Hash size={18} /> Description
-            </h3>
-            <p className="text-gray-700 text-base bg-blue-50 rounded p-3">
-              {project.project_description ? project.project_description.charAt(0).toUpperCase() + project.project_description.slice(1) : "-"}
-            </p>
-          </div>
-          {/* Team & Lead */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-2">Team</h3>
-            <div className="flex items-center gap-2 mb-2">
-              <Users size={18} className="text-blue-700" />
-              <span className="font-medium text-gray-900">
-                {getTeamName(project.team_id) ? getTeamName(project.team_id).charAt(0).toUpperCase() + getTeamName(project.team_id).slice(1) : "-"}
-              </span>
-            </div>
-            <h3 className="font-semibold text-gray-700 mb-2 mt-4">
-              Project Lead
-            </h3>
-            <div className="flex items-center gap-2 mb-2">
-              <User size={18} className="text-blue-700" />
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold">
-                {getInitials(getEmployeeName(project.project_lead))}
-              </span>
-              <span className="font-medium text-gray-900">
-                {getEmployeeName(project.project_lead)}
-              </span>
-              <span className="text-xs text-gray-500">
-                ({project.project_lead})
-              </span>
-            </div>
-          </div>
-          {/* Team Members */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <Users size={16} /> Team Members (
-              {project.team_members?.length || 0})
-            </h3>
-            <ul className="space-y-2">
-              {Array.isArray(project.team_members) &&
-              project.team_members.length > 0 ? (
-                project.team_members.map((id, idx) => {
-                  const emp = getEmployee(id);
-                  return (
-                    <li key={id || idx} className="flex items-center gap-3">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-200 text-blue-800 font-bold">
-                        {getInitials(emp?.name || id)}
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">
-                        {emp?.name || id}
-                      </span>
-                      <span className="text-xs text-gray-500">({id})</span>
-                    </li>
-                  );
-                })
-              ) : (
-                <li className="text-gray-400">No team members</li>
-              )}
-            </ul>
-          </div>
-          {/* Dates & Meta Info */}
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-2">
-              <CalendarDays size={18} className="text-blue-700" />
-              <span className="font-semibold text-gray-700">Start Date:</span>
-              <span className="text-gray-900">{project.start_date || "-"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarDays size={18} className="text-blue-700" />
-              <span className="font-semibold text-gray-700">End Date:</span>
-              <span className="text-gray-900">{project.end_date || "-"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarDays size={18} className="text-blue-700" />
-              <span className="font-semibold text-gray-700">Created At:</span>
-              <span className="text-gray-900">
-                {project.createdAt
-                  ? new Date(project.createdAt).toLocaleString()
-                  : "-"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarDays size={18} className="text-blue-700" />
-              <span className="font-semibold text-gray-700">Updated At:</span>
-              <span className="text-gray-900">
-                {project.updatedAt
-                  ? new Date(project.updatedAt).toLocaleString()
-                  : "-"}
-              </span>
-            </div>
-          </div>
-          {/* Any other fields */}
-          <div className="mb-2">
-            {Object.entries(project).map(([key, value]) => {
-              if (
-                [
-                  "project_name",
-                  "project_description",
-                  "project_status",
-                  "team_id",
-                  "project_lead",
-                  "team_members",
-                  "start_date",
-                  "end_date",
-                  "createdAt",
-                  "updatedAt",
-                  "project_id",
-                  "_id",
-                  "__v",
-                ].includes(key)
-              )
-                return null;
-              return (
-                <div key={key} className="mb-1 flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">{key.charAt(0).toUpperCase() + key.slice(1)}:</span>
-                  <span className="text-gray-800">{String(value) ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : "-"}</span>
+
+          {/* Project Information Form */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  value={project.project_name || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client Name
+                </label>
+                <input
+                  type="text"
+                  value={project.client_name || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Description
+                </label>
+                <textarea
+                  value={project.project_description || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  rows={3}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={project.start_date || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={project.end_date || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Status
+                </label>
+                <input
+                  type="text"
+                  value={project.project_status ? project.project_status.charAt(0).toUpperCase() + project.project_status.slice(1) : ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Lead
+                </label>
+                <input
+                  type="text"
+                  value={getEmployeeName(project.project_lead) || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Team
+                </label>
+                <input
+                  type="text"
+                  value={getTeamName(project.team_id) || ""}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                  readOnly
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Team Members
+                </label>
+                <div className="border border-gray-300 rounded-md p-3 bg-gray-50 min-h-[100px]">
+                  {Array.isArray(project.team_members) && project.team_members.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {project.team_members.map((memberId) => {
+                        const emp = getEmployee(memberId);
+                        return (
+                          <div key={memberId} className="flex items-center space-x-2">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-200 text-blue-800 font-bold text-xs">
+                              {getInitials(emp?.name || memberId)}
+                            </span>
+                            <span className="text-sm text-gray-700">
+                              {emp?.name || memberId} ({memberId})
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-sm">No team members assigned</div>
+                  )}
                 </div>
-              );
-            })}
+              </div>
+            </div>
+
+            {/* Additional Fields */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Additional Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Created At
+                  </label>
+                  <input
+                    type="text"
+                    value={project.createdAt ? new Date(project.createdAt).toLocaleString() : ""}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Updated At
+                  </label>
+                  <input
+                    type="text"
+                    value={project.updatedAt ? new Date(project.updatedAt).toLocaleString() : ""}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 cursor-not-allowed"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         {/* Right: Tasks for this Project (light blue background) */}

@@ -428,7 +428,9 @@ const Section_a = () => {
               <div className="flex items-center gap-4  ">
                  {/* Project Dropdown */}
             <div className="">
-            
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Project
+              </label>
               {projectsLoading ? (
                 <div className="text-gray-500">Loading projects...</div>
               ) : (
