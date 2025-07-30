@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-import { Users, User, CalendarDays, Hash } from "lucide-react";
+import { Users, User, CalendarDays, Hash, ArrowLeft} from "lucide-react";
 
 const Section_a = () => {
   const { state } = useLocation();
@@ -122,9 +122,9 @@ const Section_a = () => {
           <div className="mb-6 flex items-center gap-2">
             <button
               onClick={() => navigate(-1)}
-              className="text-gray-500 hover:text-black text-xl font-semibold"
+              className="text-gray-500 hover:text-black text-3xl font-semibold"
             >
-              &larr;
+            <ArrowLeft color="black" />          
             </button>
             <h1 className="text-2xl font-bold text-gray-900">
               Project Details
@@ -144,7 +144,7 @@ const Section_a = () => {
                   : "bg-blue-100 text-blue-700"
               }`}
             >
-              {project.project_status || "-"}
+              {project.project_status ? project.project_status.charAt(0).toUpperCase() + project.project_status.slice(1) : "-"}
             </span>
           </div>
           {/* Description */}
@@ -153,7 +153,7 @@ const Section_a = () => {
               <Hash size={18} /> Description
             </h3>
             <p className="text-gray-700 text-base bg-blue-50 rounded p-3">
-              {project.project_description || "-"}
+              {project.project_description ? project.project_description.charAt(0).toUpperCase() + project.project_description.slice(1) : "-"}
             </p>
           </div>
           {/* Team & Lead */}
@@ -162,9 +162,8 @@ const Section_a = () => {
             <div className="flex items-center gap-2 mb-2">
               <Users size={18} className="text-blue-700" />
               <span className="font-medium text-gray-900">
-                {getTeamName(project.team_id)}
+                {getTeamName(project.team_id) ? getTeamName(project.team_id).charAt(0).toUpperCase() + getTeamName(project.team_id).slice(1) : "-"}
               </span>
-              <span className="text-xs text-gray-500">({project.team_id})</span>
             </div>
             <h3 className="font-semibold text-gray-700 mb-2 mt-4">
               Project Lead
@@ -264,8 +263,8 @@ const Section_a = () => {
                 return null;
               return (
                 <div key={key} className="mb-1 flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">{key}:</span>
-                  <span className="text-gray-800">{String(value) || "-"}</span>
+                  <span className="font-semibold text-gray-700">{key.charAt(0).toUpperCase() + key.slice(1)}:</span>
+                  <span className="text-gray-800">{String(value) ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : "-"}</span>
                 </div>
               );
             })}
