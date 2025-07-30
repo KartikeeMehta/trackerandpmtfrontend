@@ -28,6 +28,8 @@ export const api_url = {
   updateTaskById: BASE_URL + "/tasks/updateTask/", // append taskId
   deleteTaskById: BASE_URL + "/tasks/deleteTask/", // append taskId
   addTask: BASE_URL + "/tasks/createTask",
+  getProjectsByTeamMember: BASE_URL + "/projects/team-member/", // append teamMemberId/projects
+  getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
 
 };
 

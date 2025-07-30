@@ -426,3 +426,44 @@ exports.deleteTaskById = async (req, res) => {
     res.status(500).json({ message: "Error deleting task.", error });
   }
 };
+
+exports.getTasksByMemberInProject = async (req, res) => {
+  try {
+    const { teamMemberId, projectId } = req.params;
+
+    // 🔐 Role-based access control
+    if (
+      req.user.role === "employee" &&
+      req.user.teamMemberId !== teamMemberId
+    ) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+
+    // Validate employee
+    const employee = await Employee.findOne({ teamMemberId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    // Validate project
+    const project = await Project.findOne({ project_id: projectId });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found." });
+    }
+
+    const tasks = await Task.find({
+      assignedTo: teamMemberId,
+      project: projectId,
+      status: { $ne: "deleted" },
+    });
+
+    if (!tasks.length) {
+      return res.status(404).json({ message: "No tasks found for this employee in this project." });
+    }
+
+    res.status(200).json({ tasks });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching tasks.", error });
+  }
+};

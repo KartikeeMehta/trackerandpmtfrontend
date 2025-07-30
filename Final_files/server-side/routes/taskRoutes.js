@@ -31,4 +31,7 @@ router.delete('/delete/:teamMemberId',  authMiddleware, isAuthorizedToAssign, ta
 // 🔹 Delete a single task by its taskId
 router.post('/deleteTask/:task_id', authMiddleware, isAuthorizedToAssign, taskController.deleteTaskById);
 
+// 🔹 Get tasks assigned to a specific team member in a specific project
+router.get("/:teamMemberId/project/:projectId", authMiddleware, taskController.getTasksByMemberInProject);
+
 module.exports = router;

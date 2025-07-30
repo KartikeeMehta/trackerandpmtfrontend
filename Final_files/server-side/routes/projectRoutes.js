@@ -8,6 +8,6 @@ router.get('/:projectId', authMiddleware, projectController.getProjectById);    
 router.get('/', authMiddleware, projectController.getAllProjects);              // ✅ get all projects
 router.put('/:projectId', authMiddleware, projectController.updateProject);     // ✅ update project
 router.delete('/:projectId', authMiddleware, projectController.deleteProject);  // ✅ delete project
-
+router.get("/team-member/:teamMemberId/projects", authMiddleware, projectController.getProjectsByTeamMember); // ✅ get projects by team member
 
 module.exports = router;

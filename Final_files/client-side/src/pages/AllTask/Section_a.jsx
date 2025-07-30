@@ -45,8 +45,9 @@ const Section_a = () => {
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-
-
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -77,12 +78,19 @@ const Section_a = () => {
 
   useEffect(() => {
     if (!selectedMember) return;
+    fetchProjectsByTeamMember(selectedMember.teamMemberId);
     if (showTaskHistory) {
       fetchTaskHistory(selectedMember.teamMemberId);
-    } else {
+    } else if (!selectedProject) {
       fetchOngoingTasks(selectedMember.teamMemberId);
     }
   }, [selectedMember, showTaskHistory]);
+
+  useEffect(() => {
+    if (selectedProject && selectedMember) {
+      fetchTasksByMemberInProject(selectedMember.teamMemberId, selectedProject.project_id);
+    }
+  }, [selectedProject, selectedMember]);
 
   const fetchOngoingTasks = async (memberId) => {
     setTasksLoading(true);
@@ -122,6 +130,55 @@ const Section_a = () => {
       setTaskHistory([]);
     } finally {
       setTaskHistoryLoading(false);
+    }
+  };
+
+  const fetchProjectsByTeamMember = async (memberId) => {
+    setProjectsLoading(true);
+    setProjects([]);
+    setSelectedProject(null);
+    const token = localStorage.getItem("token");
+    try {
+      console.log("Fetching projects for memberId:", memberId);
+      const response = await apiHandler.GetApi(
+        api_url.getProjectsByTeamMember + memberId + "/projects",
+        token
+      );
+      console.log("Projects response:", response);
+      if (Array.isArray(response.projects)) {
+        setProjects(response.projects);
+      } else {
+        console.log("No projects array in response:", response);
+        setProjects([]);
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+      setProjects([]);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const fetchTasksByMemberInProject = async (memberId, projectId) => {
+    setTasksLoading(true);
+    setTasks([]);
+    setSelectedTask(null);
+    const token = localStorage.getItem("token");
+    try {
+      const response = await apiHandler.GetApi(
+        api_url.getTasksByMemberInProject + memberId + "/project/" + projectId,
+        token
+      );
+      if (Array.isArray(response.tasks)) {
+        setTasks(response.tasks);
+      } else {
+        setTasks([]);
+      }
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      setTasks([]);
+    } finally {
+      setTasksLoading(false);
     }
   };
 
@@ -360,16 +417,62 @@ const Section_a = () => {
               <h2 className="text-2xl font-bold text-gray-800">
                 Tasks for {formatName(selectedMember.name)}
               </h2>
-              <button
+              <div className="flex items-center gap-4  ">
+                 {/* Project Dropdown */}
+            <div className="">
+            
+              {projectsLoading ? (
+                <div className="text-gray-500">Loading projects...</div>
+              ) : projects.length === 0 ? (
+                <div className="text-gray-500">No projects found for this team member.</div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedProject ? selectedProject.project_id : ""}
+                    onChange={(e) => {
+                      const project = projects.find(p => p.project_id === e.target.value);
+                      setSelectedProject(project);
+                    }}
+                    className="flex-1 max-w-md border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Select a project</option>
+                    {projects.map((project) => (
+                      <option key={project.project_id} value={project.project_id}>
+                        {project.project_name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedProject && (
+                    <button
+                      onClick={() => {
+                        setSelectedProject(null);
+                        fetchOngoingTasks(selectedMember.teamMemberId);
+                      }}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+ <button
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                 onClick={() => navigate("/CreateTask")}
               >
                 <Plus size={18} /> Add Task
               </button>
+              </div>
+             
             </div>
+            
+           
+            
             {!showTaskHistory ? (
               <>
-                <h3 className="text-lg font-semibold mb-2">Ongoing Tasks</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  {selectedProject ? `Tasks in ${selectedProject.project_name}` : "Ongoing Tasks"}
+                </h3>
                 {tasksLoading ? (
                   <div className="text-gray-500">Loading tasks...</div>
                 ) : tasks.length === 0 ? (

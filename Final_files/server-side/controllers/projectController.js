@@ -214,3 +214,48 @@ exports.deleteProject = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.getProjectsByTeamMember = async (req, res) => {
+  try {
+    const { teamMemberId } = req.params;
+    console.log("Looking for projects for teamMemberId:", teamMemberId);
+
+    // Role-based access control - allow owner, admin, and team leads to view any member's projects
+    if (
+      req.user.role === "employee" &&
+      req.user.teamMemberId !== teamMemberId
+    ) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+
+    const employee = await Employee.findOne({ teamMemberId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    console.log("Employee found:", employee.name);
+
+    const projects = await Project.find(
+      {
+        $or: [
+          { team_members: teamMemberId },
+          { project_lead: teamMemberId }
+        ],
+        project_status: { $ne: "deleted" },
+      }
+    );
+
+    console.log("Found projects:", projects.length);
+
+    if (!projects.length) {
+      return res.status(404).json({
+        message: "No projects found for the given teamMemberId.",
+      });
+    }
+
+    res.status(200).json({ projects });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
