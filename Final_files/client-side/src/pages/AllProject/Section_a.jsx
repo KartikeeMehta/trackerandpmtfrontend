@@ -216,115 +216,161 @@ const Section_a = () => {
   };
 
   return (
-    <div className="min-h-screen flex justify-center px-4 py-10">
-      <div className="w-full max-w-8xl rounded-xl p-8 bg-white/80 backdrop-blur-md">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">All Projects</h2>
-          <button
-            onClick={() => navigate("/CreateProject")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 text-sm font-medium shadow"
-          >
-            <Plus size={16} /> Add Project
-          </button>
+    <div className="min-h-screen flex justify-center px-6 py-12 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="w-full max-w-7xl">
+        {/* Header Section */}
+        <div className="mb-10">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-2">All Projects</h2>
+              <p className="text-gray-600 text-lg">Manage and track your project portfolio</p>
+            </div>
+            <button
+              onClick={() => navigate("/CreateProject")}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <Plus size={18} /> Add Project
+            </button>
+          </div>
         </div>
+
+        {/* Projects Grid */}
         {loading ? (
-          <div className="text-center text-gray-500">Loading projects...</div>
+          <div className="text-center py-20">
+            <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              Loading projects...
+            </div>
+          </div>
         ) : error ? (
-          <div className="text-center text-red-600">{error}</div>
+          <div className="text-center py-20">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md mx-auto">
+              <div className="text-red-600 text-lg font-medium">{error}</div>
+            </div>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {projects.map((project, index) => (
               <div
                 key={project._id || index}
                 onClick={() => handleCardClick(project)}
-                className="relative bg-white/80 rounded-2xl shadow border border-gray-100 cursor-pointer flex flex-col min-h-[200px] p-6 transition-all duration-150 hover:bg-blue-50 hover:shadow-md group overflow-hidden backdrop-blur-md"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #f0f4ff 60%, #e0e7ff 100%)",
-                }}
+                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
               >
-           
-                <div className="flex justify-end gap-2 mb-3 items-center">
-                  <Pencil
-                    size={16}
-                    className="text-gray-600 cursor-pointer hover:text-blue-500"
+                {/* Card Header with Actions */}
+                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                  <button
                     onClick={(e) => handleEditClick(e, project)}
-                  />
-                  <Trash2
-                    size={16}
-                    className="text-red-600 cursor-pointer hover:text-red-800"
+                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                  >
+                    <Pencil size={16} className="text-gray-600 hover:text-blue-600" />
+                  </button>
+                  <button
                     onClick={(e) => handleDeleteClick(e, project)}
-                  />
+                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                  >
+                    <Trash2 size={16} className="text-red-500 hover:text-red-700" />
+                  </button>
+                </div>
+
+                {/* Status Badge */}
+                <div className="absolute top-4 left-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize shadow-sm ${
+                    className={`px-4 py-2 rounded-full text-xs font-bold capitalize shadow-lg ${
                       project.project_status === "completed"
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-gradient-to-r from-green-400 to-green-600 text-white"
                         : project.project_status === "on hold"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-blue-100 text-blue-700"
+                        ? "bg-gradient-to-r from-yellow-400 to-yellow-600 text-white"
+                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
                     }`}
                   >
                     {project.project_status}
                   </span>
                 </div>
 
-                {/* Project content */}
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-1 truncate capitalize">
+                {/* Card Content */}
+                <div className="p-6 pt-16">
+                  {/* Project Title */}
+                  <div className="mb-4">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
                       {project.project_name}
                     </h3>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2 min-h-[2.5em]">
-                      {project.project_description}
+                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 min-h-[4.5rem]">
+                      {project.project_description || "No description available"}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-2 mt-2">
-                    <div className="flex items-center gap-2 text-xs text-gray-700">
-                      <Users size={15} />
-                      <span className="font-medium">
-                        {project.team_members?.length || 0} members
-                      </span>
+
+                  {/* Project Stats */}
+                  <div className="space-y-4">
+                    {/* Team Members */}
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Users size={16} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {project.team_members?.length || 0} members
+                        </div>
+                        <div className="text-xs text-gray-500">Team size</div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-700">
-                      <svg
-                        width="15"
-                        height="15"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                      <span className="font-medium">
-                        Team: {getTeamName(project.team_id)}
-                      </span>
+
+                    {/* Team Info */}
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                          className="text-purple-600"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 6v6l4 2" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {getTeamName(project.team_id) || "No team"}
+                        </div>
+                        <div className="text-xs text-gray-500">Assigned team</div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                      <svg
-                        width="15"
-                        height="15"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
-                      >
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <path d="M16 2v4" />
-                        <path d="M8 2v4" />
-                        <path d="M3 10h18" />
-                      </svg>
-                      <span>Start: {project.start_date || "-"}</span>
-                      <span className="ml-2">
-                        End: {project.end_date || "-"}
-                      </span>
+
+                    {/* Timeline */}
+                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                          className="text-green-600"
+                        >
+                          <rect x="3" y="4" width="18" height="18" rx="2" />
+                          <path d="M16 2v4" />
+                          <path d="M8 2v4" />
+                          <path d="M3 10h18" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {project.start_date || "Not set"} - {project.end_date || "Not set"}
+                        </div>
+                        <div className="text-xs text-gray-500">Project timeline</div>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                 </div>
               </div>
             ))}
@@ -334,196 +380,245 @@ const Section_a = () => {
 
       {/* Edit Project Modal */}
       {showEditModal && editingProject && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Edit Project</h3>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingProject(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+              <div className="flex justify-between items-center">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProject.project_name || ""}
-                    onChange={(e) => handleEditChange("project_name", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  />
+                  <h3 className="text-2xl font-bold">Edit Project</h3>
+                  <p className="text-blue-100 text-sm mt-1">Update project details and team assignments</p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Client Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProject.client_name || ""}
-                    onChange={(e) => handleEditChange("client_name", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Description
-                  </label>
-                  <textarea
-                    value={editingProject.project_description || ""}
-                    onChange={(e) => handleEditChange("project_description", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editingProject.start_date || ""}
-                    onChange={(e) => handleEditChange("start_date", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editingProject.end_date || ""}
-                    onChange={(e) => handleEditChange("end_date", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Status
-                  </label>
-                  <select
-                    value={editingProject.project_status || "ongoing"}
-                    onChange={(e) => handleEditChange("project_status", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  >
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="on hold">On Hold</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Lead
-                  </label>
-                  <select
-                    value={editingProject.project_lead || ""}
-                    onChange={(e) => handleEditChange("project_lead", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    required
-                  >
-                    <option value="">Select Project Lead</option>
-                    {teamLeads.map((lead) => (
-                      <option key={lead.teamMemberId} value={lead.teamMemberId}>
-                        {lead.name} ({lead.teamMemberId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Team
-                  </label>
-                  <select
-                    value={editingProject.team_id || ""}
-                    onChange={(e) => handleEditChange("team_id", e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  >
-                    <option value="">Select Team</option>
-                    {teams.map((team) => (
-                      <option key={team._id} value={team._id}>
-                        {team.teamName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Team Members
-                  </label>
-                  <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {employees.map((employee) => (
-                        <label key={employee.teamMemberId} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isTeamMember(employee.teamMemberId)}
-                            onChange={() => handleTeamMemberToggle(employee.teamMemberId)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {employee.name} ({employee.teamMemberId})
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    {editingProject?.team_members?.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <span className="text-xs text-gray-500">
-                          Selected: {editingProject.team_members.length} member(s)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {editError && (
-                <div className="text-red-600 text-sm">{editError}</div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4">
                 <button
-                  type="button"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingProject(null);
                   }}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                  disabled={editLoading}
+                  className="p-2 hover:bg-white/20 rounded-full transition-colors duration-200"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  disabled={editLoading}
-                >
-                  {editLoading ? "Updating..." : "Update Project"}
+                  <X size={24} />
                 </button>
               </div>
-            </form>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-8 max-h-[calc(95vh-120px)] overflow-y-auto">
+              <form onSubmit={handleEditSubmit} className="space-y-8">
+                {/* Basic Information Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Basic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Project Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingProject.project_name || ""}
+                        onChange={(e) => handleEditChange("project_name", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Client Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingProject.client_name || ""}
+                        onChange={(e) => handleEditChange("client_name", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Project Description
+                      </label>
+                      <textarea
+                        value={editingProject.project_description || ""}
+                        onChange={(e) => handleEditChange("project_description", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm resize-none"
+                        rows={4}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline Section */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Timeline
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editingProject.start_date || ""}
+                        onChange={(e) => handleEditChange("start_date", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editingProject.end_date || ""}
+                        onChange={(e) => handleEditChange("end_date", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Project Settings Section */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    Project Settings
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Project Status
+                      </label>
+                      <select
+                        value={editingProject.project_status || "ongoing"}
+                        onChange={(e) => handleEditChange("project_status", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                      >
+                        <option value="ongoing">🟢 Ongoing</option>
+                        <option value="completed">✅ Completed</option>
+                        <option value="on hold">⏸️ On Hold</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Project Lead
+                      </label>
+                      <select
+                        value={editingProject.project_lead || ""}
+                        onChange={(e) => handleEditChange("project_lead", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        required
+                      >
+                        <option value="">Select Project Lead</option>
+                        {teamLeads.map((lead) => (
+                          <option key={lead.teamMemberId} value={lead.teamMemberId}>
+                            {lead.name} ({lead.teamMemberId})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Team
+                      </label>
+                      <select
+                        value={editingProject.team_id || ""}
+                        onChange={(e) => handleEditChange("team_id", e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                      >
+                        <option value="">Select Team</option>
+                        {teams.map((team) => (
+                          <option key={team._id} value={team._id}>
+                            {team.teamName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Members Section */}
+                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-6 border border-orange-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Team Members ({editingProject?.team_members?.length || 0} selected)
+                  </h4>
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {employees.map((employee) => (
+                        <label key={employee.teamMemberId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors duration-200">
+                          <input
+                            type="checkbox"
+                            checked={isTeamMember(employee.teamMemberId)}
+                            onChange={() => handleTeamMemberToggle(employee.teamMemberId)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold text-xs">
+                              {employee.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {employee.name}
+                            </span>
+                            <span className="text-xs text-gray-500">({employee.teamMemberId})</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error Message */}
+                {editError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-red-700 font-medium">{editError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingProject(null);
+                    }}
+                    className="px-6 py-3 text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                    disabled={editLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Updating...
+                      </div>
+                    ) : (
+                      "Update Project"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

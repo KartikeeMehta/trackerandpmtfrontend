@@ -58,107 +58,187 @@ const Section_a = () => {
       : projects.filter((p) => p.project_status === activeState);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">
-        Project History
-      </h2>
-      <div className="flex gap-4 mb-6">
-        <button
-          className={getButtonClasses("active")}
-          onClick={() => setActiveState("active")}
-        >
-          <BookText size={16} />
-          All Projects
-        </button>
-        <button
-          className={getButtonClasses("completed")}
-          onClick={() => setActiveState("completed")}
-        >
-          <CheckCircle size={16} />
-          Completed
-        </button>
-        <button
-          className={getButtonClasses("deleted")}
-          onClick={() => setActiveState("deleted")}
-        >
-          <Trash2 size={16} />
-          Deleted
-        </button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProjects.map((project) => (
-          <div
-            key={project.project_id}
-            className="bg-white rounded-xl border p-4 shadow-sm"
-          >
-            <div className="flex justify-between items-center mb-1">
-              <h3 className="font-bold text-gray-800 text-lg">
-                {project.project_name}
-              </h3>
-              {project.project_status === "completed" ? (
-                <span className="text-green-600 text-sm font-medium flex items-center gap-1">
-                  <CheckCircle size={14} /> Completed
-                </span>
-              ) : (
-                <span className="text-red-500 text-sm font-medium flex items-center gap-1">
-                  <Trash2 size={14} /> Deleted
-                </span>
-              )}
+    <div className="min-h-screen flex justify-center px-6 py-12 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="w-full max-w-7xl">
+        {/* Header Section */}
+        <div className="mb-10">
+          <div className="mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">Project History</h2>
+            <p className="text-gray-600 text-lg">Track completed and deleted projects</p>
+          </div>
+
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap gap-4 mb-8">
+            <button
+              className={`flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
+                activeState === "active"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm"
+              }`}
+              onClick={() => setActiveState("active")}
+            >
+              <BookText size={18} />
+              All Projects
+            </button>
+            <button
+              className={`flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
+                activeState === "completed"
+                  ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm"
+              }`}
+              onClick={() => setActiveState("completed")}
+            >
+              <CheckCircle size={18} />
+              Completed
+            </button>
+            <button
+              className={`flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
+                activeState === "deleted"
+                  ? "bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 shadow-sm"
+              }`}
+              onClick={() => setActiveState("deleted")}
+            >
+              <Trash2 size={18} />
+              Deleted
+            </button>
+          </div>
+        </div>
+
+        {/* Projects Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredProjects.map((project) => (
+            <div
+              key={project.project_id}
+              className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+            >
+
+
+              {/* Card Content */}
+              <div className="p-6">
+                {/* Project Header */}
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
+                    {project.project_name}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">
+                    {project.project_description || "No description available"}
+                  </p>
+                </div>
+
+                {/* Completion Note */}
+                {(project.project_status === "completed" && project.completion_note) ||
+                (project.project_status === "completed" &&
+                  !project.completion_note &&
+                  project.original_end_date &&
+                  project.original_end_date !== project.end_date) ? (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                    <div className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <div className="text-sm">
+                        <span className="font-semibold text-yellow-800">Note:</span>{" "}
+                        <span className="text-yellow-700">
+                          {project.completion_note ||
+                            `Original planned completion date was ${project.original_end_date}, but project was completed on ${project.end_date}.`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Project Information */}
+                <div className="space-y-4">
+                  {/* Client Information */}
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <BookText size={16} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{project.client_name || "No client"}</div>
+                      <div className="text-xs text-gray-500">Client</div>
+                    </div>
+                  </div>
+
+                  {/* Team Members */}
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Users size={16} className="text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{project.team_members?.length || 0} members</div>
+                      <div className="text-xs text-gray-500">Team size</div>
+                    </div>
+                  </div>
+
+                  {/* Timeline */}
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Calendar size={16} className="text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {project.start_date && project.end_date
+                          ? `${project.start_date} - ${project.end_date}`
+                          : "No dates set"}
+                      </div>
+                      <div className="text-xs text-gray-500">Project timeline</div>
+                    </div>
+                  </div>
+
+                  {/* Completion Date (for completed projects) */}
+                  {project.project_status === "completed" && project.end_date && (
+                    <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
+                        <CheckCircle size={16} className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900">Completed on {project.end_date}</div>
+                        <div className="text-xs text-gray-500">Completion date</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Last Updated */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <Clock4 size={16} className="text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {project.updatedAt
+                          ? new Date(project.updatedAt).toLocaleDateString()
+                          : "Not available"}
+                      </div>
+                      <div className="text-xs text-gray-500">Last updated</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hover Effect Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+              </div>
             </div>
-            {/* Completion date label */}
-            {project.project_status === "completed" &&
-              project.completion_note && (
-                <div className="mb-2 text-sm text-yellow-700 bg-yellow-100 rounded px-3 py-2">
-                  <span className="font-semibold">Note:</span>{" "}
-                  {project.completion_note}
-                </div>
-              )}
-            {project.project_status === "completed" &&
-              !project.completion_note &&
-              project.original_end_date &&
-              project.original_end_date !== project.end_date && (
-                <div className="mb-2 text-sm text-yellow-700 bg-yellow-100 rounded px-3 py-2">
-                  <span className="font-semibold">Note:</span> Original planned
-                  completion date was {project.original_end_date}, but project
-                  was completed on {project.end_date}.
-                </div>
-              )}
-            <p className="text-sm text-gray-600 mb-3">
-              {project.project_description}
-            </p>
-            <div className="space-y-1 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <BookText size={14} className="text-gray-400" />
-                <span>{project.client_name}</span>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredProjects.length === 0 && (
+          <div className="text-center py-20">
+            <div className="bg-white rounded-2xl p-8 max-w-md mx-auto shadow-lg">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookText size={24} className="text-gray-400" />
               </div>
-              <div className="flex items-center gap-2">
-                <Users size={14} className="text-gray-400" />
-                <span>{project.team_members?.length || 0} members</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-gray-400" />
-                <span>
-                  {project.start_date && project.end_date
-                    ? `${project.start_date} - ${project.end_date}`
-                    : "No start date - No end date"}
-                </span>
-              </div>
-              {project.project_status === "completed" && project.end_date && (
-                <div className="flex items-center gap-2 text-green-600 font-medium">
-                  <CheckCircle size={14} />
-                  Completed on {project.end_date}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Clock4 size={14} className="text-gray-400" />
-                Last updated:{" "}
-                {project.updatedAt
-                  ? new Date(project.updatedAt).toLocaleDateString()
-                  : "-"}
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No projects found</h3>
+              <p className="text-gray-500 text-sm">
+                {activeState === "completed" 
+                  ? "No completed projects in your history."
+                  : activeState === "deleted"
+                  ? "No deleted projects in your history."
+                  : "No projects match the current filter."}
+              </p>
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

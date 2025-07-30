@@ -147,96 +147,107 @@ const Section_a = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-blue-900">
-            Team Members
-          </h2>
-          <p className="text-gray-500 text-sm">
-            View and manage your team members
-          </p>
-        </div>
+      {/* Header Section */}
+      <div className="mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+          <div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">Team Members</h2>
+            <p className="text-gray-600 text-lg">View and manage your team members</p>
+          </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-900 text-white hover:bg-blue-800">
-              Add Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Add Team Member</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddMember} className="grid gap-4">
-              {["name", "email", "designation", "phoneNo", "location"].map(
-                (field) => (
-                  <div className="grid gap-2" key={field}>
-                    <Label htmlFor={field}>
-                      {field.charAt(0).toUpperCase() + field.slice(1)}
-                    </Label>
-                    <Input
-                      id={field}
-                      name={field}
-                      placeholder={`Enter ${field}`}
-                      value={addForm[field]}
-                      onChange={handleAddFormChange}
-                    />
-                  </div>
-                )
-              )}
-              <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <select
-                  id="role"
-                  name="role"
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={addForm.role}
-                  onChange={handleAddFormChange}
-                >
-                  <option value="">Select</option>
-                  <option value="admin">Admin</option>
-                  <option value="teamLead">Team Lead</option>
-                  <option value="teamMember">Team Member</option>
-                </select>
-              </div>
-              {error && <div className="text-red-600 text-sm">{error}</div>}
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline" type="button">
-                    Cancel
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Users size={18} /> Add Member
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Add Team Member</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddMember} className="grid gap-4">
+                {["name", "email", "designation", "phoneNo", "location"].map(
+                  (field) => (
+                    <div className="grid gap-2" key={field}>
+                      <Label htmlFor={field}>
+                        {field.charAt(0).toUpperCase() + field.slice(1)}
+                      </Label>
+                      <Input
+                        id={field}
+                        name={field}
+                        placeholder={`Enter ${field}`}
+                        value={addForm[field]}
+                        onChange={handleAddFormChange}
+                      />
+                    </div>
+                  )
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Role</Label>
+                  <select
+                    id="role"
+                    name="role"
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={addForm.role}
+                    onChange={handleAddFormChange}
+                  >
+                    <option value="">Select</option>
+                    <option value="admin">Admin</option>
+                    <option value="teamLead">Team Lead</option>
+                    <option value="teamMember">Team Member</option>
+                  </select>
+                </div>
+                {error && <div className="text-red-600 text-sm">{error}</div>}
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" type="button">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Adding..." : "Save changes"}
                   </Button>
-                </DialogClose>
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Adding..." : "Save changes"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
+      {/* Team Members Grid */}
       {fetching ? (
-        <div className="text-center text-gray-500">Loading team members...</div>
+        <div className="text-center py-20">
+          <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            Loading team members...
+          </div>
+        </div>
       ) : error ? (
-        <div className="text-center text-red-600">{error}</div>
+        <div className="text-center py-20">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md mx-auto">
+            <div className="text-red-600 text-lg font-medium">{error}</div>
+          </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {teamMembers.map((member, index) => (
             <div
               key={member._id || index}
-              className="bg-white shadow-md rounded-xl p-5 flex flex-col gap-3 relative"
+              className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
             >
-              <div className="absolute right-4 top-4 flex gap-3">
+              {/* Card Header with Actions */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                 <Dialog open={editOpen} onOpenChange={setEditOpen}>
                   <DialogTrigger asChild>
-                    <Pencil
-                      size={16}
-                      className="text-gray-600 cursor-pointer hover:text-blue-500"
+                    <button
                       onClick={() => {
-                        setEditForm(member); // set selected member
+                        setEditForm(member);
                         setEditOpen(true);
                       }}
-                    />
+                      className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                    >
+                      <Pencil size={16} className="text-gray-600 hover:text-blue-600" />
+                    </button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
@@ -269,7 +280,7 @@ const Section_a = () => {
                                   [e.target.name]: e.target.value,
                                 }))
                               }
-                              readOnly={field === "name" || field === "email"} // ✅ Make these fields read-only
+                              readOnly={field === "name" || field === "email"}
                             />
                           </div>
                         ))}
@@ -309,12 +320,11 @@ const Section_a = () => {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Trash2
-                      size={16}
-                      className="text-red-600 cursor-pointer hover:text-red-800"
-                    />
+                    <button className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200">
+                      <Trash2 size={16} className="text-red-500 hover:text-red-700" />
+                    </button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[420px] ">
+                  <DialogContent className="sm:max-w-[420px]">
                     <DialogHeader>
                       <DialogTitle>Are you absolutely sure?</DialogTitle>
                       <DialogDescription>
@@ -341,38 +351,99 @@ const Section_a = () => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <div className="flex items-center gap-3 mt-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-300" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                    {member.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">{member.role}</p>
-                </div>
+
+              {/* Role Badge */}
+              <div className="absolute top-4 left-4">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
+                    member.role === "admin"
+                      ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
+                      : member.role === "teamLead"
+                      ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                      : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                  }`}
+                >
+                  {member.role}
+                </span>
               </div>
-              <div className="flex flex-col gap-1 mt-2 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <Mail className="w-4 h-4 text-gray-600" />
-                  <span className="ml-2">{member.email}</span>
+
+              {/* Card Content */}
+              <div className="p-6 pt-16">
+                {/* Member Header */}
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-xl">
+                      {member.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 capitalize">
+                      {member.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 capitalize">{member.role}</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <Phone className="w-4 h-4 text-gray-600" />
-                  <span className="ml-2">{member.phoneNo}</span>
+
+                {/* Member Information */}
+                <div className="space-y-4">
+                  {/* Contact Info */}
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Mail size={16} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{member.email}</div>
+                      <div className="text-xs text-gray-500">Email address</div>
+                    </div>
+                  </div>
+
+                  {/* Phone Info */}
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Phone size={16} className="text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{member.phoneNo}</div>
+                      <div className="text-xs text-gray-500">Phone number</div>
+                    </div>
+                  </div>
+
+                  {/* Employee ID */}
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <IdCard size={16} className="text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{member.teamMemberId}</div>
+                      <div className="text-xs text-gray-500">Employee ID</div>
+                    </div>
+                  </div>
+
+                  {/* Designation */}
+                  <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Activity size={16} className="text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{member.designation || "Not specified"}</div>
+                      <div className="text-xs text-gray-500">Designation</div>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <MapPin size={16} className="text-indigo-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">{member.location || "Not specified"}</div>
+                      <div className="text-xs text-gray-500">Location</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <IdCard className="w-4 h-4 text-gray-600" />
-                  <span className="ml-2">Emp ID: {member.teamMemberId}</span>
-                </div>
-                <div className="flex items-center">
-                  <Activity className="w-4 h-4 text-gray-600" />
-                  <span className="ml-2">{member.designation || "N/A"}</span>
-                </div>
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 text-gray-600" />
-                  <span className="ml-2">{member.location || "N/A"}</span>
-                </div>
+
+                {/* Hover Effect Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
               </div>
             </div>
           ))}
