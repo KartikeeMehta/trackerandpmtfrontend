@@ -7,6 +7,7 @@ import {
   Edit,
   Trash2,
   X,
+  Pencil
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -40,10 +41,12 @@ const Section_a = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
-  console.log(selectedRole, "------>");
 
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -251,23 +254,26 @@ const Section_a = () => {
     { id: 'admin', label: 'admin' },
   ];
   const handleRoleSelect = (item) => {
-    console.log(item, "item---->");
 
     setSelectedRole(item.label);
   };
 
   const filteredMembers = members.filter((member) => member.role === selectedRole);
-  console.log("Filtered Members ===>", filteredMembers);
+
+
+  const filteredMembersBySearch = filteredMembers.filter((member) =>
+    member.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar: Members */}
       <div className="w-64 bg-white shadow h-screen overflow-y-auto border-r">
-        <h2 className="text-xl font-bold text-gray-800 p-6 pb-2">
+        {/* <h2 className="text-xl font-bold text-gray-800 p-6 pb-2">
           All Team Members
-        </h2>
+        </h2> */}
 
-        <div className="max-w-md mx-auto space-y-4">
+        <div className="max-w-md mx-auto space-y-4 mt-4">
           <CustomDropdown
             title="Select Team Role"
             items={teamMembers}
@@ -277,24 +283,45 @@ const Section_a = () => {
             className="w-60 ml-2"
           />
 
-          <div className="bg-white rounded shadow p-4">
-            <h3 className="font-semibold text-gray-700 mb-2 capitalize">
-              All  {' '}{selectedRole}</h3>
+          <div className={`bg-white rounded p-4 ${selectedRole !== "" ? "shadow" : ""}`}>
+            {selectedRole !== "" && (
+              <h3 className="font-semibold text-gray-700 mb-2 capitalize">
+                All {selectedRole}
+              </h3>
+            )}
 
-            {filteredMembers.length > 0 ? (
-              <ul className="list-disc list-inside text-gray-800 bg-white p-2 rounded">
-                {filteredMembers.map((member) => (
+            {/* Search Input */}
+            {selectedRole !== "" && (
+              <div className="relative mb-3">
+                <input
+                  type="text"
+                  placeholder="Search members..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+                  🔍
+                </span>
+              </div>
+            )}
+
+            {/* Members List */}
+            {filteredMembersBySearch.length > 0 && (
+              <div className="bg-white p-2 rounded">
+                {filteredMembersBySearch.map((member) => (
                   <button
                     key={member._id}
-                    onClick={() => console.log("Clicked:", member)}
+                    onClick={() => {
+                      setSelectedMember(member);
+                      setShowTaskHistory(false);
+                    }}
                     className="w-full text-left px-4 py-2 mb-1 rounded bg-gray-100 hover:bg-blue-100 transition"
                   >
                     {member.name}
                   </button>
                 ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-gray-500">No members found.</p>
+              </div>
             )}
           </div>
         </div>
@@ -323,7 +350,7 @@ const Section_a = () => {
               </li>
             ))}
           </ul>
-        )} */}
+        )}  */}
       </div>
       {/* Main Content: Tasks */}
       <div className="flex-1 p-8">
@@ -340,7 +367,6 @@ const Section_a = () => {
                 <Plus size={18} /> Add Task
               </button>
             </div>
-            {/* Ongoing Tasks or Task History */}
             {!showTaskHistory ? (
               <>
                 <h3 className="text-lg font-semibold mb-2">Ongoing Tasks</h3>
@@ -353,12 +379,12 @@ const Section_a = () => {
                     {tasks.map((task) => (
                       <li
                         key={task._id}
-                        className={`p-4 hover:bg-blue-50 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
+                        className={`p-4 hover:bg-blue-100 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
                           }`}
                         onClick={() => setSelectedTask(task)}
                       >
                         <div className="flex justify-between items-center ">
-                          <span className="font-medium text-gray-800 capitalize ">
+                          <span className="font-medium text-gray-800 capitalize   ">
                             {task.title}
                           </span>
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full capitalize">
@@ -369,6 +395,8 @@ const Section_a = () => {
                           {task.description}
                         </div>
                       </li>
+
+                    
                     ))}
                   </ul>
                 )}
@@ -471,8 +499,15 @@ const Section_a = () => {
           </>
         ) : (
           <div className="text-gray-500 flex items-center justify-center h-full">
-            Select a member to view tasks.
+            <button
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              onClick={() => navigate("/CreateTask")}
+            >
+              <Plus size={18} /> Add Task
+            </button>
           </div>
+
+
         )}
       </div>
       {/* Add Task Modal */}

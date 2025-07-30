@@ -10,8 +10,8 @@ const sampleLogo = <img src="/vite.svg" alt="Logo" className="h-8 w-8" />;
 const TopBar = () => {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState({});
-  
-console.log(userDetails,"userDetails--->");
+
+  console.log(userDetails, "userDetails--->");
 
   useEffect(() => {
     fetchUserData();
@@ -85,12 +85,12 @@ console.log(userDetails,"userDetails--->");
           onClick={() => setOpen((prev) => !prev)}
         >
           <img
-              src={
-                            
-                            (userDetails?.user?.companyLogo
-                              ? image_url + userDetails?.user?.companyLogo
-                              : "/vite.svg")
-                          }
+            src={
+
+              (userDetails?.user?.companyLogo
+                ? image_url + userDetails?.user?.companyLogo
+                : "/vite.svg")
+            }
             alt="Company Logo"
             className="h-8 w-8 rounded-full border object-cover"
           />
@@ -98,19 +98,17 @@ console.log(userDetails,"userDetails--->");
             {userDetails?.companyName}
           </span>
           <ChevronDown
-            className={`w-4 h-4 transition-transform ${
-              open ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""
+              }`}
           />
         </button>
 
         <div
           ref={dropdownRef}
-          className={`absolute right-0 mt-2 w-64 bg-white p-3 rounded-lg shadow-lg border z-50 overflow-hidden transition-all duration-200 ${
-            open
-              ? "opacity-100 scale-100 pointer-events-auto"
-              : "opacity-0 scale-95 pointer-events-none"
-          }`}
+          className={`absolute right-0 mt-2 w-64 bg-white p-3 rounded-lg shadow-lg border z-50 overflow-hidden transition-all duration-200 ${open
+            ? "opacity-100 scale-100 pointer-events-auto"
+            : "opacity-0 scale-95 pointer-events-none"
+            }`}
           style={{ top: "48px" }}
         >
           <div className="mb-3">

@@ -1,4 +1,4 @@
-import { Plus, Users, Trash2, CalendarDays } from "lucide-react";
+import { Plus, Users, Trash2, CalendarDays, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api_url } from "@/api/Api";
@@ -10,9 +10,6 @@ const Section_a = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  // Remove deleteId, showDeleteDialog, deleting, and related logic since edit/delete are not needed
-
-  console.log(projects, "====projects");
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -90,19 +87,31 @@ const Section_a = () => {
                     "linear-gradient(135deg, #f0f4ff 60%, #e0e7ff 100%)",
                 }}
               >
-                {/* Status badge */}
-                <span
-                  className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-semibold capitalize shadow-sm z-10 ${
-                    project.project_status === "completed"
-                      ? "bg-green-100 text-green-700"
-                      : project.project_status === "on hold"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {project.project_status}
-                </span>
-                <div className="flex-1 flex flex-col justify-between mt-2">
+           
+                <div className="flex justify-end gap-2 mb-3 items-center">
+                  <Pencil
+                    size={16}
+                    className="text-gray-600 cursor-pointer hover:text-blue-500"
+                  />
+                  <Trash2
+                    size={16}
+                    className="text-red-600 cursor-pointer hover:text-red-800"
+                  />
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize shadow-sm ${
+                      project.project_status === "completed"
+                        ? "bg-green-100 text-green-700"
+                        : project.project_status === "on hold"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {project.project_status}
+                  </span>
+                </div>
+
+                {/* Project content */}
+                <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 mb-1 truncate capitalize">
                       {project.project_name}
@@ -167,4 +176,5 @@ const Section_a = () => {
     </div>
   );
 };
+
 export default Section_a;

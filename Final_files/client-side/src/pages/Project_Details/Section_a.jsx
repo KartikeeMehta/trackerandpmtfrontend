@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-import { Users, User, CalendarDays, Hash, ArrowLeft} from "lucide-react";
+import { Users, User, CalendarDays, Hash, ArrowLeft,Trash2} from "lucide-react";
 
 const Section_a = () => {
   const { state } = useLocation();
