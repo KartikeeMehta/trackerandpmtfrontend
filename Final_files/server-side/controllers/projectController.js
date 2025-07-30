@@ -247,12 +247,7 @@ exports.getProjectsByTeamMember = async (req, res) => {
 
     console.log("Found projects:", projects.length);
 
-    if (!projects.length) {
-      return res.status(404).json({
-        message: "No projects found for the given teamMemberId.",
-      });
-    }
-
+    // Return empty array instead of 404 error
     res.status(200).json({ projects });
   } catch (err) {
     console.error(err);

@@ -145,7 +145,14 @@ const Section_a = () => {
         token
       );
       console.log("Projects response:", response);
-      if (Array.isArray(response.projects)) {
+      console.log("Response type:", typeof response);
+      console.log("Response keys:", Object.keys(response));
+      
+      // Check if response contains an error message
+      if (response.message && (response.message.includes("No projects found") || response.message.includes("No projects found for the given teamMemberId"))) {
+        console.log("No projects found for this team member");
+        setProjects([]);
+      } else if (Array.isArray(response.projects)) {
         setProjects(response.projects);
       } else {
         console.log("No projects array in response:", response);
@@ -153,6 +160,7 @@ const Section_a = () => {
       }
     } catch (err) {
       console.error("Error fetching projects:", err);
+      // Handle 404 error gracefully - just set empty projects array
       setProjects([]);
     } finally {
       setProjectsLoading(false);
@@ -423,8 +431,6 @@ const Section_a = () => {
             
               {projectsLoading ? (
                 <div className="text-gray-500">Loading projects...</div>
-              ) : projects.length === 0 ? (
-                <div className="text-gray-500">No projects found for this team member.</div>
               ) : (
                 <div className="flex items-center gap-2">
                   <select
