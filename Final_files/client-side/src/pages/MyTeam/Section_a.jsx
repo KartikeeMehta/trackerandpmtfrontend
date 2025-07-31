@@ -59,6 +59,8 @@ const Section_a = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalTeam, setModalTeam] = useState(null);
   const [modalType, setModalType] = useState("projects");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState(null);
 
   // Fetch teams, leads, members, projects, tasks, and activity
   useEffect(() => {
@@ -222,7 +224,6 @@ const Section_a = () => {
 
   // Delete Team
   const handleDeleteTeam = async (team) => {
-    if (!window.confirm(`Delete team '${team.teamName}'?`)) return;
     setActionLoading(true);
     setActionError("");
     const token = localStorage.getItem("token");
@@ -242,6 +243,20 @@ const Section_a = () => {
       setActionError("Failed to delete team");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Handle delete confirmation
+  const confirmDelete = (team) => {
+    setTeamToDelete(team);
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async () => {
+    if (teamToDelete) {
+      await handleDeleteTeam(teamToDelete);
+      setShowDeleteModal(false);
+      setTeamToDelete(null);
     }
   };
 
@@ -411,16 +426,16 @@ const Section_a = () => {
                           <Pencil size={14} />
                         </button>
                         
-                        {/* Delete Button */}
-                        <button
-                          className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTeam(team);
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                                                 {/* Delete Button */}
+                         <button
+                           className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             confirmDelete(team);
+                           }}
+                         >
+                           <Trash2 size={14} />
+                         </button>
                       </div>
                    </div>
                  </div>
@@ -954,8 +969,87 @@ const Section_a = () => {
              </div>
            </div>
          </div>
-       )}
-    </div>
-  );
-};
+               )}
+
+        {/* Custom Delete Confirmation Modal */}
+        {showDeleteModal && teamToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                      <Trash2 size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Delete Team</h3>
+                    </div>
+                  </div>
+                  <button
+                    className="w-6 h-6 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition-all duration-200"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setTeamToDelete(null);
+                    }}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Trash2 size={20} className="text-red-500" />
+                  </div>
+                  <h4 className="text-base font-semibold text-gray-900 mb-2">
+                    Do you want to delete "{teamToDelete.teamName}"?
+                  </h4>
+                  <p className="text-gray-500 text-xs">
+                    This action cannot be undone. The team will be permanently removed.
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 justify-end">
+                  <button
+                    className="px-3 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors duration-200"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setTeamToDelete(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-1"
+                    onClick={executeDelete}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <>
+                        <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={14} />
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+     </div>
+   );
+ };
 export default Section_a;
