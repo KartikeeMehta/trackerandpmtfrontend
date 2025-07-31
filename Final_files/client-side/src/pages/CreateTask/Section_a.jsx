@@ -14,7 +14,7 @@ const Section_a = () => {
     const [taskForm, setTaskForm] = useState({
         title: "",
         description: "",
-        status: "",
+        status: "pending",
         assignedTo: "",
         assignedBy: "",
         assignedByRole: "",
@@ -22,7 +22,6 @@ const Section_a = () => {
         priority: "",
         dueDate: "",
     });
-    console.log(taskForm,"taskForm=-===>");
     
 
     useEffect(() => {
@@ -167,6 +166,7 @@ const Section_a = () => {
                         <select
                             name="status"
                             value={taskForm.status}
+                            disabled
                             onChange={handleInputChange}
                             className="border p-2 rounded w-full"
                         >
