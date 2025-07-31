@@ -22,6 +22,8 @@ const Section_a = () => {
         priority: "",
         dueDate: "",
     });
+    console.log(taskForm,"taskForm=-===>");
+    
 
     useEffect(() => {
         const fetchProjects = async () => {
@@ -52,7 +54,7 @@ const Section_a = () => {
 
 
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e) => {        
         const { name, value } = e.target;
         setTaskForm((prev) => ({ ...prev, [name]: value }));
     };

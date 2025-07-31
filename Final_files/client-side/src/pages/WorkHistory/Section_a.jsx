@@ -118,10 +118,10 @@ const Section_a = () => {
               <div className="p-6">
                 {/* Project Header */}
                 <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 capitalize">
                     {project.project_name}
                   </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">
+                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-2 capitalize">
                     {project.project_description || "No description available"}
                   </p>
                 </div>
@@ -154,7 +154,7 @@ const Section_a = () => {
                       <BookText size={16} className="text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{project.client_name || "No client"}</div>
+                      <div className="text-sm font-semibold text-gray-900 capitalize">{project.client_name || "No client"}</div>
                       <div className="text-xs text-gray-500">Client</div>
                     </div>
                   </div>
@@ -165,7 +165,7 @@ const Section_a = () => {
                       <Users size={16} className="text-purple-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{project.team_members?.length || 0} members</div>
+                      <div className="text-sm font-semibold text-gray-900">{project.team_members?.length || 0} Members</div>
                       <div className="text-xs text-gray-500">Team size</div>
                     </div>
                   </div>

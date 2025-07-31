@@ -10,9 +10,6 @@ const sampleLogo = <img src="/vite.svg" alt="Logo" className="h-8 w-8" />;
 const TopBar = () => {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState({});
-
-  console.log(userDetails, "userDetails--->");
-
   useEffect(() => {
     fetchUserData();
   }, []);

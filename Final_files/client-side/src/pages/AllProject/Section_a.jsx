@@ -20,6 +20,8 @@ const Section_a = () => {
   const [deletingProject, setDeletingProject] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  console.log(projects, "projects=====>");
+
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -118,7 +120,7 @@ const Section_a = () => {
     e.preventDefault();
     setEditLoading(true);
     setEditError("");
-    
+
     const token = localStorage.getItem("token");
     try {
       const response = await apiHandler.PutApi(
@@ -126,7 +128,7 @@ const Section_a = () => {
         editingProject,
         token
       );
-      
+
       if (response.message && response.message.includes("updated")) {
         setShowEditModal(false);
         setEditingProject(null);
@@ -161,7 +163,7 @@ const Section_a = () => {
     setEditingProject(prev => {
       const currentMembers = prev.team_members || [];
       const isMember = currentMembers.includes(memberId);
-      
+
       if (isMember) {
         // Remove member
         return {
@@ -192,14 +194,14 @@ const Section_a = () => {
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     setDeleteError("");
-    
+
     const token = localStorage.getItem("token");
     try {
       const response = await apiHandler.DeleteApi(
         api_url.getAllProjects + "/" + deletingProject.project_id,
         token
       );
-      
+
       if (response.message && response.message.includes("deleted")) {
         setShowDeleteModal(false);
         setDeletingProject(null);
@@ -248,134 +250,138 @@ const Section_a = () => {
               <div className="text-red-600 text-lg font-medium">{error}</div>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
-            {projects.map((project, index) => (
-              <div
-                key={project._id || index}
-                onClick={() => handleCardClick(project)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
-              >
-                {/* Card Header with Actions */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                  <button
-                    onClick={(e) => handleEditClick(e, project)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                  >
-                    <Pencil size={16} className="text-gray-600 hover:text-blue-600" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, project)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                  >
-                    <Trash2 size={16} className="text-red-500 hover:text-red-700" />
-                  </button>
-                </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center text-gray-500 text-lg py-20">
+            No Project
+          </div>)
+          : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+              {projects.map((project, index) => (
+                <div
+                  key={project._id || index}
+                  onClick={() => handleCardClick(project)}
+                  className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+                >
+                  {/* Card Header with Actions */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                    <button
+                      onClick={(e) => handleEditClick(e, project)}
+                      className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                    >
+                      <Pencil size={16} className="text-gray-600 hover:text-blue-600" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, project)}
+                      className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                    >
+                      <Trash2 size={16} className="text-red-500 hover:text-red-700" />
+                    </button>
+                  </div>
 
-                {/* Status Badge */}
-                <div className="absolute top-4 left-4">
-                  <span
-                    className={`px-4 py-2 rounded-full text-xs font-bold capitalize shadow-lg ${
-                      project.project_status === "completed"
+                  {/* Status Badge */}
+                  <div className="absolute top-4 left-4">
+                    <span
+                      className={`px-4 py-2 rounded-full text-xs font-bold capitalize shadow-lg ${project.project_status === "completed"
                         ? "bg-gradient-to-r from-green-400 to-green-600 text-white"
                         : project.project_status === "on hold"
-                        ? "bg-gradient-to-r from-yellow-400 to-yellow-600 text-white"
-                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                    }`}
-                  >
-                    {project.project_status}
-                  </span>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-6 pt-16">
-                  {/* Project Title */}
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
-                      {project.project_name}
-                    </h3>
-                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 min-h-[4.5rem]">
-                      {project.project_description || "No description available"}
-                    </p>
+                          ? "bg-gradient-to-r from-yellow-400 to-yellow-600 text-white"
+                          : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                        }`}
+                    >
+                      {project.project_status}
+                    </span>
                   </div>
 
-                  {/* Project Stats */}
-                  <div className="space-y-4">
-                    {/* Team Members */}
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Users size={16} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {project.team_members?.length || 0} members
+                  {/* Card Content */}
+                  <div className="p-6 pt-16">
+                    {/* Project Title */}
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1 capitalize">
+                        {project.project_name}
+                      </h3>
+                      <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 min-h-[4.5rem] capitalize">
+                        {project.project_description || "No description available"}
+                      </p>
+                    </div>
+
+                    {/* Project Stats */}
+                    <div className="space-y-4">
+                      {/* Team Members */}
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Users size={16} className="text-blue-600" />
                         </div>
-                        <div className="text-xs text-gray-500">Team size</div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {project.team_members?.length || 0}   Members
+                          </div>
+                          <div className="text-xs text-gray-500">Team size</div>
+                        </div>
+                      </div>
+
+                      {/* Team Info */}
+                      <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <svg
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            viewBox="0 0 24 24"
+                            className="text-purple-600"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {getTeamName(project.team_id) || "No team"}
+                          </div>
+                          <div className="text-xs text-gray-500">Assigned team</div>
+                        </div>
+                      </div>
+
+                      {/* Timeline */}
+                      <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <svg
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            viewBox="0 0 24 24"
+                            className="text-green-600"
+                          >
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M16 2v4" />
+                            <path d="M8 2v4" />
+                            <path d="M3 10h18" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {project.start_date || "Not set"} - {project.end_date || "Not set"}
+                          </div>
+                          <div className="text-xs text-gray-500">Project timeline</div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Team Info */}
-                    <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <svg
-                          width="16"
-                          height="16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                          className="text-purple-600"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {getTeamName(project.team_id) || "No team"}
-                        </div>
-                        <div className="text-xs text-gray-500">Assigned team</div>
-                      </div>
-                    </div>
-
-                    {/* Timeline */}
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <svg
-                          width="16"
-                          height="16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          viewBox="0 0 24 24"
-                          className="text-green-600"
-                        >
-                          <rect x="3" y="4" width="18" height="18" rx="2" />
-                          <path d="M16 2v4" />
-                          <path d="M8 2v4" />
-                          <path d="M3 10h18" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {project.start_date || "Not set"} - {project.end_date || "Not set"}
-                        </div>
-                        <div className="text-xs text-gray-500">Project timeline</div>
-                      </div>
-                    </div>
+                    {/* Hover Effect Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                   </div>
-
-                  {/* Hover Effect Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )
+        }
       </div>
 
       {/* Edit Project Modal */}

@@ -21,8 +21,6 @@ import { apiHandler } from "@/api/ApiHandler";
 const Section_a = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [teams, setTeams] = useState([]);
-  console.log(teams,"---------uuuuu");
-  
   const [selectedTeam, setSelectedTeam] = useState("");
   const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
   const [editForm, setEditForm] = useState(null);
@@ -222,14 +220,13 @@ const Section_a = () => {
                 <span className="flex-1 text-left">
                   {selectedTeam ? selectedTeam : "Select Team"}
                 </span>
-                <ChevronDown 
-                  size={16} 
-                  className={`transition-transform duration-200 ${
-                    teamsDropdownOpen ? 'rotate-180' : ''
-                  }`}
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${teamsDropdownOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
-              
+
               {teamsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto">
                   <div className="py-2">
@@ -274,61 +271,61 @@ const Section_a = () => {
                   <Users size={18} /> Add Member
                 </Button>
               </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Add Team Member</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddMember} className="grid gap-4">
-                {["name", "email", "designation", "phoneNo", "location"].map(
-                  (field) => (
-                    <div className="grid gap-2" key={field}>
-                      <Label htmlFor={field}>
-                        {field.charAt(0).toUpperCase() + field.slice(1)}
-                      </Label>
-                      <Input
-                        id={field}
-                        name={field}
-                        placeholder={`Enter ${field}`}
-                        value={addForm[field]}
-                        onChange={handleAddFormChange}
-                      />
-                    </div>
-                  )
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="role">Role</Label>
-                  <select
-                    id="role"
-                    name="role"
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={addForm.role}
-                    onChange={handleAddFormChange}
-                  >
-                    <option value="">Select</option>
-                    <option value="admin">Admin</option>
-                    <option value="teamLead">Team Lead</option>
-                    <option value="teamMember">Team Member</option>
-                  </select>
-                </div>
-                {error && <div className="text-red-600 text-sm">{error}</div>}
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" type="button">
-                      Cancel
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add Team Member</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddMember} className="grid gap-4">
+                  {["name", "email", "designation", "phoneNo", "location"].map(
+                    (field) => (
+                      <div className="grid gap-2" key={field}>
+                        <Label htmlFor={field}>
+                          {field.charAt(0).toUpperCase() + field.slice(1)}
+                        </Label>
+                        <Input
+                          id={field}
+                          name={field}
+                          placeholder={`Enter ${field}`}
+                          value={addForm[field]}
+                          onChange={handleAddFormChange}
+                        />
+                      </div>
+                    )
+                  )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="role">Role</Label>
+                    <select
+                      id="role"
+                      name="role"
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={addForm.role}
+                      onChange={handleAddFormChange}
+                    >
+                      <option value="">Select</option>
+                      <option value="admin">Admin</option>
+                      <option value="teamLead">Team Lead</option>
+                      <option value="teamMember">Team Member</option>
+                    </select>
+                  </div>
+                  {error && <div className="text-red-600 text-sm">{error}</div>}
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" type="button">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? "Adding..." : "Save changes"}
                     </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Adding..." : "Save changes"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
 
-      {/* Team Members Grid */}
+
       {fetching ? (
         <div className="text-center py-20">
           <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
@@ -342,8 +339,12 @@ const Section_a = () => {
             <div className="text-red-600 text-lg font-medium">{error}</div>
           </div>
         </div>
+      ) : teamMembers.length === 0 ? (
+        <div className="text-center text-gray-500 text-lg py-20">
+          No Team Member
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 ">
           {teamMembers.map((member, index) => (
             <div
               key={member._id || index}
@@ -469,13 +470,12 @@ const Section_a = () => {
               {/* Role Badge */}
               <div className="absolute top-4 left-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
-                    member.role === "admin"
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
                       ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                       : member.role === "teamLead"
-                      ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                      : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                  }`}
+                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                    }`}
                 >
                   {member.role}
                 </span>
@@ -563,6 +563,9 @@ const Section_a = () => {
           ))}
         </div>
       )}
+
+
+
     </div>
   );
 };

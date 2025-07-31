@@ -21,6 +21,8 @@ const Section_a = () => {
   const [error, setError] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [tasks, setTasks] = useState([]);
+  console.log(tasks,"tasks------>");
+  
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskHistory, setShowTaskHistory] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -48,6 +50,8 @@ const Section_a = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  console.log(projects,"projects---------->");
+  
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -60,7 +64,6 @@ const Section_a = () => {
           api_url.getAllEmployees,
           token
         );
-        console.log(response, "respose=======>");
 
         if (Array.isArray(response)) {
           setMembers(response);
@@ -116,6 +119,8 @@ const Section_a = () => {
     setTaskHistory([]);
     setSelectedTask(null);
     const token = localStorage.getItem("token");
+    console.log(token,"0000000");
+    
     try {
       const response = await apiHandler.GetApi(
         api_url.getTaskHistory + memberId,
@@ -559,6 +564,9 @@ const Section_a = () => {
                           </div>
                           <p className="text-gray-600 text-sm leading-relaxed">
                             {task.description}
+                          </p>
+                            <p className="text-gray-600 text-sm leading-relaxed">
+                            {task.project}
                           </p>
                         </div>
                       ))}
