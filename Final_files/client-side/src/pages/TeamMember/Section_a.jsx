@@ -25,6 +25,8 @@ const Section_a = () => {
   
   const [selectedTeam, setSelectedTeam] = useState("");
   const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
+  const [filteredMembers, setFilteredMembers] = useState([]);
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -173,6 +175,59 @@ const Section_a = () => {
     }
   };
 
+  const fetchTeamMembers = async (teamName) => {
+    const token = localStorage.getItem("token");
+    setLoadingTeamMembers(true);
+    try {
+      console.log("Fetching members for team:", teamName);
+      const response = await apiHandler.GetApi(
+        `http://localhost:8000/api/teams/${encodeURIComponent(teamName)}/members`,
+        token
+      );
+      console.log("Team members response:", response);
+      
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        // If response is directly an array of members
+        setFilteredMembers(response);
+      } else if (response && response.members && Array.isArray(response.members)) {
+        // If response is a team object with members array and teamLead
+        console.log("Found members in response.members:", response.members);
+        console.log("Found teamLead in response:", response.teamLead);
+        
+        // Combine team members and team lead
+        let allTeamMembers = [...response.members];
+        
+        // Add team lead if it exists and is not already in the members array
+        if (response.teamLead && response.teamLead._id) {
+          const teamLeadExists = response.members.some(member => member._id === response.teamLead._id);
+          if (!teamLeadExists) {
+            // Add role property to team lead if it doesn't exist
+            const teamLeadWithRole = {
+              ...response.teamLead,
+              role: response.teamLead.role || 'teamLead'
+            };
+            allTeamMembers.push(teamLeadWithRole);
+          }
+        }
+        
+        console.log("Combined team members and lead:", allTeamMembers);
+        setFilteredMembers(allTeamMembers);
+      } else if (response && Array.isArray(response.data) && response.data.length > 0) {
+        // If response has data property with members
+        setFilteredMembers(response.data);
+      } else {
+        console.log("No members found in response:", response);
+        setFilteredMembers([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch team members:", err);
+      setFilteredMembers([]);
+    } finally {
+      setLoadingTeamMembers(false);
+    }
+  };
+
   const handleEditMember = async (e) => {
     e.preventDefault();
 
@@ -233,35 +288,38 @@ const Section_a = () => {
               {teamsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto">
                   <div className="py-2">
-                    <div
-                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                      onClick={() => {
-                        setSelectedTeam("");
-                        setTeamsDropdownOpen(false);
-                      }}
-                    >
-                      All Teams
-                    </div>
+                                         <div
+                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                       onClick={() => {
+                         setSelectedTeam("");
+                         setTeamsDropdownOpen(false);
+                         setFilteredMembers([]); // Show all members
+                       }}
+                     >
+                       All Teams
+                     </div>
                     {teams.length === 0 ? (
                       <div className="px-4 py-3 text-gray-500 text-sm">
                         No teams found
                       </div>
                     ) : (
-                      teams.map((team, index) => {
-                        console.log(`Team ${index}:`, team);
-                        return (
-                          <div
-                            key={team._id || team.id || index}
-                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                            onClick={() => {
-                              setSelectedTeam(team.teamName || team.name || team.team_name);
-                              setTeamsDropdownOpen(false);
-                            }}
-                          >
-                            {team.teamName || team.name || team.team_name || `Team ${index + 1}`}
-                          </div>
-                        );
-                      })
+                                             teams.map((team, index) => {
+                         console.log(`Team ${index}:`, team);
+                         const teamName = team.teamName || team.name || team.team_name || `Team ${index + 1}`;
+                         return (
+                           <div
+                             key={team._id || team.id || index}
+                             className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                             onClick={() => {
+                               setSelectedTeam(teamName);
+                               setTeamsDropdownOpen(false);
+                               fetchTeamMembers(teamName);
+                             }}
+                           >
+                             {teamName}
+                           </div>
+                         );
+                       })
                     )}
                   </div>
                 </div>
@@ -328,23 +386,38 @@ const Section_a = () => {
         </div>
       </div>
 
-      {/* Team Members Grid */}
-      {fetching ? (
-        <div className="text-center py-20">
-          <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            Loading team members...
-          </div>
-        </div>
-      ) : error ? (
+             {/* Team Members Grid */}
+       {fetching ? (
+         <div className="text-center py-20">
+           <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
+             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+             Loading team members...
+           </div>
+         </div>
+       ) : loadingTeamMembers ? (
+         <div className="text-center py-20">
+           <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
+             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+             Loading {selectedTeam} members...
+           </div>
+         </div>
+       ) : error ? (
         <div className="text-center py-20">
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md mx-auto">
             <div className="text-red-600 text-lg font-medium">{error}</div>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
-          {teamMembers.map((member, index) => (
+             ) : (
+         <>
+           {selectedTeam && filteredMembers.length === 0 ? (
+             <div className="text-center py-20">
+               <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 max-w-md mx-auto">
+                 <div className="text-gray-600 text-lg font-medium">No members found in {selectedTeam}</div>
+               </div>
+             </div>
+           ) : (
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+               {(selectedTeam && filteredMembers.length > 0 ? filteredMembers : teamMembers).map((member, index) => (
             <div
               key={member._id || index}
               className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
@@ -556,13 +629,15 @@ const Section_a = () => {
                   </div>
                 </div>
 
-                {/* Hover Effect Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                                 {/* Hover Effect Overlay */}
+                 <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+               </div>
+             </div>
+           ))}
+         </div>
+       )}
+     </>
+   )}
     </div>
   );
 };

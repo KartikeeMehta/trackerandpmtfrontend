@@ -77,7 +77,7 @@ exports.register = async (req, res) => {
       password: hashed,
       employeeID,
       joinDate,
-      accountStatus: "Active",
+      accountStatus: "non-active",
       emailVerified: true,
       lastLogin: joinDate,
       accountType: "Standard",
@@ -112,6 +112,12 @@ exports.login = async (req, res) => {
       if (!isMatch) {
         return res.status(400).json({ message: "Wrong password" });
       }
+
+      // Activate account if it's first login
+      if (userWithPassword.accountStatus === "non-active") {
+        userWithPassword.accountStatus = "active";
+      }
+
       let token = userWithPassword.token;
       let isTokenValid = false;
       if (token) {
@@ -127,10 +133,11 @@ exports.login = async (req, res) => {
           expiresIn: "7d",
         });
         userWithPassword.token = token;
-        await userWithPassword.save();
       }
+
       userWithPassword.lastLogin = new Date();
       await userWithPassword.save();
+
       const { password: _, ...userDetails } = userWithPassword.toObject();
       return res.json({
         message: "Login successful",
@@ -147,7 +154,7 @@ exports.login = async (req, res) => {
       if (!isMatch) {
         return res.status(400).json({ message: "Wrong password" });
       }
-      // Optionally generate a token for employee
+
       let token = employee.token;
       let isTokenValid = false;
       if (token) {
@@ -163,8 +170,11 @@ exports.login = async (req, res) => {
           expiresIn: "7d",
         });
         employee.token = token;
-        await employee.save();
       }
+
+      employee.lastLogin = new Date();
+      await employee.save();
+
       const { password: _, ...employeeDetails } = employee.toObject();
       return res.json({
         message: "Login successful",
