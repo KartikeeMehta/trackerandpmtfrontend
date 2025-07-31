@@ -335,6 +335,13 @@ const Section_a = () => {
     member.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Function to get project name by project ID
+  const getProjectNameById = (projectId) => {
+    if (!projectId || !projects.length) return "Unknown Project";
+    const project = projects.find(p => p.project_id === projectId);
+    return project ? project.project_name : "Unknown Project";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Sidebar: Members */}
@@ -565,9 +572,12 @@ const Section_a = () => {
                           <p className="text-gray-600 text-sm leading-relaxed">
                             {task.description}
                           </p>
-                            <p className="text-gray-600 text-sm leading-relaxed">
-                            {task.project}
-                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs font-medium text-gray-500">Project:</span>
+                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                              {getProjectNameById(task.project)}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>

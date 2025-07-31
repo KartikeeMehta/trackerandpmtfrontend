@@ -287,12 +287,12 @@ const Section_a = () => {
             </option>
           ))}
         </select>
-        <Button
-          className="bg-blue-900 text-white hover:bg-blue-800 h-fit ml-auto"
-          onClick={() => setShowAddDialog(true)}
-        >
-          + Add Team
-        </Button>
+                 <Button
+           className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white h-fit ml-auto shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+           onClick={() => setShowAddDialog(true)}
+         >
+           + Add Team
+         </Button>
       </div>
       {/* Team Cards */}
       {!selectedTeam ? (
@@ -302,116 +302,128 @@ const Section_a = () => {
           ) : error ? (
             <div className="text-center text-red-600">{error}</div>
           ) : (
-            <div className="flex flex-wrap gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
               {filteredTeams.map((team) => (
-                <div
-                  key={team._id}
-                  className="group relative bg-white rounded-3xl shadow-xl hover:shadow-2xl border border-gray-100 transition-all duration-500 transform hover:-translate-y-3 overflow-hidden cursor-pointer min-w-[300px] max-w-[400px] flex flex-col"
-                  onClick={() => setSelectedTeam(team)}
-                >
-                  {/* Card Header */}
-                  <div className="p-6 pb-4 flex items-center gap-4 border-b border-gray-100">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
-                      <span className="text-white font-bold text-2xl">
-                        {team.teamName ? team.teamName[0].toUpperCase() : "T"}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">{team.teamName}</h3>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <p className="text-gray-600 text-xs font-medium">Lead: {formatName(getLeadName(team))}</p>
+                                 <div
+                   key={team._id}
+                   className="group relative bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-200 transition-all duration-300 cursor-pointer overflow-hidden"
+                   onClick={() => setSelectedTeam(team)}
+                 >
+                   {/* Status Badge */}
+                   <div className="absolute top-4 left-4 z-10">
+                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm">
+                       Active
+                     </span>
+                   </div>
+                   
+                   {/* Card Content */}
+                   <div className="p-6 pt-12">
+                     {/* Team Title */}
+                     <h3 className="text-xl font-bold text-gray-900 mb-2">
+                       {team.teamName}
+                     </h3>
+                     
+                     {/* Team Description */}
+                     <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+                       {team.description || "Team collaboration and project management"}
+                     </p>
+                     
+                     {/* Information Sections */}
+                     <div className="space-y-4">
+                       {/* Team Size */}
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                           <Users size={16} className="text-blue-600" />
+                         </div>
+                         <div>
+                           <p className="text-sm font-semibold text-gray-900">
+                             {getMemberNames(team).length} Members
+                           </p>
+                           <p className="text-xs text-gray-500">Team size</p>
+                         </div>
+                       </div>
+                       
+                       {/* Assigned Lead */}
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                           <Activity size={16} className="text-purple-600" />
+                         </div>
+                         <div>
+                           <p className="text-sm font-semibold text-gray-900">
+                             {formatName(getLeadName(team))}
+                           </p>
+                           <p className="text-xs text-gray-500">Assigned lead</p>
+                         </div>
+                       </div>
+                       
+                       {/* Team Projects */}
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                           <Clock size={16} className="text-green-600" />
+                         </div>
+                         <div>
+                           <p className="text-sm font-semibold text-gray-900">
+                             {getTeamProjects(team).length} Projects
+                           </p>
+                           <p className="text-xs text-gray-500">Active projects</p>
+                         </div>
+                       </div>
+                     </div>
+                     
+                     {/* Action Buttons */}
+                     <div className="mt-6 pt-4 border-t border-gray-100">
+                       {/* View Projects Button */}
+                       <Button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           viewProjects(team);
+                         }}
+                         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                         size="sm"
+                       >
+                         <Activity size={14} className="mr-1" />
+                         View Projects
+                       </Button>
+                     </div>
+                     
+                                           {/* Action Buttons - Hidden by default, shown on hover */}
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-2">
+                        {/* Edit Button */}
+                        <button
+                          className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditForm({
+                              teamName: team.teamName,
+                              description: team.description,
+                              teamLead:
+                                team.teamLead?.teamMemberId ||
+                                team.teamLead,
+                              teamMembers: Array.isArray(team.teamMembers)
+                                ? team.teamMembers
+                                : Array.isArray(team.members)
+                                ? team.members.map((m) => m.teamMemberId)
+                                : [],
+                            });
+                            setShowEditDialog(true);
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        
+                        {/* Delete Button */}
+                        <button
+                          className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTeam(team);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                  {/* Team Stats */}
-                  <div className="grid grid-cols-3 gap-2 px-6 py-4 border-b border-gray-100">
-                    <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-100">
-                      <div className="text-lg font-bold text-blue-700">{getMemberNames(team).length}</div>
-                      <div className="text-xs text-blue-600 font-semibold">Members</div>
-                    </div>
-                    <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-100">
-                      <div className="text-lg font-bold text-green-700">{getTeamProjects(team).length}</div>
-                      <div className="text-xs text-green-600 font-semibold">Projects</div>
-                    </div>
-                    <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-100">
-                      <div className="text-lg font-bold text-purple-700">{getTeamTasks(team).length}</div>
-                      <div className="text-xs text-purple-600 font-semibold">Tasks</div>
-                    </div>
-                  </div>
-                  {/* Team Members */}
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
-                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wide">Team Members</h4>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {getMemberNames(team)
-                        .slice(0, 5)
-                        .map((member, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 p-1 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 shadow-sm"
-                          >
-                            <span className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                              {member
-                                .split(" ")
-                                .map((w) => w[0])
-                                .join("")
-                                .toUpperCase()}
-                            </span>
-                            <span className="text-xs text-gray-800 font-semibold">{member}</span>
-                          </div>
-                        ))}
-                      {getMemberNames(team).length > 5 && (
-                        <div className="flex items-center gap-2 p-1 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 shadow-sm">
-                          <span className="text-xs text-gray-600 font-semibold">
-                            +{getMemberNames(team).length - 5} more
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2 p-6">
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          viewProjects(team);
-                        }}
-                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                        size="sm"
-                      >
-                        <Activity size={14} className="mr-1" />
-                        View Projects
-                      </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          viewTasks(team);
-                        }}
-                        className="flex-1 bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Clock size={14} className="mr-1" />
-                        View Tasks
-                      </Button>
-                    </div>
-                    <Button
-                      className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTeam(team);
-                      }}
-                      size="sm"
-                    >
-                      <Trash2 size={14} className="mr-1" />
-                      Delete Team
-                    </Button>
-                  </div>
-                </div>
+                   </div>
+                 </div>
               ))}
             </div>
           )}
@@ -545,48 +557,17 @@ const Section_a = () => {
           >
             ← Back to Teams
           </button>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-blue-100 text-blue-700 font-bold flex items-center justify-center rounded-full text-3xl">
-                {selectedTeam.teamName ? selectedTeam.teamName[0] : "T"}
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">{selectedTeam.teamName}</h1>
-                <p className="text-gray-500">
-                  Lead: {formatName(getLeadName(selectedTeam))}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditForm({
-                    teamName: selectedTeam.teamName,
-                    description: selectedTeam.description,
-                    teamLead:
-                      selectedTeam.teamLead?.teamMemberId ||
-                      selectedTeam.teamLead,
-                    teamMembers: Array.isArray(selectedTeam.teamMembers)
-                      ? selectedTeam.teamMembers
-                      : Array.isArray(selectedTeam.members)
-                      ? selectedTeam.members.map((m) => m.teamMemberId)
-                      : [],
-                  });
-                  setShowEditDialog(true);
-                }}
-                disabled={actionLoading}
-              >
-                Edit Team
-              </Button>
-              <Button
-                className="bg-red-500 text-white hover:bg-red-600"
-                onClick={() => handleDeleteTeam(selectedTeam)}
-              >
-                Delete Team
-              </Button>
-            </div>
-          </div>
+                       <div className="flex items-center gap-4 mb-2">
+               <div className="w-20 h-20 bg-blue-100 text-blue-700 font-bold flex items-center justify-center rounded-full text-3xl">
+                 {selectedTeam.teamName ? selectedTeam.teamName[0] : "T"}
+               </div>
+               <div>
+                 <h1 className="text-2xl font-bold">{selectedTeam.teamName}</h1>
+                 <p className="text-gray-500">
+                   Lead: {formatName(getLeadName(selectedTeam))}
+                 </p>
+               </div>
+             </div>
           <hr />
           <div className="mt-6">
             <h2 className="text-lg font-bold mb-2">Team Members</h2>
