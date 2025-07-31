@@ -11,6 +11,7 @@ router.put("/updateTeam", authMiddleware, teamController.updateTeam);
 router.get("/team-leads", authMiddleware, teamController.getAllTeamLeads);
 router.get("/team-members", authMiddleware, teamController.getAllTeamMembers);
 router.get("/all-teams", authMiddleware, teamController.getAllTeams);
+router.get("/:teamName/members", authMiddleware, teamController.getTeamMembersByTeamName);
 
 // no delete one
 

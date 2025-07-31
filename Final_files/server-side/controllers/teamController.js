@@ -193,3 +193,30 @@ exports.getAllTeams = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.getTeamMembersByTeamName = async (req, res) => {
+  try {
+    const { teamName } = req.params;
+
+    if (!teamName) {
+      return res.status(400).json({ message: "Team name is required" });
+    }
+
+    const team = await Team.findOne({ teamName: teamName.trim() })
+      .populate("members", "-password") // Exclude password from member data
+      .populate("teamLead", "-password");
+
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    return res.status(200).json({
+      teamName: team.teamName,
+      teamLead: team.teamLead,
+      members: team.members,
+    });
+  } catch (err) {
+    console.error("Error fetching team members:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

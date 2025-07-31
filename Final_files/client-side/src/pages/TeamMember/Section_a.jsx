@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Mail, Clock, Activity, Users } from "lucide-react";
+import { Pencil, Trash2, Mail, Clock, Activity, Users, ChevronDown } from "lucide-react";
 import { Phone, IdCard, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,17 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 
 const Section_a = () => {
   const [teamMembers, setTeamMembers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  console.log(teams,"---------uuuuu");
+  
+  const [selectedTeam, setSelectedTeam] = useState("");
+  const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -34,6 +39,21 @@ const Section_a = () => {
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(true);
   const [open, setOpen] = useState(false); // <-- Dialog control
+  const dropdownRef = useRef(null);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setTeamsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -57,6 +77,43 @@ const Section_a = () => {
       }
     };
     fetchMembers();
+  }, []);
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      const token = localStorage.getItem("token");
+      console.log("Token:", token ? "Token exists" : "No token");
+      try {
+        console.log("Fetching teams from:", api_url.getAllTeams);
+        const response = await apiHandler.GetApi(
+          api_url.getAllTeams,
+          token
+        );
+        console.log("Teams API response:", response);
+        console.log("Response type:", typeof response);
+        console.log("Is array:", Array.isArray(response));
+        if (Array.isArray(response)) {
+          setTeams(response);
+          console.log("Teams set successfully:", response.length, "teams");
+        } else {
+          console.log("Response is not an array:", response);
+          // Try to handle different response formats
+          if (response && response.data && Array.isArray(response.data)) {
+            setTeams(response.data);
+            console.log("Teams found in response.data:", response.data.length, "teams");
+          } else if (response && response.teams && Array.isArray(response.teams)) {
+            setTeams(response.teams);
+            console.log("Teams found in response.teams:", response.teams.length, "teams");
+          } else {
+            console.log("No teams found in response");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch teams:", err);
+        console.error("Error details:", err.response?.data || err.message);
+      }
+    };
+    fetchTeams();
   }, []);
 
   const handleAddFormChange = (e) => {
@@ -155,12 +212,68 @@ const Section_a = () => {
             <p className="text-gray-600 text-lg">View and manage your team members</p>
           </div>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <Users size={18} /> Add Member
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-4">
+            {/* Teams Dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setTeamsDropdownOpen(!teamsDropdownOpen)}
+                className="bg-white border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 min-w-[200px]"
+              >
+                <span className="flex-1 text-left">
+                  {selectedTeam ? selectedTeam : "Select Team"}
+                </span>
+                <ChevronDown 
+                  size={16} 
+                  className={`transition-transform duration-200 ${
+                    teamsDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              
+              {teamsDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto">
+                  <div className="py-2">
+                    <div
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                      onClick={() => {
+                        setSelectedTeam("");
+                        setTeamsDropdownOpen(false);
+                      }}
+                    >
+                      All Teams
+                    </div>
+                    {teams.length === 0 ? (
+                      <div className="px-4 py-3 text-gray-500 text-sm">
+                        No teams found
+                      </div>
+                    ) : (
+                      teams.map((team, index) => {
+                        console.log(`Team ${index}:`, team);
+                        return (
+                          <div
+                            key={team._id || team.id || index}
+                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            onClick={() => {
+                              setSelectedTeam(team.teamName || team.name || team.team_name);
+                              setTeamsDropdownOpen(false);
+                            }}
+                          >
+                            {team.teamName || team.name || team.team_name || `Team ${index + 1}`}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <Users size={18} /> Add Member
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Add Team Member</DialogTitle>
@@ -211,6 +324,7 @@ const Section_a = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
@@ -229,7 +343,7 @@ const Section_a = () => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
           {teamMembers.map((member, index) => (
             <div
               key={member._id || index}
