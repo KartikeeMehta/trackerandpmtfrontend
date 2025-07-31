@@ -23,6 +23,8 @@ const Section_a = () => {
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
+  const [filteredMembers, setFilteredMembers] = useState([]);
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -171,6 +173,59 @@ const Section_a = () => {
     }
   };
 
+  const fetchTeamMembers = async (teamName) => {
+    const token = localStorage.getItem("token");
+    setLoadingTeamMembers(true);
+    try {
+      console.log("Fetching members for team:", teamName);
+      const response = await apiHandler.GetApi(
+        `http://localhost:8000/api/teams/${encodeURIComponent(teamName)}/members`,
+        token
+      );
+      console.log("Team members response:", response);
+      
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        // If response is directly an array of members
+        setFilteredMembers(response);
+      } else if (response && response.members && Array.isArray(response.members)) {
+        // If response is a team object with members array and teamLead
+        console.log("Found members in response.members:", response.members);
+        console.log("Found teamLead in response:", response.teamLead);
+        
+        // Combine team members and team lead
+        let allTeamMembers = [...response.members];
+        
+        // Add team lead if it exists and is not already in the members array
+        if (response.teamLead && response.teamLead._id) {
+          const teamLeadExists = response.members.some(member => member._id === response.teamLead._id);
+          if (!teamLeadExists) {
+            // Add role property to team lead if it doesn't exist
+            const teamLeadWithRole = {
+              ...response.teamLead,
+              role: response.teamLead.role || 'teamLead'
+            };
+            allTeamMembers.push(teamLeadWithRole);
+          }
+        }
+        
+        console.log("Combined team members and lead:", allTeamMembers);
+        setFilteredMembers(allTeamMembers);
+      } else if (response && Array.isArray(response.data) && response.data.length > 0) {
+        // If response has data property with members
+        setFilteredMembers(response.data);
+      } else {
+        console.log("No members found in response:", response);
+        setFilteredMembers([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch team members:", err);
+      setFilteredMembers([]);
+    } finally {
+      setLoadingTeamMembers(false);
+    }
+  };
+
   const handleEditMember = async (e) => {
     e.preventDefault();
 
@@ -230,35 +285,38 @@ const Section_a = () => {
               {teamsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto">
                   <div className="py-2">
-                    <div
-                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                      onClick={() => {
-                        setSelectedTeam("");
-                        setTeamsDropdownOpen(false);
-                      }}
-                    >
-                      All Teams
-                    </div>
+                                         <div
+                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                       onClick={() => {
+                         setSelectedTeam("");
+                         setTeamsDropdownOpen(false);
+                         setFilteredMembers([]); // Show all members
+                       }}
+                     >
+                       All Teams
+                     </div>
                     {teams.length === 0 ? (
                       <div className="px-4 py-3 text-gray-500 text-sm">
                         No teams found
                       </div>
                     ) : (
-                      teams.map((team, index) => {
-                        console.log(`Team ${index}:`, team);
-                        return (
-                          <div
-                            key={team._id || team.id || index}
-                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                            onClick={() => {
-                              setSelectedTeam(team.teamName || team.name || team.team_name);
-                              setTeamsDropdownOpen(false);
-                            }}
-                          >
-                            {team.teamName || team.name || team.team_name || `Team ${index + 1}`}
-                          </div>
-                        );
-                      })
+                                             teams.map((team, index) => {
+                         console.log(`Team ${index}:`, team);
+                         const teamName = team.teamName || team.name || team.team_name || `Team ${index + 1}`;
+                         return (
+                           <div
+                             key={team._id || team.id || index}
+                             className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                             onClick={() => {
+                               setSelectedTeam(teamName);
+                               setTeamsDropdownOpen(false);
+                               fetchTeamMembers(teamName);
+                             }}
+                           >
+                             {teamName}
+                           </div>
+                         );
+                       })
                     )}
                   </div>
                 </div>

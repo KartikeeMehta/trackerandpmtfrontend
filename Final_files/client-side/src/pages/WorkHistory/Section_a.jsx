@@ -5,6 +5,7 @@ import {
   Clock4,
   Users,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api_url } from "@/api/Api";
@@ -13,6 +14,9 @@ import { apiHandler } from "@/api/ApiHandler";
 const Section_a = () => {
   const [activeState, setActiveState] = useState("active");
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [retrievingProject, setRetrievingProject] = useState(null);
+
   useEffect(() => {
     const fetchProjects = async () => {
       const token = localStorage.getItem("token");
@@ -35,6 +39,48 @@ const Section_a = () => {
     };
     fetchProjects();
   }, []);
+
+  const handleRetrieveProject = async (project) => {
+    if (retrievingProject) return; // Prevent multiple clicks
+
+    setRetrievingProject(project.project_id);
+    const token = localStorage.getItem("token");
+
+    try {
+      const updateUrl = api_url.updateProject.replace(
+        ":projectId",
+        project.project_id
+      );
+      const response = await apiHandler.PutApi(
+        updateUrl,
+        {
+          project_status: "on hold",
+        },
+        token
+      );
+
+      if (response.message) {
+        // Update the project in the local state
+        setProjects((prevProjects) =>
+          prevProjects.map((p) =>
+            p.project_id === project.project_id
+              ? { ...p, project_status: "on hold" }
+              : p
+          )
+        );
+
+        // Show success message (you can add a toast notification here)
+        alert(
+          `Project "${project.project_name}" has been retrieved successfully!`
+        );
+      }
+    } catch (error) {
+      console.error("Error retrieving project:", error);
+      alert("Failed to retrieve project. Please try again.");
+    } finally {
+      setRetrievingProject(null);
+    }
+  };
 
   const getButtonClasses = (state) => {
     const base =
@@ -63,8 +109,12 @@ const Section_a = () => {
         {/* Header Section */}
         <div className="mb-10">
           <div className="mb-8">
-            <h2 className="text-4xl font-bold text-gray-900 mb-2">Project History</h2>
-            <p className="text-gray-600 text-lg">Track completed and deleted projects</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">
+              Project History
+            </h2>
+            <p className="text-gray-600 text-lg">
+              Track completed and deleted projects
+            </p>
           </div>
 
           {/* Filter Buttons */}
@@ -112,7 +162,32 @@ const Section_a = () => {
               key={project.project_id}
               className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
             >
-
+              {/* Retrieve Button Overlay - Only for deleted projects */}
+              {project.project_status === "deleted" && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
+                  <button
+                    onClick={() => handleRetrieveProject(project)}
+                    disabled={retrievingProject === project.project_id}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
+                      retrievingProject === project.project_id
+                        ? "bg-gray-500 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700 hover:scale-105"
+                    }`}
+                  >
+                    {retrievingProject === project.project_id ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Retrieving...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw size={16} />
+                        Retrieve Project
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Card Content */}
               <div className="p-6">
@@ -127,7 +202,8 @@ const Section_a = () => {
                 </div>
 
                 {/* Completion Note */}
-                {(project.project_status === "completed" && project.completion_note) ||
+                {(project.project_status === "completed" &&
+                  project.completion_note) ||
                 (project.project_status === "completed" &&
                   !project.completion_note &&
                   project.original_end_date &&
@@ -136,7 +212,9 @@ const Section_a = () => {
                     <div className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
                       <div className="text-sm">
-                        <span className="font-semibold text-yellow-800">Note:</span>{" "}
+                        <span className="font-semibold text-yellow-800">
+                          Note:
+                        </span>{" "}
                         <span className="text-yellow-700">
                           {project.completion_note ||
                             `Original planned completion date was ${project.original_end_date}, but project was completed on ${project.end_date}.`}
@@ -181,22 +259,29 @@ const Section_a = () => {
                           ? `${project.start_date} - ${project.end_date}`
                           : "No dates set"}
                       </div>
-                      <div className="text-xs text-gray-500">Project timeline</div>
+                      <div className="text-xs text-gray-500">
+                        Project timeline
+                      </div>
                     </div>
                   </div>
 
                   {/* Completion Date (for completed projects) */}
-                  {project.project_status === "completed" && project.end_date && (
-                    <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
-                      <div className="p-2 bg-emerald-100 rounded-lg">
-                        <CheckCircle size={16} className="text-emerald-600" />
+                  {project.project_status === "completed" &&
+                    project.end_date && (
+                      <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                          <CheckCircle size={16} className="text-emerald-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-gray-900">
+                            Completed on {project.end_date}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Completion date
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900">Completed on {project.end_date}</div>
-                        <div className="text-xs text-gray-500">Completion date</div>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Last Updated */}
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
@@ -228,9 +313,11 @@ const Section_a = () => {
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookText size={24} className="text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No projects found</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No projects found
+              </h3>
               <p className="text-gray-500 text-sm">
-                {activeState === "completed" 
+                {activeState === "completed"
                   ? "No completed projects in your history."
                   : activeState === "deleted"
                   ? "No deleted projects in your history."

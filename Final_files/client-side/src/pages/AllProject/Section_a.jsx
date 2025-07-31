@@ -116,8 +116,41 @@ const Section_a = () => {
     setEditError("");
   };
 
+  const validateEditForm = () => {
+    const errors = [];
+    
+    if (!editingProject.project_name?.trim()) {
+      errors.push("Project name is required");
+    }
+    if (!editingProject.client_name?.trim()) {
+      errors.push("Client name is required");
+    }
+    if (!editingProject.project_description?.trim()) {
+      errors.push("Project description is required");
+    }
+    if (!editingProject.start_date) {
+      errors.push("Start date is required");
+    }
+    if (!editingProject.end_date || (editingProject.end_date !== "Ongoing" && !editingProject.end_date.trim())) {
+      errors.push("Please select an end date option");
+    }
+    if (!editingProject.project_lead) {
+      errors.push("Project lead is required");
+    }
+    
+    return errors;
+  };
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const validationErrors = validateEditForm();
+    if (validationErrors.length > 0) {
+      setEditError(validationErrors.join(", "));
+      return;
+    }
+    
     setEditLoading(true);
     setEditError("");
 
@@ -480,15 +513,33 @@ const Section_a = () => {
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        End Date
+                        End Date / Project Duration
                       </label>
-                      <input
-                        type="date"
-                        value={editingProject.end_date || ""}
-                        onChange={(e) => handleEditChange("end_date", e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
-                        required
-                      />
+                      <div className="space-y-2">
+                        <select
+                          value={editingProject.end_date === "Ongoing" ? "ongoing" : editingProject.end_date ? "specific" : "ongoing"}
+                          onChange={(e) => {
+                            if (e.target.value === "ongoing") {
+                              handleEditChange("end_date", "Ongoing");
+                            } else {
+                              handleEditChange("end_date", "");
+                            }
+                          }}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                        >
+                          <option value="ongoing">Ongoing</option>
+                          <option value="specific">Select Specific Date</option>
+                        </select>
+                        {editingProject.end_date !== "Ongoing" && (
+                          <input
+                            type="date"
+                            value={editingProject.end_date && editingProject.end_date !== "Ongoing" ? editingProject.end_date : ""}
+                            onChange={(e) => handleEditChange("end_date", e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white shadow-sm"
+                            required={editingProject.end_date !== "Ongoing"}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

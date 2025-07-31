@@ -23,7 +23,7 @@ const Section_a = () => {
     projectLead: editMode ? project?.project_lead || "" : "",
     status: editMode ? project?.project_status || "" : "",
     startDate: editMode ? project?.start_date || "" : "",
-    endDate: editMode ? project?.end_date || "" : "",
+    endDate: editMode ? (project?.end_date === "Ongoing" ? "ongoing" : project?.end_date || "ongoing") : "ongoing",
     projectMember: "",
     teamId: editMode ? project?.team_id || "" : "",
   });
@@ -117,7 +117,7 @@ const Section_a = () => {
       newErrors.projectLead = "Project lead is required.";
     if (!form.status.trim()) newErrors.status = "Status is required.";
     if (!form.startDate.trim()) newErrors.startDate = "Start date is required.";
-    if (!form.endDate.trim()) newErrors.endDate = "End date is required.";
+    if (!form.endDate.trim()) newErrors.endDate = "Please select an end date option.";
     if (!form.teamId)
       newErrors.teamId = "Please select a team for this project.";
     return newErrors;
@@ -136,7 +136,7 @@ const Section_a = () => {
       project_description: form.description,
       project_status: form.status,
       start_date: form.startDate,
-      end_date: form.endDate,
+      end_date: form.endDate === "ongoing" ? "Ongoing" : form.endDate,
       project_lead: form.projectLead,
       team_members: selectedMermber,
       team_id: form.teamId,
@@ -388,21 +388,34 @@ const Section_a = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                End Date
+                End Date / Project Duration
               </label>
               <div className="relative">
-                <input
-                  ref={endDateRef}
-                  type="date"
+                <select
                   name="endDate"
                   value={form.endDate}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2 pr-10 focus:ring-2 focus:ring-blue-500 [&::-webkit-calendar-picker-indicator]:opacity-0"
-                />
-                <Calendar
-                  className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                  onClick={() => endDateRef.current?.showPicker()}
-                />
+                  className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm p-2 pr-10 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ongoing">Ongoing</option>
+                  <option value="">Select Specific Date</option>
+                </select>
+                {form.endDate === "" && (
+                  <input
+                    ref={endDateRef}
+                    type="date"
+                    name="endDate"
+                    value={form.endDate}
+                    onChange={handleChange}
+                    className="mt-2 block w-full rounded-md border border-gray-300 shadow-sm p-2 pr-10 focus:ring-2 focus:ring-blue-500 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                  />
+                )}
+                {form.endDate !== "" && form.endDate !== "ongoing" && (
+                  <Calendar
+                    className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
+                    onClick={() => endDateRef.current?.showPicker()}
+                  />
+                )}
               </div>
               {errors.endDate && (
                 <p className="text-red-500 text-sm mt-1">{errors.endDate}</p>
