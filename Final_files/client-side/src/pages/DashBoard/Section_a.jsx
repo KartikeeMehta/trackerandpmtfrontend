@@ -366,7 +366,7 @@ function Section_a() {
   }, [tasks]);
 
   return (
-    <div className="max-w-[1440px] bg-white m-auto p-6 min-h-screen">
+    <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Greeting */}
       <div className="font-bold py-3 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
