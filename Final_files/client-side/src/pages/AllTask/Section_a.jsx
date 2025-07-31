@@ -460,7 +460,7 @@ const Section_a = () => {
                 </div>
                 <button
                   className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  onClick={() => navigate("/CreateTask")}
+                  onClick={() => navigate("/CreateTask", { state: { selectedMember: selectedMember } })}
                 >
                   <Plus size={18} /> Add Task
                 </button>

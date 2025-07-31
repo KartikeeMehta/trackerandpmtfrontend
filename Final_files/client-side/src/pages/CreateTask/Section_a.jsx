@@ -1,12 +1,13 @@
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Section_a = () => {
     const token = localStorage.getItem("token");
     const [members, setMembers] = useState([]);
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [projects, setProjects] = useState([]);
     const dateInputRef = useRef(null);    
@@ -90,7 +91,16 @@ const Section_a = () => {
                 assignedByRole: user.role,
             }));
         }
-    }, []);
+
+        // Check if a member was selected from AllTask page
+        if (location.state?.selectedMember) {
+            const selectedMember = location.state.selectedMember;
+            setTaskForm((prev) => ({
+                ...prev,
+                assignedTo: selectedMember.teamMemberId,
+            }));
+        }
+    }, [location.state]);
 
 
     const handleSubmit = async (e) => {
@@ -183,7 +193,8 @@ const Section_a = () => {
                             name="assignedTo"
                             value={taskForm.assignedTo}
                             onChange={handleInputChange}
-                            className="border p-2 rounded w-full"
+                            disabled={location.state?.selectedMember}
+                            className={`border p-2 rounded w-full ${location.state?.selectedMember ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                         >
                             <option value="">Select Member</option>
                             {members.map((member) => (
@@ -192,6 +203,7 @@ const Section_a = () => {
                                 </option>
                             ))}
                         </select>
+
                     </div>
 
                     {/* Assigned By - read-only input */}
