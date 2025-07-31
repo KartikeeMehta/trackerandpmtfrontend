@@ -682,21 +682,40 @@ const Section_a = () => {
             )}
           </>
         ) : (
-          <div className="text-center py-20">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 max-w-md mx-auto shadow-xl border border-gray-100">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users size={32} className="text-blue-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to All Tasks</h3>
-              <p className="text-gray-600 text-lg mb-6">
-                Select a team member from the sidebar to view and manage their tasks.
-              </p>
-              <div className="flex items-center justify-center gap-2 text-gray-500">
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                <span className="text-sm">Choose a role and member to get started</span>
+          <>
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    All Tasks
+                  </h1>
+                  <p className="text-gray-600">Manage and track task progress across all team members</p>
+                </div>
+                <button
+                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  onClick={() => navigate("/CreateTask")}
+                >
+                  <Plus size={18} /> Add Task
+                </button>
               </div>
             </div>
-          </div>
+            
+            <div className="text-center py-20">
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 max-w-md mx-auto shadow-xl border border-gray-100">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users size={32} className="text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to All Tasks</h3>
+                <p className="text-gray-600 text-lg mb-6">
+                  Select a team member from the sidebar to view and manage their tasks.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-gray-500">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  <span className="text-sm">Choose a role and member to get started</span>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
       {/* Add Task Modal */}

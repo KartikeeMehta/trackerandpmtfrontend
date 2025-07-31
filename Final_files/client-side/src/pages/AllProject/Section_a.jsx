@@ -338,7 +338,7 @@ const Section_a = () => {
                     </div>
 
                     {/* Project Stats */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 mt-[-40px]">
                       {/* Team Members */}
                       <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
                         <div className="p-2 bg-blue-100 rounded-lg">
