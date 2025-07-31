@@ -257,7 +257,7 @@ const Section_a = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-10">
+    <div className="p-4 sm:p-6 md:p-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {/* Header Section */}
       <div className="mb-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">

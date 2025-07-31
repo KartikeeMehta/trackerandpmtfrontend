@@ -59,6 +59,8 @@ const Section_a = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalTeam, setModalTeam] = useState(null);
   const [modalType, setModalType] = useState("projects");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState(null);
 
   useEffect(() => {
     fetchAll()
@@ -223,7 +225,6 @@ const Section_a = () => {
 
   // Delete Team
   const handleDeleteTeam = async (team) => {
-    if (!window.confirm(`Delete team '${team.teamName}'?`)) return;
     setActionLoading(true);
     setActionError("");
     const token = localStorage.getItem("token");
@@ -243,6 +244,20 @@ const Section_a = () => {
       setActionError("Failed to delete team");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Handle delete confirmation
+  const confirmDelete = (team) => {
+    setTeamToDelete(team);
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async () => {
+    if (teamToDelete) {
+      await handleDeleteTeam(teamToDelete);
+      setShowDeleteModal(false);
+      setTeamToDelete(null);
     }
   };
 
@@ -266,7 +281,7 @@ const Section_a = () => {
   });
 
   return (
-    <div className="p-4 sm:p-6 md:p-10">
+    <div className="p-4 sm:p-6 md:p-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {/* Filter/Search Bar */}
       <div className="flex flex-wrap gap-2 mb-6 items-center">
         <input
@@ -405,26 +420,26 @@ const Section_a = () => {
                               : Array.isArray(team.members)
                                 ? team.members.map((m) => m.teamMemberId)
                                 : [],
-                          });
-                          setShowEditDialog(true);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </button>
-
-                      {/* Delete Button */}
-                      <button
-                        className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTeam(team);
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                            });
+                            setShowEditDialog(true);
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        
+                                                 {/* Delete Button */}
+                         <button
+                           className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             confirmDelete(team);
+                           }}
+                         >
+                           <Trash2 size={14} />
+                         </button>
+                      </div>
+                   </div>
+                 </div>
               ))}
             </div>
           )}
@@ -934,28 +949,79 @@ const Section_a = () => {
                 </div>
               )}
 
-              {/* Empty State */}
-              {((modalType === "projects" && getTeamProjects(modalTeam).length === 0) ||
-                (modalType === "tasks" && getTeamTasks(modalTeam).length === 0)) && (
-                  <div className="text-center py-12">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      No {modalType} found
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      This team doesn't have any {modalType} assigned yet. Projects and tasks will appear here once they're created and assigned to this team.
-                    </p>
-                  </div>
-                )}
+               {/* Empty State */}
+               {((modalType === "projects" && getTeamProjects(modalTeam).length === 0) ||
+                 (modalType === "tasks" && getTeamTasks(modalTeam).length === 0)) && (
+                 <div className="text-center py-12">
+                   <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                     </svg>
+                   </div>
+                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                     No {modalType} found
+                   </h3>
+                   <p className="text-gray-500 max-w-md mx-auto">
+                     This team doesn't have any {modalType} assigned yet. Projects and tasks will appear here once they're created and assigned to this team.
+                   </p>
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+               )}
+
+        {/* Delete Team Confirmation Modal */}
+        {showDeleteModal && teamToDelete && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Delete Team</h3>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setTeamToDelete(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  Do you want to delete <span className="font-semibold text-gray-900">{teamToDelete.teamName}</span>?
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  This action cannot be undone. The team will be permanently removed.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setTeamToDelete(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
+        )}
+     </div>
+   );
+ };
 export default Section_a;
