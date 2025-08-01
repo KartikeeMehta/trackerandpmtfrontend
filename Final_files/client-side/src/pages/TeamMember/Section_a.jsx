@@ -1,4 +1,12 @@
-import { Pencil, Trash2, Mail, Clock, Activity, Users, ChevronDown } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Mail,
+  Clock,
+  Activity,
+  Users,
+  ChevronDown,
+} from "lucide-react";
 import { Phone, IdCard, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,9 +57,9 @@ const Section_a = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -85,10 +93,7 @@ const Section_a = () => {
       console.log("Token:", token ? "Token exists" : "No token");
       try {
         console.log("Fetching teams from:", api_url.getAllTeams);
-        const response = await apiHandler.GetApi(
-          api_url.getAllTeams,
-          token
-        );
+        const response = await apiHandler.GetApi(api_url.getAllTeams, token);
         console.log("Teams API response:", response);
         console.log("Response type:", typeof response);
         console.log("Is array:", Array.isArray(response));
@@ -100,10 +105,22 @@ const Section_a = () => {
           // Try to handle different response formats
           if (response && response.data && Array.isArray(response.data)) {
             setTeams(response.data);
-            console.log("Teams found in response.data:", response.data.length, "teams");
-          } else if (response && response.teams && Array.isArray(response.teams)) {
+            console.log(
+              "Teams found in response.data:",
+              response.data.length,
+              "teams"
+            );
+          } else if (
+            response &&
+            response.teams &&
+            Array.isArray(response.teams)
+          ) {
             setTeams(response.teams);
-            console.log("Teams found in response.teams:", response.teams.length, "teams");
+            console.log(
+              "Teams found in response.teams:",
+              response.teams.length,
+              "teams"
+            );
           } else {
             console.log("No teams found in response");
           }
@@ -133,7 +150,7 @@ const Section_a = () => {
         payload,
         token
       );
-      
+
       if (response && response.employee) {
         setTeamMembers((prev) => [...prev, response.employee]);
         setAddForm({
@@ -180,39 +197,51 @@ const Section_a = () => {
     try {
       console.log("Fetching members for team:", teamName);
       const response = await apiHandler.GetApi(
-        `http://localhost:8000/api/teams/${encodeURIComponent(teamName)}/members`,
+        `http://localhost:8000/api/teams/${encodeURIComponent(
+          teamName
+        )}/members`,
         token
       );
       console.log("Team members response:", response);
-      
+
       // Handle different response formats
       if (Array.isArray(response)) {
         // If response is directly an array of members
         setFilteredMembers(response);
-      } else if (response && response.members && Array.isArray(response.members)) {
+      } else if (
+        response &&
+        response.members &&
+        Array.isArray(response.members)
+      ) {
         // If response is a team object with members array and teamLead
         console.log("Found members in response.members:", response.members);
         console.log("Found teamLead in response:", response.teamLead);
-        
+
         // Combine team members and team lead
         let allTeamMembers = [...response.members];
-        
+
         // Add team lead if it exists and is not already in the members array
         if (response.teamLead && response.teamLead._id) {
-          const teamLeadExists = response.members.some(member => member._id === response.teamLead._id);
+          const teamLeadExists = response.members.some(
+            (member) => member._id === response.teamLead._id
+          );
           if (!teamLeadExists) {
             // Add role property to team lead if it doesn't exist
             const teamLeadWithRole = {
               ...response.teamLead,
-              role: response.teamLead.role || 'teamLead'
+              role: response.teamLead.role || "teamLead",
             };
             allTeamMembers.push(teamLeadWithRole);
           }
         }
-        
+
         console.log("Combined team members and lead:", allTeamMembers);
         setFilteredMembers(allTeamMembers);
-      } else if (response && Array.isArray(response.data) && response.data.length > 0) {
+      } else if (
+        response &&
+        Array.isArray(response.data) &&
+        response.data.length > 0
+      ) {
         // If response has data property with members
         setFilteredMembers(response.data);
       } else {
@@ -262,8 +291,12 @@ const Section_a = () => {
       <div className="mb-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
           <div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-2">Team Members</h2>
-            <p className="text-gray-600 text-lg">View and manage your team members</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">
+              Team Members
+            </h2>
+            <p className="text-gray-600 text-lg">
+              View and manage your team members
+            </p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -278,46 +311,51 @@ const Section_a = () => {
                 </span>
                 <ChevronDown
                   size={16}
-                  className={`transition-transform duration-200 ${teamsDropdownOpen ? 'rotate-180' : ''
-                    }`}
+                  className={`transition-transform duration-200 ${
+                    teamsDropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
               {teamsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto">
                   <div className="py-2">
-                                         <div
-                       className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                       onClick={() => {
-                         setSelectedTeam("");
-                         setTeamsDropdownOpen(false);
-                         setFilteredMembers([]); // Show all members
-                       }}
-                     >
-                       All Teams
-                     </div>
+                    <div
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                      onClick={() => {
+                        setSelectedTeam("");
+                        setTeamsDropdownOpen(false);
+                        setFilteredMembers([]); // Show all members
+                      }}
+                    >
+                      All Teams
+                    </div>
                     {teams.length === 0 ? (
                       <div className="px-4 py-3 text-gray-500 text-sm">
                         No teams found
                       </div>
                     ) : (
-                                             teams.map((team, index) => {
-                         console.log(`Team ${index}:`, team);
-                         const teamName = team.teamName || team.name || team.team_name || `Team ${index + 1}`;
-                         return (
-                           <div
-                             key={team._id || team.id || index}
-                             className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                             onClick={() => {
-                               setSelectedTeam(teamName);
-                               setTeamsDropdownOpen(false);
-                               fetchTeamMembers(teamName);
-                             }}
-                           >
-                             {teamName}
-                           </div>
-                         );
-                       })
+                      teams.map((team, index) => {
+                        console.log(`Team ${index}:`, team);
+                        const teamName =
+                          team.teamName ||
+                          team.name ||
+                          team.team_name ||
+                          `Team ${index + 1}`;
+                        return (
+                          <div
+                            key={team._id || team.id || index}
+                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            onClick={() => {
+                              setSelectedTeam(teamName);
+                              setTeamsDropdownOpen(false);
+                              fetchTeamMembers(teamName);
+                            }}
+                          >
+                            {teamName}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -384,7 +422,6 @@ const Section_a = () => {
         </div>
       </div>
 
-
       {fetching ? (
         <div className="text-center py-20">
           <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
@@ -403,7 +440,7 @@ const Section_a = () => {
           No Team Member
         </div>
       ) : (
-       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 ">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 ">
           {teamMembers.map((member, index) => (
             <div
               key={member._id || index}
@@ -420,7 +457,10 @@ const Section_a = () => {
                       }}
                       className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
                     >
-                      <Pencil size={16} className="text-gray-600 hover:text-blue-600" />
+                      <Pencil
+                        size={16}
+                        className="text-gray-600 hover:text-blue-600"
+                      />
                     </button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
@@ -495,7 +535,10 @@ const Section_a = () => {
                 <Dialog>
                   <DialogTrigger asChild>
                     <button className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200">
-                      <Trash2 size={16} className="text-red-500 hover:text-red-700" />
+                      <Trash2
+                        size={16}
+                        className="text-red-500 hover:text-red-700"
+                      />
                     </button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[420px]">
@@ -529,12 +572,13 @@ const Section_a = () => {
               {/* Role Badge */}
               <div className="absolute top-4 left-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
+                    member.role === "admin"
                       ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                       : member.role === "teamLead"
-                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                    }`}
+                      ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                      : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                  }`}
                 >
                   {member.role}
                 </span>
@@ -553,19 +597,36 @@ const Section_a = () => {
                     <h3 className="text-xl font-bold text-gray-900 capitalize">
                       {member.name}
                     </h3>
-                    <p className="text-sm text-gray-500 capitalize">{member.role}</p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {member.designation || "Not specified"}
+                    </p>
                   </div>
                 </div>
 
                 {/* Member Information */}
                 <div className="space-y-4">
+                  {/* Employee ID */}
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <IdCard size={16} className="text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {member.teamMemberId}
+                      </div>
+                      <div className="text-xs text-gray-500">Employee ID</div>
+                    </div>
+                  </div>
+
                   {/* Contact Info */}
                   <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
                     <div className="p-2 bg-blue-100 rounded-lg">
                       <Mail size={16} className="text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{member.email}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {member.email}
+                      </div>
                       <div className="text-xs text-gray-500">Email address</div>
                     </div>
                   </div>
@@ -576,32 +637,25 @@ const Section_a = () => {
                       <Phone size={16} className="text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{member.phoneNo}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {member.phoneNo}
+                      </div>
                       <div className="text-xs text-gray-500">Phone number</div>
                     </div>
                   </div>
 
-                  {/* Employee ID */}
-                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <IdCard size={16} className="text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{member.teamMemberId}</div>
-                      <div className="text-xs text-gray-500">Employee ID</div>
-                    </div>
-                  </div>
-
                   {/* Designation */}
-                  <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                  {/* <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
                     <div className="p-2 bg-orange-100 rounded-lg">
                       <Activity size={16} className="text-orange-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{member.designation || "Not specified"}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {member.designation || "Not specified"}
+                      </div>
                       <div className="text-xs text-gray-500">Designation</div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Location */}
                   <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
@@ -609,7 +663,9 @@ const Section_a = () => {
                       <MapPin size={16} className="text-indigo-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{member.location || "Not specified"}</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {member.location || "Not specified"}
+                      </div>
                       <div className="text-xs text-gray-500">Location</div>
                     </div>
                   </div>
@@ -622,9 +678,6 @@ const Section_a = () => {
           ))}
         </div>
       )}
-
-
-
     </div>
   );
 };
