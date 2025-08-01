@@ -1,12 +1,12 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   status: {
     type: String,
-    enum: ['pending', 'verification', 'in-progress', 'completed', "deleted"],
-    default: 'pending',
+    enum: ["pending", "verification", "in-progress", "completed", "deleted"],
+    default: "pending",
   },
   assignedTo: {
     type: String, // Now storing teamMemberId (e.g., WS-001)
@@ -14,12 +14,12 @@ const taskSchema = new mongoose.Schema({
   },
   assignedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: "User",
     required: true,
   },
   assignedByRole: {
     type: String,
-    enum: ['owner', 'admin', 'team_lead'],
+    enum: ["owner", "admin", "team_lead"],
     required: true,
   },
   project: {
@@ -28,7 +28,7 @@ const taskSchema = new mongoose.Schema({
   },
   priority: {
     type: String,
-    enum: ['low', 'medium', 'high', 'critical'],
+    enum: ["low", "medium", "high", "critical"],
     required: true,
   },
   dueDate: {
@@ -44,9 +44,9 @@ const taskSchema = new mongoose.Schema({
     {
       text: { type: String, required: true },
       author: { type: String, required: true },
-      date: { type: Date, default: Date.now }
-    }
+      date: { type: Date, default: Date.now },
+    },
   ],
 });
 
-module.exports = mongoose.model('Task', taskSchema);
+module.exports = mongoose.model("Task", taskSchema);

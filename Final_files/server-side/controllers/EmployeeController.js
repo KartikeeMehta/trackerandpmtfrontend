@@ -290,7 +290,9 @@ exports.deleteEmployee = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
   try {
     const userCompany = req.user.companyName;
-    const employees = await Employee.find({ companyName: userCompany }).select("-password");
+    const employees = await Employee.find({ companyName: userCompany }).select(
+      "-password"
+    );
     res.status(200).json(employees);
   } catch (error) {
     console.error("Error fetching employees:", error);
@@ -302,9 +304,9 @@ exports.getAllEmployees = async (req, res) => {
 exports.getAllTeamLeads = async (req, res) => {
   try {
     const userCompany = req.user.companyName;
-    const teamLeads = await Employee.find({ 
+    const teamLeads = await Employee.find({
       role: "teamLead",
-      companyName: userCompany 
+      companyName: userCompany,
     }).select("-password");
     res.status(200).json(teamLeads);
   } catch (error) {
@@ -317,9 +319,9 @@ exports.getAllTeamLeads = async (req, res) => {
 exports.getAllAdmins = async (req, res) => {
   try {
     const userCompany = req.user.companyName;
-    const admins = await Employee.find({ 
+    const admins = await Employee.find({
       role: "admin",
-      companyName: userCompany 
+      companyName: userCompany,
     }).select("-password");
     res.status(200).json(admins);
   } catch (error) {
@@ -332,9 +334,9 @@ exports.getAllAdmins = async (req, res) => {
 exports.getAllTeamMembers = async (req, res) => {
   try {
     const userCompany = req.user.companyName;
-    const teamMembers = await Employee.find({ 
+    const teamMembers = await Employee.find({
       role: "teamMember",
-      companyName: userCompany 
+      companyName: userCompany,
     }).select("-password");
     res.status(200).json(teamMembers);
   } catch (error) {
