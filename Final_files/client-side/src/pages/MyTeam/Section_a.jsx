@@ -732,13 +732,23 @@ const Section_a = () => {
       {/* Edit Team Dialog */}
       {showEditDialog && (
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Edit Team</DialogTitle>
+          <DialogContent className="sm:max-w-[500px] bg-white rounded-xl shadow-lg border-0">
+            {/* Simple Header */}
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-lg font-semibold text-gray-900">
+                Edit Team
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
+                Update team information and member assignments
+              </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="teamName">Team Name</Label>
+            
+            <div className="space-y-4">
+              {/* Team Name Field */}
+              <div className="space-y-1">
+                <Label htmlFor="teamName" className="text-sm font-medium text-gray-700">
+                  Team Name <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="teamName"
                   name="teamName"
@@ -746,14 +756,20 @@ const Section_a = () => {
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, teamName: e.target.value }))
                   }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter team name"
                 />
                 {formErrors.teamName && (
-                  <p className="text-red-600 text-sm">{formErrors.teamName}</p>
+                  <p className="text-red-600 text-xs">{formErrors.teamName}</p>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
+
+              {/* Description Field */}
+              <div className="space-y-1">
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                  Description
+                </Label>
+                <textarea
                   id="description"
                   name="description"
                   value={editForm.description}
@@ -763,20 +779,27 @@ const Section_a = () => {
                       description: e.target.value,
                     }))
                   }
+                  rows="2"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  placeholder="Describe the team's purpose..."
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="teamLead">Team Lead</Label>
+
+              {/* Team Lead Field */}
+              <div className="space-y-1">
+                <Label htmlFor="teamLead" className="text-sm font-medium text-gray-700">
+                  Team Lead <span className="text-red-500">*</span>
+                </Label>
                 <select
                   id="teamLead"
                   name="teamLead"
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   value={editForm.teamLead}
                   onChange={(e) =>
                     setEditForm((f) => ({ ...f, teamLead: e.target.value }))
                   }
                 >
-                  <option value="">Select</option>
+                  <option value="">Select Team Lead</option>
                   {teamLeads.map((lead) => (
                     <option key={lead.teamMemberId} value={lead.teamMemberId}>
                       {lead.name} ({lead.teamMemberId})
@@ -784,61 +807,84 @@ const Section_a = () => {
                   ))}
                 </select>
                 {formErrors.teamLead && (
-                  <p className="text-red-600 text-sm">{formErrors.teamLead}</p>
+                  <p className="text-red-600 text-xs">{formErrors.teamLead}</p>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>Team Members</Label>
-                <div className="flex flex-wrap gap-2">
-                  {teamMembers.map((member) => (
-                    <label
-                      key={member.teamMemberId}
-                      className="space-x-2 flex items-center"
-                    >
-                      <input
-                        type="checkbox"
-                        className="form-checkbox text-blue-600 h-4 w-4"
-                        checked={editForm.teamMembers.includes(
-                          member.teamMemberId
-                        )}
-                        onChange={(e) => {
-                          setEditForm((f) => ({
-                            ...f,
-                            teamMembers: e.target.checked
-                              ? [...f.teamMembers, member.teamMemberId]
-                              : f.teamMembers.filter(
-                                (id) => id !== member.teamMemberId
-                              ),
-                          }));
-                        }}
-                      />
-                      <span className="text-gray-800">
-                        {member.name} ({member.teamMemberId})
-                      </span>
-                    </label>
-                  ))}
+
+              {/* Team Members Section */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Team Members
+                </Label>
+                <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
+                  <div className="space-y-2">
+                    {teamMembers.map((member) => (
+                      <label
+                        key={member.teamMemberId}
+                        className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200 hover:border-blue-300 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          checked={editForm.teamMembers.includes(
+                            member.teamMemberId
+                          )}
+                          onChange={(e) => {
+                            setEditForm((f) => ({
+                              ...f,
+                              teamMembers: e.target.checked
+                                ? [...f.teamMembers, member.teamMemberId]
+                                : f.teamMembers.filter(
+                                  (id) => id !== member.teamMemberId
+                                ),
+                            }));
+                          }}
+                        />
+                        <span className="text-sm text-gray-900">
+                          {member.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* Error Display */}
               {actionError && (
-                <div className="text-red-600 text-sm">{actionError}</div>
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                  <p className="text-red-700 text-sm">{actionError}</p>
+                </div>
               )}
             </div>
-            <DialogFooter>
-              <DialogClose asChild>
+
+            {/* Simple Footer */}
+            <DialogFooter className="pt-4">
+              <div className="flex gap-3 w-full">
+                <DialogClose asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowEditDialog(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </DialogClose>
                 <Button
-                  variant="outline"
-                  onClick={() => setShowEditDialog(false)}
+                  type="button"
+                  onClick={handleEditTeam}
+                  disabled={actionLoading}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
                 >
-                  Cancel
+                  {actionLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Updating...
+                    </div>
+                  ) : (
+                    "Update Team"
+                  )}
                 </Button>
-              </DialogClose>
-              <Button
-                type="button"
-                onClick={handleEditTeam}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Updating..." : "Update Team"}
-              </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

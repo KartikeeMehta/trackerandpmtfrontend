@@ -546,38 +546,110 @@ const Section_a = () => {
                   ) : (
                     <div className="space-y-4">
                       {tasks.map((task) => (
-                        <div
-                          key={task._id}
-                          className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                            selectedTask?._id === task._id 
-                              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg" 
-                              : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                          }`}
-                          onClick={() => setSelectedTask(task)}
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <h4 className="font-bold text-gray-900 capitalize text-lg">
-                              {task.title}
-                            </h4>
-                            <span className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
-                              task.status === 'completed' 
-                                ? 'bg-green-100 text-green-700'
-                                : task.status === 'in-progress'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-100 text-gray-700'
-                            }`}>
-                              {task.status}
-                            </span>
+                        <div key={task._id}>
+                          <div
+                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                              selectedTask?._id === task._id 
+                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg" 
+                                : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                            }`}
+                            onClick={() => setSelectedTask(selectedTask?._id === task._id ? null : task)}
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <h4 className="font-bold text-gray-900 capitalize text-lg">
+                                {task.title}
+                              </h4>
+                              <span className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                task.status === 'completed' 
+                                  ? 'bg-green-100 text-green-700'
+                                  : task.status === 'in-progress'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {task.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 text-sm leading-relaxed">
+                              {task.description}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs font-medium text-gray-500">Project:</span>
+                              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                {getProjectNameById(task.project)}
+                              </span>
+                            </div>
                           </div>
-                          <p className="text-gray-600 text-sm leading-relaxed">
-                            {task.description}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs font-medium text-gray-500">Project:</span>
-                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                              {getProjectNameById(task.project)}
-                            </span>
-                          </div>
+                          
+                          {/* Task Details - Appears directly below the selected task */}
+                          {selectedTask?._id === task._id && (
+                            <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                              <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-xl font-bold text-gray-800">
+                                  {selectedTask.title}
+                                </h4>
+                                <div className="flex gap-2">
+                                                                     <button
+                                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                     onClick={() => {
+                                       if (selectedMember) {
+                                         navigate("/EditTask", {
+                                           state: {
+                                             taskDetails: selectedTask,
+                                           },
+                                         });
+                                       } else {
+                                         console.warn("No member selected to edit.");
+                                       }
+                                     }}
+                                   >
+                                     <Edit size={16} /> Edit
+                                   </button>
+                                   <button
+                                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                     onClick={() => setShowDeleteConfirm(true)}
+                                   >
+                                     <Trash2 size={16} /> Delete
+                                   </button>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="text-gray-700">
+                                  <span className="font-semibold text-gray-800">Description:</span>
+                                  <p className="mt-1 text-gray-600 leading-relaxed">
+                                    {selectedTask.description}
+                                  </p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">Status:</span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                      selectedTask.status === 'completed' 
+                                        ? 'bg-green-100 text-green-700'
+                                        : selectedTask.status === 'in-progress'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {selectedTask.status}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">Assigned To:</span>
+                                    <span className="text-gray-600">{selectedTask.assignedTo}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">Project:</span>
+                                    <span className="text-gray-600">{getProjectNameById(selectedTask.project)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">Created At:</span>
+                                    <span className="text-gray-600">
+                                      {new Date(selectedTask.createdAt).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -630,56 +702,7 @@ const Section_a = () => {
                 </button>
               </>
             )}
-            {/* Task Details */}
-            {selectedTask && (
-              <div className="mt-6 p-6 bg-white rounded-lg shadow border">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-xl font-bold text-gray-800">
-                    {selectedTask.title}
-                  </h4>
-                  <div className="flex gap-2">
-                    <button
-                      className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
 
-                      onClick={() => {
-                        if (selectedMember) {
-                          navigate("/EditTask", {
-                            state: {
-                              taskDetails: selectedTask,
-                            },
-                          });
-                        } else {
-                          console.warn("No member selected to edit.");
-                        }
-                      }}
-                    >
-                      <Edit size={16} /> Edit
-                    </button>
-                    <button
-                      className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200"
-                      onClick={() => setShowDeleteConfirm(true)}
-                    >
-                      <Trash2 size={16} /> Delete
-                    </button>
-                  </div>
-                </div>
-                <div className="text-gray-700 mb-2">
-                  {selectedTask.description}
-                </div>
-                <div className="text-sm text-gray-500">
-                  <span className="font-semibold">Status:</span>{" "}
-                  {selectedTask.status}
-                </div>
-                <div className="text-sm text-gray-500">
-                  <span className="font-semibold">Assigned To:</span>{" "}
-                  {selectedTask.assignedTo}
-                </div>
-                <div className="text-sm text-gray-500">
-                  <span className="font-semibold">Created At:</span>{" "}
-                  {new Date(selectedTask.createdAt).toLocaleString()}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <>
