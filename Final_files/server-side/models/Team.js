@@ -15,6 +15,7 @@ const teamSchema = new mongoose.Schema({
     required: true,
   },
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: "Employee" }],
+  companyName: { type: String, required: true }, // Add company isolation
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -159,6 +159,26 @@ exports.login = async (req, res) => {
       userWithPassword.lastLogin = new Date();
       await userWithPassword.save();
 
+      // Send login notification email to the owner
+      try {
+        const loginTime = new Date().toLocaleString();
+        const deviceInfo = req.headers["user-agent"] || "Unknown device";
+        const ipAddress =
+          req.ip || req.connection.remoteAddress || "Unknown IP";
+
+        await sendEmail(
+          userWithPassword.email,
+          "🔐 Login Notification - ProjectFlow",
+          `Hello ${userWithPassword.firstName} ${userWithPassword.lastName},\n\nYou have successfully logged into your ProjectFlow account.\n\n📅 Login Details:\n• Time: ${loginTime}\n• Device: ${deviceInfo}\n• IP Address: ${ipAddress}\n\nIf this was not you, please contact support immediately.\n\nBest regards,\nProjectFlow Security Team`
+        );
+        console.log(
+          `Login notification email sent to ${userWithPassword.email}`
+        );
+      } catch (emailError) {
+        console.error("Error sending login notification email:", emailError);
+        // Don't fail the login if email fails
+      }
+
       const { password: _, ...userDetails } = userWithPassword.toObject();
       return res.json({
         message: "Login successful",

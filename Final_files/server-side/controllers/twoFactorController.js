@@ -4,6 +4,7 @@ const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const sendEmail = require("../utils/sendEmail");
 
 // Helper function to find user by ID (User or Employee)
 const findUserById = async (userId) => {
@@ -353,6 +354,26 @@ exports.verifyTwoFactorToken = async (req, res) => {
               companyName: user.companyName,
             };
 
+      // Send login notification email to the owner (only for User type, not Employee)
+      if (type === "User") {
+        try {
+          const loginTime = new Date().toLocaleString();
+          const deviceInfo = req.headers["user-agent"] || "Unknown device";
+          const ipAddress =
+            req.ip || req.connection.remoteAddress || "Unknown IP";
+
+          await sendEmail(
+            user.email,
+            "🔐 Login Notification - ProjectFlow",
+            `Hello ${user.firstName} ${user.lastName},\n\nYou have successfully logged into your ProjectFlow account with 2FA verification.\n\n📅 Login Details:\n• Time: ${loginTime}\n• Device: ${deviceInfo}\n• IP Address: ${ipAddress}\n• Remembered Device: ${deviceName}\n\nIf this was not you, please contact support immediately.\n\nBest regards,\nProjectFlow Security Team`
+          );
+          console.log(`Login notification email sent to ${user.email}`);
+        } catch (emailError) {
+          console.error("Error sending login notification email:", emailError);
+          // Don't fail the login if email fails
+        }
+      }
+
       console.log("2FA verification successful with device remembering");
       return res.json({
         message: "2FA verification successful",
@@ -380,6 +401,26 @@ exports.verifyTwoFactorToken = async (req, res) => {
             role: user.role,
             companyName: user.companyName,
           };
+
+    // Send login notification email to the owner (only for User type, not Employee)
+    if (type === "User") {
+      try {
+        const loginTime = new Date().toLocaleString();
+        const deviceInfo = req.headers["user-agent"] || "Unknown device";
+        const ipAddress =
+          req.ip || req.connection.remoteAddress || "Unknown IP";
+
+        await sendEmail(
+          user.email,
+          "🔐 Login Notification - ProjectFlow",
+          `Hello ${user.firstName} ${user.lastName},\n\nYou have successfully logged into your ProjectFlow account with 2FA verification.\n\n📅 Login Details:\n• Time: ${loginTime}\n• Device: ${deviceInfo}\n• IP Address: ${ipAddress}\n\nIf this was not you, please contact support immediately.\n\nBest regards,\nProjectFlow Security Team`
+        );
+        console.log(`Login notification email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error("Error sending login notification email:", emailError);
+        // Don't fail the login if email fails
+      }
+    }
 
     console.log("2FA verification successful");
     res.json({
@@ -471,6 +512,26 @@ exports.validateDeviceToken = async (req, res) => {
               role: user.role,
               companyName: user.companyName,
             };
+
+      // Send login notification email to the owner (only for User type, not Employee)
+      if (type === "User") {
+        try {
+          const loginTime = new Date().toLocaleString();
+          const deviceInfo = req.headers["user-agent"] || "Unknown device";
+          const ipAddress =
+            req.ip || req.connection.remoteAddress || "Unknown IP";
+
+          await sendEmail(
+            user.email,
+            "🔐 Login Notification - ProjectFlow",
+            `Hello ${user.firstName} ${user.lastName},\n\nYou have successfully logged into your ProjectFlow account using a remembered device.\n\n📅 Login Details:\n• Time: ${loginTime}\n• Device: ${deviceInfo}\n• IP Address: ${ipAddress}\n• Remembered Device: ${trustedDevice.deviceName}\n\nIf this was not you, please contact support immediately.\n\nBest regards,\nProjectFlow Security Team`
+          );
+          console.log(`Login notification email sent to ${user.email}`);
+        } catch (emailError) {
+          console.error("Error sending login notification email:", emailError);
+          // Don't fail the login if email fails
+        }
+      }
 
       console.log("Device token validation successful");
       res.json({

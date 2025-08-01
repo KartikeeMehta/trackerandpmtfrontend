@@ -47,6 +47,7 @@ exports.updateNotificationSettings = async (req, res) => {
       name: "Notification Settings",
       description: "Updated notification preferences",
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({
@@ -98,6 +99,7 @@ exports.updateAppearanceSettings = async (req, res) => {
       name: "Appearance Settings",
       description: "Updated appearance preferences",
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({
@@ -147,6 +149,7 @@ exports.updateSecuritySettings = async (req, res) => {
       name: "Security Settings",
       description: "Updated security preferences",
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({
@@ -196,6 +199,7 @@ exports.updatePrivacySettings = async (req, res) => {
       name: "Privacy Settings",
       description: "Updated privacy preferences",
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({

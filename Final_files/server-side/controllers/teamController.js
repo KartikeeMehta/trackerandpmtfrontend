@@ -52,6 +52,7 @@ exports.createTeam = async (req, res) => {
       createdBy: req.user._id,
       teamLead: teamLeadUser._id,
       members: memberIds,
+      companyName: req.user.companyName, // Add company isolation
     });
     await Activity.create({
       type: "Team",
@@ -59,6 +60,7 @@ exports.createTeam = async (req, res) => {
       name: team.teamName,
       description: `Created team ${team.teamName}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(201).json({ message: "Team created successfully", team });
@@ -92,6 +94,7 @@ exports.deleteTeam = async (req, res) => {
       name: team.teamName,
       description: `Deleted team ${team.teamName}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     return res
@@ -182,7 +185,8 @@ exports.getAllTeamMembers = async (req, res) => {
 // Get All Teams
 exports.getAllTeams = async (req, res) => {
   try {
-    const teams = await Team.find()
+    const userCompany = req.user.companyName;
+    const teams = await Team.find({ companyName: userCompany })
       .populate("teamLead", "name email teamMemberId") // Show basic info of teamLead
       .populate("members", "name email teamMemberId") // Show basic info of members
       .populate("createdBy", "firstName lastName email"); // Show who created it (owner)

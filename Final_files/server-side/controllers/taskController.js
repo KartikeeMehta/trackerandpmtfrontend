@@ -58,6 +58,7 @@ exports.createTask = async (req, res) => {
       project,
       priority,
       dueDate,
+      companyName: req.user.companyName, // Add company isolation
     });
 
     await task.save();
@@ -68,6 +69,7 @@ exports.createTask = async (req, res) => {
       name: task.title,
       description: `Created task ${task.title}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     // Fetch assigner's name for response
@@ -97,14 +99,18 @@ exports.getTasksForSelf = async (req, res) => {
 exports.getAllTasks = async (req, res) => {
   try {
     const { role, teamId } = req.user;
+    const userCompany = req.user.companyName;
 
     let tasks;
     if (role === "TeamLead") {
       const team = await Team.findById(teamId);
       const memberIds = team.members.map((member) => member.teamMemberId);
-      tasks = await Task.find({ assignedTo: { $in: memberIds } });
+      tasks = await Task.find({ 
+        assignedTo: { $in: memberIds },
+        companyName: userCompany 
+      });
     } else {
-      tasks = await Task.find();
+      tasks = await Task.find({ companyName: userCompany });
     }
 
     res.json(tasks);
@@ -418,6 +424,7 @@ exports.deleteTaskById = async (req, res) => {
       name: task.title,
       description: `Task ${task.title} marked as deleted.`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({ message: "Task marked as deleted.", task });

@@ -39,6 +39,7 @@ const taskSchema = new mongoose.Schema({
   deletionReason: { type: String },
   createdAt: { type: Date, default: Date.now },
   completedAt: Date,
+  companyName: { type: String, required: true }, // Add company isolation
   comments: [
     {
       text: { type: String, required: true },
