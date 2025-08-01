@@ -9,6 +9,7 @@ const teamRoutes = require("./routes/teamRoutes");
 const employeeRoutes = require("./routes/employeeRoutes"); // updated
 const projectRoutes = require('./routes/projectRoutes');
 const taskRoutes = require('./routes/taskRoutes'); // task routes
+const otpRoutes = require("./routes/otpRoutes");
 const path = require("path");
 const cors = require("cors");
 
@@ -34,6 +35,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/employees", employeeRoutes); // updated
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes); // task routes
+app.use("/api/otp", otpRoutes);
 
 // Simple test route for debugging
 app.get("/api/test", (req, res) => {

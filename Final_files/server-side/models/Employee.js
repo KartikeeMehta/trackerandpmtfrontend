@@ -21,6 +21,8 @@ const employeeSchema = new mongoose.Schema({
   role: { type: String, default: "employee" },
   token: { type: String },
   location: { type: String },
+  resetOTP: { type: String },
+  resetOTPExpiry: { type: Date }
 });
 
 module.exports = mongoose.model("Employee", employeeSchema);

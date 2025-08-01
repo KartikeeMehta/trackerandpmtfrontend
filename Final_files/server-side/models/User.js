@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema({
   accountType: { type: String, default: "Standard" },
   token: { type: String },
   companyLogo: { type: String },
+  resetOTP: { type: String },
+  resetOTPExpiry: { type: Date }
 });
 
 module.exports = mongoose.model("User", userSchema);
