@@ -356,13 +356,20 @@ exports.getAllTeamMembers = async (req, res) => {
 // Get recent activity
 exports.getRecentActivity = async (req, res) => {
   try {
+    console.log("getRecentActivity called");
+    console.log("User:", req.user);
     const userCompany = req.user.companyName;
+    console.log("User company:", userCompany);
+
     const activities = await require("../models/Activity")
       .find({ companyName: userCompany })
       .sort({ timestamp: -1 })
       .limit(20);
+
+    console.log("Found activities:", activities.length);
     res.status(200).json({ activities });
   } catch (error) {
+    console.error("getRecentActivity error:", error);
     res.status(500).json({ message: "Failed to fetch activity", error });
   }
 };

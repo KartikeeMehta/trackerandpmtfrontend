@@ -28,6 +28,10 @@ router.patch(
   userController.update
 );
 router.get("/profile", authMiddleware, userController.getUserProfile);
-router.get("/activity/recent", EmployeeController.getRecentActivity);
+router.get(
+  "/activity/recent",
+  authMiddleware,
+  EmployeeController.getRecentActivity
+);
 
 module.exports = router;

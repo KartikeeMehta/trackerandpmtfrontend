@@ -229,20 +229,33 @@ function Section_a() {
   // Fetch recent activity from backend
   useEffect(() => {
     const fetchActivity = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.log("No token found, skipping activity fetch");
+        return;
+      }
+
       setActivityLoading(true);
       setActivityError("");
-      const token = localStorage.getItem("token");
       try {
+        console.log("Fetching recent activity...");
         const res = await apiHandler.GetApi(api_url.getRecentActivity, token);
+        console.log("Activity response:", res);
         let activities = Array.isArray(res.activities) ? res.activities : [];
+        console.log("Activities found:", activities.length);
         setActivity(activities);
       } catch (err) {
+        console.error("Activity fetch error:", err);
         setActivityError("Failed to fetch recent activity");
       } finally {
         setActivityLoading(false);
       }
     };
-    fetchActivity();
+
+    // Add delay to ensure token is available
+    setTimeout(() => {
+      fetchActivity();
+    }, 300);
   }, []);
 
   // Calculate project stats
