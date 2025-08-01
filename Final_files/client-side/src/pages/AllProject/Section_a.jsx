@@ -441,7 +441,14 @@ const Section_a = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="p-8 max-h-[calc(95vh-120px)] overflow-y-auto">
+            <div 
+              className="p-8 max-h-[calc(95vh-120px)] overflow-y-auto"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                WebkitScrollbar: { display: 'none' }
+              }}
+            >
               <form onSubmit={handleEditSubmit} className="space-y-8">
                 {/* Basic Information Section */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
@@ -611,9 +618,11 @@ const Section_a = () => {
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                     Team Members ({editingProject?.team_members?.length || 0} selected)
                   </h4>
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {employees.map((employee) => (
+                                     <div className="bg-white border border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto shadow-sm">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                       {employees
+                         .filter((employee) => employee.role !== "admin" && employee.teamMemberId !== editingProject.project_lead)
+                         .map((employee) => (
                         <label key={employee.teamMemberId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors duration-200">
                           <input
                             type="checkbox"
