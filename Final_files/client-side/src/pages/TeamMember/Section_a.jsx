@@ -97,37 +97,26 @@ const Section_a = () => {
         console.log("Teams API response:", response);
         console.log("Response type:", typeof response);
         console.log("Is array:", Array.isArray(response));
-        if (Array.isArray(response)) {
+
+        // Handle the correct response format from getAllTeams
+        if (response && response.teams && Array.isArray(response.teams)) {
+          setTeams(response.teams);
+          console.log(
+            "Teams set successfully:",
+            response.teams.length,
+            "teams"
+          );
+        } else if (Array.isArray(response)) {
           setTeams(response);
           console.log("Teams set successfully:", response.length, "teams");
         } else {
-          console.log("Response is not an array:", response);
-          // Try to handle different response formats
-          if (response && response.data && Array.isArray(response.data)) {
-            setTeams(response.data);
-            console.log(
-              "Teams found in response.data:",
-              response.data.length,
-              "teams"
-            );
-          } else if (
-            response &&
-            response.teams &&
-            Array.isArray(response.teams)
-          ) {
-            setTeams(response.teams);
-            console.log(
-              "Teams found in response.teams:",
-              response.teams.length,
-              "teams"
-            );
-          } else {
-            console.log("No teams found in response");
-          }
+          console.log("No teams found in response");
+          setTeams([]);
         }
       } catch (err) {
         console.error("Failed to fetch teams:", err);
         console.error("Error details:", err.response?.data || err.message);
+        setTeams([]);
       }
     };
     fetchTeams();
@@ -197,9 +186,7 @@ const Section_a = () => {
     try {
       console.log("Fetching members for team:", teamName);
       const response = await apiHandler.GetApi(
-        `http://localhost:8000/api/teams/${encodeURIComponent(
-          teamName
-        )}/members`,
+        `${api_url.BASE_URL}/teams/${encodeURIComponent(teamName)}/members`,
         token
       );
       console.log("Team members response:", response);
@@ -325,7 +312,7 @@ const Section_a = () => {
                       onClick={() => {
                         setSelectedTeam("");
                         setTeamsDropdownOpen(false);
-                        setFilteredMembers([]); // Show all members
+                        setFilteredMembers([]); // Clear filtered members to show all
                       }}
                     >
                       All Teams
@@ -435,6 +422,194 @@ const Section_a = () => {
             <div className="text-red-600 text-lg font-medium">{error}</div>
           </div>
         </div>
+      ) : selectedTeam ? (
+        // Show filtered members when a team is selected
+        loadingTeamMembers ? (
+          <div className="text-center py-20">
+            <div className="inline-flex items-center gap-3 text-gray-500 text-lg">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              Loading team members for {selectedTeam}...
+            </div>
+          </div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 max-w-md mx-auto">
+              <div className="text-yellow-600 text-lg font-medium">
+                No members found in team "{selectedTeam}"
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
+            {filteredMembers.map((member, index) => (
+              <div
+                key={member._id || index}
+                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+              >
+                {/* Card Header with Actions */}
+                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                  <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                    <DialogTrigger asChild>
+                      <button
+                        onClick={() => {
+                          setEditForm(member);
+                          setEditOpen(true);
+                        }}
+                        className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                      >
+                        <Pencil
+                          size={16}
+                          className="text-gray-600 hover:text-blue-600"
+                        />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Edit Team Member</DialogTitle>
+                      </DialogHeader>
+                      {editForm && (
+                        <form
+                          onSubmit={(e) => handleEditMember(e)}
+                          className="grid gap-4"
+                        >
+                          {[
+                            "name",
+                            "email",
+                            "designation",
+                            "phoneNo",
+                            "location",
+                          ].map((field) => (
+                            <div className="grid gap-2" key={field}>
+                              <Label htmlFor={field}>
+                                {field.charAt(0).toUpperCase() + field.slice(1)}
+                              </Label>
+                              <Input
+                                id={field}
+                                name={field}
+                                placeholder={`Enter ${field}`}
+                                value={editForm[field]}
+                                onChange={(e) =>
+                                  setEditForm((prev) => ({
+                                    ...prev,
+                                    [e.target.name]: e.target.value,
+                                  }))
+                                }
+                                readOnly={field === "name" || field === "email"}
+                              />
+                            </div>
+                          ))}
+
+                          <div className="grid gap-2">
+                            <Label htmlFor="role">Role</Label>
+                            <select
+                              id="role"
+                              name="role"
+                              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={editForm.role}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  role: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">Select</option>
+                              <option value="admin">Admin</option>
+                              <option value="teamLead">Team Lead</option>
+                              <option value="teamMember">Team Member</option>
+                            </select>
+                          </div>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button type="button" variant="outline">
+                                Cancel
+                              </Button>
+                            </DialogClose>
+                            <Button type="submit">Save Changes</Button>
+                          </DialogFooter>
+                        </form>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200">
+                        <Trash2
+                          size={16}
+                          className="text-red-500 hover:text-red-700"
+                        />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[420px]">
+                      <DialogHeader>
+                        <DialogTitle>Are you absolutely sure?</DialogTitle>
+                        <DialogDescription>
+                          This action cannot be undone. This will permanently
+                          delete this team member.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <div className="flex justify-center items-center gap-4 w-full">
+                          <DialogClose asChild>
+                            <Button className="w-28" variant="outline">
+                              Cancel
+                            </Button>
+                          </DialogClose>
+                          <Button
+                            className="w-28"
+                            variant="destructive"
+                            onClick={() => handleDelete(member.teamMemberId)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* Role Badge */}
+                <div className="absolute top-4 left-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
+                      member.role === "admin"
+                        ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
+                        : member.role === "teamLead"
+                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                    }`}
+                  >
+                    {member.role}
+                  </span>
+                </div>
+
+                {/* Card Content */}
+                <div className="py-2 px-6 pt-16">
+                  {/* Member Header */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+                      <span className="text-white font-bold text-xl">
+                        {member.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 capitalize">
+                        {member.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {member.designation || "Not specified"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : teamMembers.length === 0 ? (
         <div className="text-center text-gray-500 text-lg py-20">
           No Team Member
@@ -585,7 +760,7 @@ const Section_a = () => {
               </div>
 
               {/* Card Content */}
-              <div className="p-6 pt-16">
+              <div className="py-2 px-6 pt-16">
                 {/* Member Header */}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
@@ -600,74 +775,6 @@ const Section_a = () => {
                     <p className="text-sm text-gray-500 capitalize">
                       {member.designation || "Not specified"}
                     </p>
-                  </div>
-                </div>
-
-                {/* Member Information */}
-                <div className="space-y-4">
-                  {/* Employee ID */}
-                  <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <IdCard size={16} className="text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {member.teamMemberId}
-                      </div>
-                      <div className="text-xs text-gray-500">Employee ID</div>
-                    </div>
-                  </div>
-
-                  {/* Contact Info */}
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Mail size={16} className="text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {member.email}
-                      </div>
-                      <div className="text-xs text-gray-500">Email address</div>
-                    </div>
-                  </div>
-
-                  {/* Phone Info */}
-                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Phone size={16} className="text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {member.phoneNo}
-                      </div>
-                      <div className="text-xs text-gray-500">Phone number</div>
-                    </div>
-                  </div>
-
-                  {/* Designation */}
-                  {/* <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Activity size={16} className="text-orange-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {member.designation || "Not specified"}
-                      </div>
-                      <div className="text-xs text-gray-500">Designation</div>
-                    </div>
-                  </div> */}
-
-                  {/* Location */}
-                  <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-xl">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <MapPin size={16} className="text-indigo-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {member.location || "Not specified"}
-                      </div>
-                      <div className="text-xs text-gray-500">Location</div>
-                    </div>
                   </div>
                 </div>
 
