@@ -106,8 +106,10 @@ const Section_a = () => {
         token
       );
 
-      if (response?.success) {
-        const data = response.user || response;
+      console.log("Profile API response:", response);
+
+      if (response) {
+        const data = response;
         console.log("Profile data received:", data);
         setUserDetails(data);
 
@@ -230,10 +232,22 @@ const Section_a = () => {
         });
       }
     } catch (error) {
+      console.error("2FA setup error:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        "An error occurred while generating 2FA setup";
       setMessage({
         type: "error",
-        text: "An error occurred while generating 2FA setup",
+        text: errorMessage,
       });
+
+      // If 2FA is already enabled, refresh the user data to update the toggle state
+      if (
+        error?.response?.data?.message ===
+        "Two-factor authentication is already enabled"
+      ) {
+        fetchUserData();
+      }
     } finally {
       setLoading(false);
     }
@@ -730,9 +744,19 @@ const Section_a = () => {
                             type="checkbox"
                             checked={twoFactorEnabled}
                             onChange={() => {
+                              console.log(
+                                "2FA toggle clicked. Current state:",
+                                twoFactorEnabled
+                              );
                               if (twoFactorEnabled) {
+                                console.log(
+                                  "2FA is enabled, showing verification dialog"
+                                );
                                 setShowVerificationDialog(true);
                               } else {
+                                console.log(
+                                  "2FA is disabled, generating setup"
+                                );
                                 handleGenerateTwoFactorSetup();
                               }
                             }}

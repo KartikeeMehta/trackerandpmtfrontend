@@ -36,6 +36,35 @@ const employeeSchema = new mongoose.Schema({
       userAgent: { type: String },
     },
   ],
+  settings: {
+    notifications: {
+      emailNotifications: { type: Boolean, default: true },
+      taskReminders: { type: Boolean, default: true },
+      projectUpdates: { type: Boolean, default: true },
+      teamMessages: { type: Boolean, default: true },
+      weeklyReports: { type: Boolean, default: false },
+      dailyDigest: { type: Boolean, default: false },
+    },
+    appearance: {
+      theme: { type: String, default: "light" },
+      sidebarCollapsed: { type: Boolean, default: false },
+      compactMode: { type: Boolean, default: false },
+      showAvatars: { type: Boolean, default: true },
+      showStatusIndicators: { type: Boolean, default: true },
+    },
+    security: {
+      twoFactorAuth: { type: Boolean, default: false },
+      sessionTimeout: { type: Number, default: 30 },
+      loginNotifications: { type: Boolean, default: true },
+      passwordExpiry: { type: Number, default: 90 },
+    },
+    privacy: {
+      profileVisibility: { type: String, default: "team" },
+      activityVisibility: { type: String, default: "team" },
+      showOnlineStatus: { type: Boolean, default: true },
+      allowDirectMessages: { type: Boolean, default: true },
+    },
+  },
 });
 
 module.exports = mongoose.model("Employee", employeeSchema);

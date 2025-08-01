@@ -47,6 +47,18 @@ exports.generateTwoFactorSetup = async (req, res) => {
       email: user.email,
     });
 
+    // Check if 2FA is already enabled
+    const rootLevel2FA = user.twoFactorEnabled;
+    const settingsLevel2FA = user.settings?.security?.twoFactorAuth;
+    const is2FAEnabled = rootLevel2FA || settingsLevel2FA;
+
+    if (is2FAEnabled) {
+      console.log("2FA is already enabled for user:", user._id);
+      return res.status(400).json({
+        message: "Two-factor authentication is already enabled",
+      });
+    }
+
     // Generate secret
     const secret = speakeasy.generateSecret({
       name: `${user.firstName || user.name} (${user.email})`,
