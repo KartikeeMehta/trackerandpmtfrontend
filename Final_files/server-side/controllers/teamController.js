@@ -17,9 +17,11 @@ exports.createTeam = async (req, res) => {
     }
 
     // Validate team lead using teamMemberId and role
+    const userCompany = req.user.companyName;
     const teamLeadUser = await Employee.findOne({
       teamMemberId: teamLead.trim(),
       role: "teamLead",
+      companyName: userCompany,
     });
     if (!teamLeadUser) {
       return res
@@ -33,6 +35,7 @@ exports.createTeam = async (req, res) => {
       const members = await Employee.find({
         teamMemberId: { $in: teamMembers.map((id) => id.trim()) },
         role: "teamMember",
+        companyName: userCompany,
       });
 
       if (members.length !== teamMembers.length) {
@@ -52,6 +55,7 @@ exports.createTeam = async (req, res) => {
       createdBy: req.user._id,
       teamLead: teamLeadUser._id,
       members: memberIds,
+      companyName: req.user.companyName, // Add company isolation
     });
     await Activity.create({
       type: "Team",
@@ -59,6 +63,7 @@ exports.createTeam = async (req, res) => {
       name: team.teamName,
       description: `Created team ${team.teamName}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(201).json({ message: "Team created successfully", team });
@@ -80,7 +85,11 @@ exports.deleteTeam = async (req, res) => {
       return res.status(400).json({ message: "Team name is required" });
     }
 
-    const team = await Team.findOne({ teamName: teamName.trim() });
+    const userCompany = req.user.companyName;
+    const team = await Team.findOne({
+      teamName: teamName.trim(),
+      companyName: userCompany,
+    });
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }
@@ -92,6 +101,7 @@ exports.deleteTeam = async (req, res) => {
       name: team.teamName,
       description: `Deleted team ${team.teamName}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     return res
@@ -115,7 +125,11 @@ exports.updateTeam = async (req, res) => {
       return res.status(400).json({ message: "Team name is required" });
     }
 
-    const team = await Team.findOne({ teamName: teamName.trim() });
+    const userCompany = req.user.companyName;
+    const team = await Team.findOne({
+      teamName: teamName.trim(),
+      companyName: userCompany,
+    });
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }
@@ -135,6 +149,7 @@ exports.updateTeam = async (req, res) => {
     if (teamMembers !== undefined) {
       const memberDocs = await Employee.find({
         teamMemberId: { $in: teamMembers },
+        companyName: userCompany,
       });
       if (memberDocs.length !== teamMembers.length) {
         return res
@@ -156,9 +171,11 @@ exports.updateTeam = async (req, res) => {
 // Get all Team Leads
 exports.getAllTeamLeads = async (req, res) => {
   try {
-    const teamLeads = await Employee.find({ role: "teamLead" }).select(
-      "-password"
-    ); // exclude password
+    const userCompany = req.user.companyName;
+    const teamLeads = await Employee.find({
+      role: "teamLead",
+      companyName: userCompany,
+    }).select("-password"); // exclude password
     res.status(200).json({ teamLeads });
   } catch (err) {
     console.error("Error fetching team leads:", err);
@@ -169,9 +186,11 @@ exports.getAllTeamLeads = async (req, res) => {
 // Get all Team Members
 exports.getAllTeamMembers = async (req, res) => {
   try {
-    const teamMembers = await Employee.find({ role: "teamMember" }).select(
-      "-password"
-    );
+    const userCompany = req.user.companyName;
+    const teamMembers = await Employee.find({
+      role: "teamMember",
+      companyName: userCompany,
+    }).select("-password");
     res.status(200).json({ teamMembers });
   } catch (err) {
     console.error("Error fetching team members:", err);
@@ -182,7 +201,8 @@ exports.getAllTeamMembers = async (req, res) => {
 // Get All Teams
 exports.getAllTeams = async (req, res) => {
   try {
-    const teams = await Team.find()
+    const userCompany = req.user.companyName;
+    const teams = await Team.find({ companyName: userCompany })
       .populate("teamLead", "name email teamMemberId") // Show basic info of teamLead
       .populate("members", "name email teamMemberId") // Show basic info of members
       .populate("createdBy", "firstName lastName email"); // Show who created it (owner)
@@ -202,7 +222,11 @@ exports.getTeamMembersByTeamName = async (req, res) => {
       return res.status(400).json({ message: "Team name is required" });
     }
 
-    const team = await Team.findOne({ teamName: teamName.trim() })
+    const userCompany = req.user.companyName;
+    const team = await Team.findOne({
+      teamName: teamName.trim(),
+      companyName: userCompany,
+    })
       .populate("members", "-password") // Exclude password from member data
       .populate("teamLead", "-password");
 

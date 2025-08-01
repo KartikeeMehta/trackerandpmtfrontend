@@ -76,6 +76,7 @@ exports.addEmployee = async (req, res) => {
       name: newEmployee.name,
       description: `Added new employee ${newEmployee.name}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     await sendEmail(
@@ -221,7 +222,11 @@ exports.editEmployee = async (req, res) => {
   }
 
   try {
-    const employee = await Employee.findOne({ teamMemberId });
+    const userCompany = req.user.companyName;
+    const employee = await Employee.findOne({
+      teamMemberId,
+      companyName: userCompany,
+    });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
@@ -245,6 +250,7 @@ exports.editEmployee = async (req, res) => {
       name: employee.name,
       description: `Edited employee ${employee.name}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res
@@ -263,18 +269,23 @@ exports.deleteEmployee = async (req, res) => {
     return res.status(400).json({ message: "teamMemberId is required" });
   }
   try {
-    const employee = await Employee.findOne({ teamMemberId });
+    const userCompany = req.user.companyName;
+    const employee = await Employee.findOne({
+      teamMemberId,
+      companyName: userCompany,
+    });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    await Employee.deleteOne({ teamMemberId });
+    await Employee.deleteOne({ teamMemberId, companyName: userCompany });
     await Activity.create({
       type: "Employee",
       action: "delete",
       name: employee.name,
       description: `Deleted employee ${employee.name}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
     res.status(200).json({ message: "Employee deleted successfully" });
   } catch (error) {
@@ -286,7 +297,10 @@ exports.deleteEmployee = async (req, res) => {
 // Get all employees
 exports.getAllEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().select("-password");
+    const userCompany = req.user.companyName;
+    const employees = await Employee.find({ companyName: userCompany }).select(
+      "-password"
+    );
     res.status(200).json(employees);
   } catch (error) {
     console.error("Error fetching employees:", error);
@@ -297,9 +311,11 @@ exports.getAllEmployees = async (req, res) => {
 // Get all employees with role: "teamLead"
 exports.getAllTeamLeads = async (req, res) => {
   try {
-    const teamLeads = await Employee.find({ role: "teamLead" }).select(
-      "-password"
-    );
+    const userCompany = req.user.companyName;
+    const teamLeads = await Employee.find({
+      role: "teamLead",
+      companyName: userCompany,
+    }).select("-password");
     res.status(200).json(teamLeads);
   } catch (error) {
     console.error("Error fetching team leads:", error);
@@ -310,7 +326,11 @@ exports.getAllTeamLeads = async (req, res) => {
 // Get all employees with role: "admin"
 exports.getAllAdmins = async (req, res) => {
   try {
-    const admins = await Employee.find({ role: "admin" }).select("-password");
+    const userCompany = req.user.companyName;
+    const admins = await Employee.find({
+      role: "admin",
+      companyName: userCompany,
+    }).select("-password");
     res.status(200).json(admins);
   } catch (error) {
     console.error("Error fetching admins:", error);
@@ -321,9 +341,11 @@ exports.getAllAdmins = async (req, res) => {
 // Get all employees with role: "teamMember"
 exports.getAllTeamMembers = async (req, res) => {
   try {
-    const teamMembers = await Employee.find({ role: "teamMember" }).select(
-      "-password"
-    );
+    const userCompany = req.user.companyName;
+    const teamMembers = await Employee.find({
+      role: "teamMember",
+      companyName: userCompany,
+    }).select("-password");
     res.status(200).json(teamMembers);
   } catch (error) {
     console.error("Error fetching team members:", error);
@@ -334,8 +356,9 @@ exports.getAllTeamMembers = async (req, res) => {
 // Get recent activity
 exports.getRecentActivity = async (req, res) => {
   try {
+    const userCompany = req.user.companyName;
     const activities = await require("../models/Activity")
-      .find()
+      .find({ companyName: userCompany })
       .sort({ timestamp: -1 })
       .limit(20);
     res.status(200).json({ activities });

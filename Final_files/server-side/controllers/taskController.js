@@ -12,7 +12,8 @@ const getPerformer = (user) =>
 
 exports.createTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, project, priority, dueDate } = req.body;
+    const { title, description, assignedTo, project, priority, dueDate } =
+      req.body;
 
     if (!title || title.trim() === "") {
       return res.status(400).json({ message: "Title is required." });
@@ -20,23 +21,39 @@ exports.createTask = async (req, res) => {
     if (!project || project.trim() === "") {
       return res.status(400).json({ message: "Project is required." });
     }
-    if (!priority || !['low', 'medium', 'high', 'critical'].includes(priority)) {
-      return res.status(400).json({ message: "Priority must be one of: low, medium, high, critical." });
+    if (
+      !priority ||
+      !["low", "medium", "high", "critical"].includes(priority)
+    ) {
+      return res.status(400).json({
+        message: "Priority must be one of: low, medium, high, critical.",
+      });
     }
     if (!dueDate || dueDate.trim() === "") {
       return res.status(400).json({ message: "Due date is required." });
     }
 
     // Validate project existence
-    const projectDoc = await Project.findOne({ project_id: project });
+    const userCompany = req.user.companyName;
+    const projectDoc = await Project.findOne({
+      project_id: project,
+      companyName: userCompany,
+    });
     if (!projectDoc) {
-      return res.status(404).json({ message: "Project with this project_id not found." });
+      return res
+        .status(404)
+        .json({ message: "Project with this project_id not found." });
     }
 
     // Check if the provided teamMemberId exists
-    const employee = await Employee.findOne({ teamMemberId: assignedTo });
+    const employee = await Employee.findOne({
+      teamMemberId: assignedTo,
+      companyName: userCompany,
+    });
     if (!employee) {
-      return res.status(404).json({ message: "Employee with this teamMemberId not found." });
+      return res
+        .status(404)
+        .json({ message: "Employee with this teamMemberId not found." });
     }
 
     // Auto-generate task_id
@@ -58,6 +75,7 @@ exports.createTask = async (req, res) => {
       project,
       priority,
       dueDate,
+      companyName: req.user.companyName, // Add company isolation
     });
 
     await task.save();
@@ -68,17 +86,22 @@ exports.createTask = async (req, res) => {
       name: task.title,
       description: `Created task ${task.title}`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     // Fetch assigner's name for response
     const assigner = await User.findById(req.user._id);
-    const assignedByName = assigner ? `${assigner.firstName} ${assigner.lastName}` : "Unknown";
+    const assignedByName = assigner
+      ? `${assigner.firstName} ${assigner.lastName}`
+      : "Unknown";
 
     // Return task with assignedBy as name
     const taskObj = task.toObject();
     taskObj.assignedBy = assignedByName;
 
-    res.status(201).json({ message: "Task created successfully.", task: taskObj });
+    res
+      .status(201)
+      .json({ message: "Task created successfully.", task: taskObj });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error creating task.", error });
@@ -87,7 +110,11 @@ exports.createTask = async (req, res) => {
 
 exports.getTasksForSelf = async (req, res) => {
   try {
-    const tasks = await Task.find({ assignedTo: req.user.teamMemberId });
+    const userCompany = req.user.companyName;
+    const tasks = await Task.find({
+      assignedTo: req.user.teamMemberId,
+      companyName: userCompany,
+    });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: "Error fetching tasks.", error });
@@ -98,13 +125,17 @@ exports.getAllTasks = async (req, res) => {
   try {
     const { role, teamId } = req.user;
 
+    const userCompany = req.user.companyName;
     let tasks;
     if (role === "TeamLead") {
       const team = await Team.findById(teamId);
       const memberIds = team.members.map((member) => member.teamMemberId);
-      tasks = await Task.find({ assignedTo: { $in: memberIds } });
+      tasks = await Task.find({
+        assignedTo: { $in: memberIds },
+        companyName: userCompany,
+      });
     } else {
-      tasks = await Task.find();
+      tasks = await Task.find({ companyName: userCompany });
     }
 
     res.json(tasks);
@@ -116,9 +147,11 @@ exports.getAllTasks = async (req, res) => {
 exports.getTaskHistoryByMemberId = async (req, res) => {
   try {
     const { teamMemberId } = req.params;
+    const userCompany = req.user.companyName;
     const tasks = await Task.find({
       assignedTo: teamMemberId,
       status: { $in: ["completed", "deleted", "Completed", "Deleted"] },
+      companyName: userCompany,
     });
     res.json({ tasks });
   } catch (error) {
@@ -128,7 +161,11 @@ exports.getTaskHistoryByMemberId = async (req, res) => {
 
 exports.getOngoingTasks = async (req, res) => {
   try {
-    let filter = { status: { $in: ["pending", "in-progress", "verification"] } };
+    const userCompany = req.user.companyName;
+    let filter = {
+      status: { $in: ["pending", "in-progress", "verification"] },
+      companyName: userCompany,
+    };
     if (req.params.teamMemberId) {
       filter.assignedTo = req.params.teamMemberId;
     }
@@ -152,22 +189,32 @@ exports.updateTasksByTeamMemberId = async (req, res) => {
       project,
       deletionReason,
       completedAt,
-      comment
+      comment,
     } = req.body;
 
-    const tasks = await Task.find({ assignedTo: teamMemberId });
+    const userCompany = req.user.companyName;
+    const tasks = await Task.find({
+      assignedTo: teamMemberId,
+      companyName: userCompany,
+    });
     if (tasks.length === 0) {
-      return res.status(404).json({ message: "No tasks found for the given teamMemberId." });
+      return res
+        .status(404)
+        .json({ message: "No tasks found for the given teamMemberId." });
     }
 
     // Check permissions
-    const isAuthorized = ["owner", "admin"].includes(req.user.role.toLowerCase());
+    const isAuthorized = ["owner", "admin"].includes(
+      req.user.role.toLowerCase()
+    );
     if (!isAuthorized) {
       const unauthorizedTask = tasks.find(
         (task) => String(task.assignedBy) !== String(req.user._id)
       );
       if (unauthorizedTask) {
-        return res.status(403).json({ message: "Not authorized to update some tasks." });
+        return res
+          .status(403)
+          .json({ message: "Not authorized to update some tasks." });
       }
     }
 
@@ -186,9 +233,14 @@ exports.updateTasksByTeamMemberId = async (req, res) => {
     // Handle reassignment
     if (newAssignedTo) {
       const Employee = require("../models/Employee");
-      const newAssignee = await Employee.findOne({ teamMemberId: newAssignedTo })
+      const newAssignee = await Employee.findOne({
+        teamMemberId: newAssignedTo,
+        companyName: userCompany,
+      });
       if (!newAssignee) {
-        return res.status(404).json({ message: "New assigned member not found." })
+        return res
+          .status(404)
+          .json({ message: "New assigned member not found." });
       }
       updatePayload.assignedTo = newAssignedTo;
       updatePayload.status = "pending";
@@ -196,17 +248,25 @@ exports.updateTasksByTeamMemberId = async (req, res) => {
 
     // Handle status updates
     if (status) {
-      const validStatuses = ["pending", "verification", "in-progress", "completed"];
+      const validStatuses = [
+        "pending",
+        "verification",
+        "in-progress",
+        "completed",
+      ];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: "Invalid status value." });
       }
 
       if (status === "completed") {
         const isTeamLead = req.user.role.toLowerCase() === "teamlead";
-        const allInVerification = tasks.every(task => task.status === "verification");
+        const allInVerification = tasks.every(
+          (task) => task.status === "verification"
+        );
         if (!isTeamLead || !allInVerification) {
           return res.status(403).json({
-            message: "Only a TeamLead can mark a task as completed after verification."
+            message:
+              "Only a TeamLead can mark a task as completed after verification.",
           });
         }
         updatePayload.status = "completed";
@@ -218,19 +278,32 @@ exports.updateTasksByTeamMemberId = async (req, res) => {
     }
 
     if (Object.keys(updatePayload).length === 0 && !comment) {
-      return res.status(400).json({ message: "No valid update fields provided." });
+      return res
+        .status(400)
+        .json({ message: "No valid update fields provided." });
     }
 
-    await Task.updateMany({ assignedTo: teamMemberId }, updatePayload);
+    await Task.updateMany(
+      {
+        assignedTo: teamMemberId,
+        companyName: userCompany,
+      },
+      updatePayload
+    );
 
     // Handle comments
     if (comment && comment.trim() !== "") {
       const User = require("../models/User");
       const assigner = await User.findById(req.user._id);
-      const authorName = assigner ? `${assigner.firstName} ${assigner.lastName}` : "Unknown";
+      const authorName = assigner
+        ? `${assigner.firstName} ${assigner.lastName}`
+        : "Unknown";
 
       await Task.updateMany(
-        { assignedTo: teamMemberId },
+        {
+          assignedTo: teamMemberId,
+          companyName: userCompany,
+        },
         { $push: { comments: { text: comment, author: authorName } } }
       );
     }
@@ -245,7 +318,11 @@ exports.deleteTasksByTeamMemberId = async (req, res) => {
   try {
     const { teamMemberId } = req.params;
 
-    const tasks = await Task.find({ assignedTo: teamMemberId });
+    const userCompany = req.user.companyName;
+    const tasks = await Task.find({
+      assignedTo: teamMemberId,
+      companyName: userCompany,
+    });
     if (tasks.length === 0) {
       return res
         .status(404)
@@ -267,7 +344,10 @@ exports.deleteTasksByTeamMemberId = async (req, res) => {
       }
     }
 
-    await Task.deleteMany({ assignedTo: teamMemberId });
+    await Task.deleteMany({
+      assignedTo: teamMemberId,
+      companyName: userCompany,
+    });
     res.json({ message: "All tasks for this team member have been deleted." });
   } catch (error) {
     res.status(500).json({ message: "Error deleting tasks.", error });
@@ -284,30 +364,41 @@ exports.updateTaskById = async (req, res) => {
       return res.status(400).json({ message: "task_id is required." });
     }
 
-    const task = await Task.findOne({ task_id });
+    const userCompany = req.user.companyName;
+    const task = await Task.findOne({
+      task_id,
+      companyName: userCompany,
+    });
 
     if (!task) {
-      return res.status(404).json({ message: "Task not found with the given task_id." });
+      return res
+        .status(404)
+        .json({ message: "Task not found with the given task_id." });
     }
 
     const assignedToId = task.assignedTo;
-    const isOwner = currentUserRole === 'owner';
-    const isAdmin = currentUserRole === 'admin';
-    const isTeamLead = currentUserRole === 'team_lead';
-    const isEmployee = currentUserRole === 'employee';
+    const isOwner = currentUserRole === "owner";
+    const isAdmin = currentUserRole === "admin";
+    const isTeamLead = currentUserRole === "team_lead";
+    const isEmployee = currentUserRole === "employee";
     const isUpdatingOwnTask = assignedToId === currentUserTeamMemberId;
 
     // Restriction logic
     if (isEmployee && !isUpdatingOwnTask) {
-      return res.status(403).json({ message: "Employees can only update their own task status." });
+      return res
+        .status(403)
+        .json({ message: "Employees can only update their own task status." });
     }
 
     if (
-      (isAdmin && task.assignedByRole === 'owner') ||
-      (isTeamLead && (task.assignedByRole === 'owner' || task.assignedByRole === 'admin')) ||
+      (isAdmin && task.assignedByRole === "owner") ||
+      (isTeamLead &&
+        (task.assignedByRole === "owner" || task.assignedByRole === "admin")) ||
       (isTeamLead && isUpdatingOwnTask) // team_lead cannot update own tasks
     ) {
-      return res.status(403).json({ message: "You are not authorized to update this task." });
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to update this task." });
     }
 
     // Build update payload
@@ -329,10 +420,12 @@ exports.updateTaskById = async (req, res) => {
 
     // If employee, allow only status
     if (isEmployee) {
-      if (typeof status === 'string') {
+      if (typeof status === "string") {
         updatePayload.status = status;
       } else {
-        return res.status(400).json({ message: "Employees can only update the status field." });
+        return res
+          .status(400)
+          .json({ message: "Employees can only update the status field." });
       }
     } else {
       if (title) updatePayload.title = title;
@@ -348,9 +441,16 @@ exports.updateTaskById = async (req, res) => {
       if (comments) updatePayload.comments = comments;
     }
 
-    const updatedTask = await Task.findOneAndUpdate({ task_id }, updatePayload, {
-      new: true,
-    });
+    const updatedTask = await Task.findOneAndUpdate(
+      {
+        task_id,
+        companyName: userCompany,
+      },
+      updatePayload,
+      {
+        new: true,
+      }
+    );
 
     res.json({ message: "Task updated successfully.", task: updatedTask });
   } catch (error) {
@@ -372,20 +472,30 @@ exports.deleteTaskById = async (req, res) => {
 
     // ❌ Employee cannot delete any task
     if (userRole === "employee") {
-      return res.status(403).json({ message: "You are not authorized to delete tasks." });
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to delete tasks." });
     }
 
-    const task = await Task.findOne({ task_id });
+    const userCompany = req.user.companyName;
+    const task = await Task.findOne({
+      task_id,
+      companyName: userCompany,
+    });
 
     if (!task) {
-      return res.status(404).json({ message: "Task not found with the given task_id." });
+      return res
+        .status(404)
+        .json({ message: "Task not found with the given task_id." });
     }
 
     // Fetch assignee employee
     const assignee = await Employee.findOne({ teamMemberId: task.assignedTo });
 
     if (!assignee) {
-      return res.status(404).json({ message: "Assignee of the task not found." });
+      return res
+        .status(404)
+        .json({ message: "Assignee of the task not found." });
     }
 
     const assigneeRole = assignee.role.toLowerCase();
@@ -393,14 +503,20 @@ exports.deleteTaskById = async (req, res) => {
     // 🔐 Role-based permission checks
     if (userRole === "admin") {
       if (!["team_lead", "employee"].includes(assigneeRole)) {
-        return res.status(403).json({ message: "Admins can only delete tasks of team_leads or employees." });
+        return res.status(403).json({
+          message: "Admins can only delete tasks of team_leads or employees.",
+        });
       }
     } else if (userRole === "team_lead") {
       if (assignee._id.toString() === req.user._id.toString()) {
-        return res.status(403).json({ message: "Team leads cannot delete their own tasks." });
+        return res
+          .status(403)
+          .json({ message: "Team leads cannot delete their own tasks." });
       }
       if (assigneeRole !== "employee") {
-        return res.status(403).json({ message: "Team leads can only delete tasks assigned to employees." });
+        return res.status(403).json({
+          message: "Team leads can only delete tasks assigned to employees.",
+        });
       }
     }
 
@@ -418,6 +534,7 @@ exports.deleteTaskById = async (req, res) => {
       name: task.title,
       description: `Task ${task.title} marked as deleted.`,
       performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
     });
 
     res.status(200).json({ message: "Task marked as deleted.", task });
@@ -446,7 +563,11 @@ exports.getTasksByMemberInProject = async (req, res) => {
     }
 
     // Validate project
-    const project = await Project.findOne({ project_id: projectId });
+    const userCompany = req.user.companyName;
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName: userCompany,
+    });
     if (!project) {
       return res.status(404).json({ message: "Project not found." });
     }
@@ -455,10 +576,13 @@ exports.getTasksByMemberInProject = async (req, res) => {
       assignedTo: teamMemberId,
       project: projectId,
       status: { $ne: "deleted" },
+      companyName: userCompany,
     });
 
     if (!tasks.length) {
-      return res.status(404).json({ message: "No tasks found for this employee in this project." });
+      return res
+        .status(404)
+        .json({ message: "No tasks found for this employee in this project." });
     }
 
     res.status(200).json({ tasks });
