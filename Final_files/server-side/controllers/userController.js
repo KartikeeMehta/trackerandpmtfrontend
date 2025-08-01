@@ -85,10 +85,12 @@ exports.register = async (req, res) => {
     await newUser.save();
 
     await sendEmail(
-  email,
-  "🎉 Registration Successful - Welcome to ProjectFlow!",
-  `Dear ${firstName+lastName},\n\nThank you for registering with ProjectFlow.\n\nWe’re excited to have you on board! Your account has been successfully created, and you are now registered as an Owner on our platform.\n\nYou can now log in to your dashboard and begin managing your team, tracking progress, and streamlining your operations.\n\n Login here: [http://localhost:5173/login]\n\nIf you need any assistance getting started, our support team is here to help.\n\nWelcome to a better way to manage your team.\n\nBest regards,\nProjectFlow Support\n[http://localhost:5173]`
-);
+      email,
+      "🎉 Registration Successful - Welcome to ProjectFlow!",
+      `Dear ${
+        firstName + lastName
+      },\n\nThank you for registering with ProjectFlow.\n\nWe’re excited to have you on board! Your account has been successfully created, and you are now registered as an Owner on our platform.\n\nYou can now log in to your dashboard and begin managing your team, tracking progress, and streamlining your operations.\n\n Login here: [http://localhost:5173/login]\n\nIf you need any assistance getting started, our support team is here to help.\n\nWelcome to a better way to manage your team.\n\nBest regards,\nProjectFlow Support\n[http://localhost:5173]`
+    );
 
     res.status(201).json({ message: "Registered as owner" });
   } catch (err) {
@@ -118,6 +120,25 @@ exports.login = async (req, res) => {
         userWithPassword.accountStatus = "active";
       }
 
+      // Check if 2FA is enabled (check both root level and settings level)
+      const rootLevel2FA = userWithPassword.twoFactorEnabled;
+      const settingsLevel2FA =
+        userWithPassword.settings?.security?.twoFactorAuth;
+      const is2FAEnabled = rootLevel2FA || settingsLevel2FA;
+
+      if (is2FAEnabled) {
+        // Don't generate token yet, wait for 2FA verification
+        const { password: _, ...userDetails } = userWithPassword.toObject();
+        return res.json({
+          message: "Login successful",
+          success: true,
+          user: userDetails,
+          type: "user",
+          requiresTwoFactor: true,
+        });
+      }
+
+      // No 2FA, proceed with normal login
       let token = userWithPassword.token;
       let isTokenValid = false;
       if (token) {
@@ -141,6 +162,7 @@ exports.login = async (req, res) => {
       const { password: _, ...userDetails } = userWithPassword.toObject();
       return res.json({
         message: "Login successful",
+        success: true,
         token,
         user: userDetails,
         type: "user",
@@ -155,6 +177,20 @@ exports.login = async (req, res) => {
         return res.status(400).json({ message: "Wrong password" });
       }
 
+      // Check if 2FA is enabled for employee (if Employee model has 2FA fields)
+      if (employee.twoFactorEnabled) {
+        // Don't generate token yet, wait for 2FA verification
+        const { password: _, ...employeeDetails } = employee.toObject();
+        return res.json({
+          message: "Login successful",
+          success: true,
+          employee: employeeDetails,
+          type: "employee",
+          requiresTwoFactor: true,
+        });
+      }
+
+      // No 2FA, proceed with normal login
       let token = employee.token;
       let isTokenValid = false;
       if (token) {
@@ -178,6 +214,7 @@ exports.login = async (req, res) => {
       const { password: _, ...employeeDetails } = employee.toObject();
       return res.json({
         message: "Login successful",
+        success: true,
         token,
         employee: employeeDetails,
         type: "employee",
@@ -253,6 +290,67 @@ exports.getUserProfile = async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   } catch (err) {
     console.error("Get profile error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Change password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Current password and new password are required" });
+    }
+
+    // Find user in User collection first
+    let user = await User.findById(userId);
+    if (user) {
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      user.password = hashedNewPassword;
+      await user.save();
+
+      return res.json({ message: "Password changed successfully" });
+    }
+
+    // If not found in User collection, check Employee collection
+    let employee = await Employee.findById(userId);
+    if (employee) {
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, employee.password);
+      if (!isMatch) {
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      employee.password = hashedNewPassword;
+      await employee.save();
+
+      return res.json({ message: "Password changed successfully" });
+    }
+
+    return res.status(404).json({ message: "User not found" });
+  } catch (err) {
+    console.error("Change password error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

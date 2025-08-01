@@ -46,7 +46,7 @@ const Profile = () => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : {};
   });
-  
+
   const [userType, setUserType] = useState(getUserType());
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(
@@ -282,10 +282,7 @@ const Profile = () => {
           <div className="flex items-center gap-4 mb-8">
             <img
               src={
-                
-                (user.companyLogo
-                  ? image_url + user.companyLogo
-                  : "/vite.svg")
+                user.companyLogo ? image_url + user.companyLogo : "/vite.svg"
               }
               alt="Company Logo"
               className="h-16 w-16 rounded-full border object-cover"
@@ -402,7 +399,7 @@ const Profile = () => {
                   </div>
                   <div>
                     <div className="text-500">Role</div>
-                    <div className="font-bold">
+                    <div className="font-bold capitalize">
                       {user.role || "Not specified"}
                     </div>
                   </div>
@@ -579,7 +576,7 @@ const Profile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="text-500">Account Status</div>
-                  <div className="text-green-500 font-bold">
+                  <div className="text-green-500 font-bold capitalize">
                     {user.accountStatus || "Active"}
                   </div>
                 </div>

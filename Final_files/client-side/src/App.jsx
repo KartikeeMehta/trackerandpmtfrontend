@@ -17,6 +17,7 @@ import AllTask from "./pages/AllTask";
 import ProjectDetails from "./pages/ProjectDetails";
 import CreateTask from "./pages/CreateTask";
 import EditTask from "./pages/EditTask";
+import Settings from "./pages/Settings";
 
 function App() {
   return (
@@ -66,7 +67,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-          <Route
+        <Route
           path="/EditTask"
           element={
             <ProtectedRoute>
@@ -76,8 +77,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
-
 
         <Route
           path="/DashBoard"
@@ -120,7 +119,6 @@ function App() {
           }
         />
 
-
         <Route
           path="/ProjectDetails"
           element={
@@ -129,7 +127,8 @@ function App() {
                 <ProjectDetails />
               </MainLayout>
             </ProtectedRoute>
-          } />
+          }
+        />
 
         <Route
           path="/Profile"
@@ -137,6 +136,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <Profile />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Settings />
               </MainLayout>
             </ProtectedRoute>
           }

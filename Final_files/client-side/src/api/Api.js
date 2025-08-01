@@ -32,6 +32,22 @@ export const api_url = {
   addTask: BASE_URL + "/tasks/createTask",
   getProjectsByTeamMember: BASE_URL + "/projects/team-member/", // append teamMemberId/projects
   getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
+  // Settings endpoints
+  changePassword: BASE_URL + "/profile/change-password",
+  updateNotificationSettings: BASE_URL + "/settings/notifications",
+  updateAppearanceSettings: BASE_URL + "/settings/appearance",
+  updateSecuritySettings: BASE_URL + "/settings/security",
+  updatePrivacySettings: BASE_URL + "/settings/privacy",
+  // 2FA endpoints
+  generateTwoFactorSetup: BASE_URL + "/2fa/setup",
+  enableTwoFactor: BASE_URL + "/2fa/enable",
+  disableTwoFactor: BASE_URL + "/2fa/disable",
+  verifyTwoFactorToken: BASE_URL + "/2fa/verify",
+  getTrustedDevices: BASE_URL + "/2fa/trusted-devices",
+  removeTrustedDevice: BASE_URL + "/2fa/trusted-devices/", // append deviceId
+  getBackupCodes: BASE_URL + "/2fa/backup-codes",
+  regenerateBackupCodes: BASE_URL + "/2fa/regenerate-backup-codes",
+  validateDeviceToken: BASE_URL + "/2fa/validate-device",
 };
 
 export const Methods = {

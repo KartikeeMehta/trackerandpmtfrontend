@@ -28,6 +28,11 @@ router.patch(
   userController.update
 );
 router.get("/profile", authMiddleware, userController.getUserProfile);
+router.put(
+  "/profile/change-password",
+  authMiddleware,
+  userController.changePassword
+);
 router.get("/activity/recent", EmployeeController.getRecentActivity);
 
 module.exports = router;

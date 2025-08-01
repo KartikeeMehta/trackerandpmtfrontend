@@ -217,6 +217,7 @@ function Section_a() {
           setError(response?.message || "Failed to fetch projects");
         }
       } catch (err) {
+        console.error("Dashboard: Error fetching projects:", err);
         setError("Failed to fetch projects");
       } finally {
         setLoading(false);
@@ -374,7 +375,7 @@ function Section_a() {
             Welcome back, <span className="text-blue-700">{userName}</span>!
           </h2>
           <p className="text-base text-gray-600 mt-1">
-            Here’s an overview of your company’s performance.
+            Here's an overview of your company's performance.
           </p>
         </div>
         {/* Motivational Quote Card */}
@@ -388,7 +389,7 @@ function Section_a() {
               For You & Your Team
             </span>
             <p className="text-gray-800 italic font-medium text-lg">
-              “{quote}”
+              "{quote}"
             </p>
           </div>
         </div>
@@ -565,4 +566,5 @@ function Section_a() {
     </div>
   );
 }
+
 export default Section_a;

@@ -21,6 +21,21 @@ const employeeSchema = new mongoose.Schema({
   role: { type: String, default: "employee" },
   token: { type: String },
   location: { type: String },
+
+  // 2FA fields
+  twoFactorSecret: { type: String },
+  twoFactorEnabled: { type: Boolean, default: false },
+  backupCodes: [{ type: String }],
+  trustedDevices: [
+    {
+      deviceId: { type: String, required: true },
+      deviceName: { type: String, required: true },
+      lastUsed: { type: Date, default: Date.now },
+      expiresAt: { type: Date, required: true },
+      ipAddress: { type: String },
+      userAgent: { type: String },
+    },
+  ],
 });
 
 module.exports = mongoose.model("Employee", employeeSchema);
