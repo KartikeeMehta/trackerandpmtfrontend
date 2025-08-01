@@ -24,8 +24,7 @@ const projectSchema = new mongoose.Schema(
       },
     ],
     completion_note: { type: String },
-    team_id: { type: String },
-    companyName: { type: String, required: true }, // Add company isolation
+    team_id: { type: String }, // <-- Add this line
   },
   {
     timestamps: true,

@@ -11,7 +11,6 @@ const activitySchema = new mongoose.Schema({
   description: { type: String },
   timestamp: { type: Date, default: Date.now },
   performedBy: { type: String }, // user name or id
-  companyName: { type: String, required: true }, // Add company isolation
 });
 
 module.exports = mongoose.model("Activity", activitySchema);

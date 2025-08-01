@@ -66,7 +66,6 @@ exports.createProject = async (req, res) => {
       team_members: validMembers.map((m) => m.teamMemberId),
       project_status,
       team_id,
-      companyName: req.user.companyName, // Add company isolation
     });
 
     await newProject.save();
@@ -78,7 +77,6 @@ exports.createProject = async (req, res) => {
       name: newProject.project_name,
       description: `Created project ${newProject.project_name}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
     });
 
     res.status(201).json({ message: "Project created", project: newProject });
@@ -110,11 +108,7 @@ exports.getAllProjects = async (req, res) => {
       return res.status(403).json({ message: "Only owner can view projects" });
     }
 
-    // Filter projects by the current user's company
-    const userCompany = req.user.companyName;
-    const projects = await Project.find({ companyName: userCompany }).sort({
-      createdAt: -1,
-    });
+    const projects = await Project.find().sort({ createdAt: -1 });
     res.status(200).json({ projects });
   } catch (err) {
     console.error(err);
@@ -183,7 +177,6 @@ exports.updateProject = async (req, res) => {
       name: project.project_name,
       description: `Updated project ${project.project_name}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
     });
 
     res.status(200).json({ message: "Project updated", project });
@@ -213,7 +206,6 @@ exports.deleteProject = async (req, res) => {
       name: project.project_name,
       description: `Soft deleted project ${project.project_name}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
     });
 
     res.status(200).json({ message: "Project marked as deleted" });
@@ -243,10 +235,15 @@ exports.getProjectsByTeamMember = async (req, res) => {
 
     console.log("Employee found:", employee.name);
 
-    const projects = await Project.find({
-      $or: [{ team_members: teamMemberId }, { project_lead: teamMemberId }],
-      project_status: { $ne: "deleted" },
-    });
+    const projects = await Project.find(
+      {
+        $or: [
+          { team_members: teamMemberId },
+          { project_lead: teamMemberId }
+        ],
+        project_status: { $ne: "deleted" },
+      }
+    );
 
     console.log("Found projects:", projects.length);
 
