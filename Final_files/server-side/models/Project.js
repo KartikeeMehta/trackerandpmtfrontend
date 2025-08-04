@@ -3,9 +3,15 @@ const mongoose = require("mongoose");
 // Define the schema for each phase (without status)
 const phaseSchema = new mongoose.Schema(
   {
+    phase_id: { type: String},
     title: { type: String, required: true },
     description: { type: String },
-    dueDate: { type: String, required: true }
+    dueDate: { type: String, required: true },
+     status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Completed"],
+      default: "Pending"
+    }
   },
   { _id: false } // Optional: keep true if you want phase _id
 );

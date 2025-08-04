@@ -9,8 +9,14 @@ const getPerformer = (user) =>
 
 exports.createProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
-      return res.status(403).json({ message: "Only owner, admin, and manager can add projects" });
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only owner, admin, and manager can add projects" });
     }
 
     const {
@@ -90,8 +96,14 @@ exports.createProject = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
   try {
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
-      return res.status(403).json({ message: "Only owner, admin, and manager can view projects" });
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only owner, admin, and manager can view projects" });
     }
 
     const userCompany = req.user.companyName;
@@ -110,8 +122,14 @@ exports.getProjectById = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
   try {
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
-      return res.status(403).json({ message: "Only owner, admin, and manager can view projects" });
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Only owner, admin, and manager can view projects" });
     }
 
     const userCompany = req.user.companyName;
@@ -127,10 +145,16 @@ exports.getAllProjects = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
       return res
         .status(403)
-        .json({ message: "Only owner, admin, and manager can update projects" });
+        .json({
+          message: "Only owner, admin, and manager can update projects",
+        });
     }
 
     const { add_members = [], remove_members = [], ...otherUpdates } = req.body;
@@ -202,10 +226,16 @@ exports.updateProject = async (req, res) => {
 
 exports.deleteProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
       return res
         .status(403)
-        .json({ message: "Only owner, admin, and manager can delete projects" });
+        .json({
+          message: "Only owner, admin, and manager can delete projects",
+        });
     }
 
     const userCompany = req.user.companyName;
@@ -276,29 +306,60 @@ exports.addProjectPhase = async (req, res) => {
     const { projectId, projectName, title, description, dueDate } = req.body;
     const companyName = req.user.companyName;
 
+    console.log("Incoming body:", req.body);
+    console.log("User's company:", companyName);
+
+    if (projectId) {
+      console.log("Trying to find project with project_id:", projectId);
+    }
+    if (projectName) {
+      console.log("Trying to find project with project_name:", projectName);
+    }
+
     let project;
 
-    // Try finding by project_id first
+    // Try finding by project_id
     if (projectId) {
       project = await Project.findOne({ project_id: projectId, companyName });
     }
 
-    // Fallback to project_name if project_id is not given or not found
+    // If not found, try project_name
     if (!project && projectName) {
-      project = await Project.findOne({ project_name: projectName, companyName });
+      project = await Project.findOne({
+        project_name: projectName,
+        companyName,
+      });
     }
 
     if (!project) {
       return res.status(404).json({
         success: false,
-        message: "Project not found"
+        message: "Project not found",
       });
     }
 
+    // STEP 1: Get company initials (e.g., Webblaze Softech → WS)
+    const initials = companyName
+      .split(" ")
+      .map((word) => word[0].toUpperCase())
+      .join("");
+
+    // STEP 2: Count existing phases across all projects of this company
+    const allProjects = await Project.find({ companyName });
+    let totalPhases = 0;
+    allProjects.forEach((p) => {
+      totalPhases += (p.phases || []).length;
+    });
+
+    // STEP 3: Generate phase_id
+    const phaseId = `${initials}-ph-${totalPhases + 1}`;
+
     const newPhase = {
+      phase_id: phaseId,
       title,
       description,
-      dueDate
+      dueDate,
+      status: "Pending", // default
     };
 
     project.phases.push(newPhase);
@@ -307,13 +368,148 @@ exports.addProjectPhase = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Phase added successfully",
-      phases: project.phases
+      phase: newPhase,
     });
   } catch (error) {
     console.error("Error in addProjectPhase:", error);
     res.status(500).json({
       success: false,
       message: "Error adding phase",
+      error: error.message,
+    });
+  }
+};
+
+exports.updatePhaseStatus = async (req, res) => {
+  try {
+    const { projectId, projectName, phaseTitle, phaseId, status } = req.body;
+    const companyName = req.user.companyName;
+
+    console.log("Incoming body:", req.body);
+    console.log("User's company:", companyName);
+
+    if (projectId) {
+      console.log("Trying to find project with project_id:", projectId);
+    }
+    if (projectName) {
+      console.log("Trying to find project with project_name:", projectName);
+    }
+
+    // Validate status
+    if (!["Pending", "In Progress", "Completed"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    let project;
+
+    // Try by projectId first
+    if (projectId) {
+      project = await Project.findOne({ project_id: projectId, companyName });
+    }
+
+    // Fallback to projectName if not found or projectId not given
+    if (!project && projectName) {
+      project = await Project.findOne({
+        project_name: projectName,
+        companyName,
+      });
+    }
+
+    if (!project) {
+      console.log("Project not found in DB");
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // Phase matching logic
+    let phase;
+    if (phaseId) {
+      phase = project.phases.find((p) => p.phase_id === phaseId);
+    } else if (phaseTitle) {
+      phase = project.phases.find((p) => p.title === phaseTitle);
+    }
+
+    if (!phase) {
+      return res.status(404).json({
+        success: false,
+        message: "Phase not found",
+      });
+    }
+
+    // Update status
+    phase.status = status;
+    await project.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Phase status updated successfully",
+      phase,
+    });
+  } catch (error) {
+    console.error("Error in updatePhaseStatus:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating phase status",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteProjectPhase = async (req, res) => {
+  try {
+    const { projectId, projectName, phase_id, title } = req.body;
+    const companyName = req.user.companyName;
+
+    if (!projectId && !projectName) {
+      return res.status(400).json({ success: false, message: "Project ID or Project Name is required" });
+    }
+
+    if (!phase_id && !title) {
+      return res.status(400).json({ success: false, message: "Phase ID or Title is required" });
+    }
+
+    // Find the project
+    let project;
+    if (projectId) {
+      project = await Project.findOne({ project_id: projectId, companyName });
+    }
+    if (!project && projectName) {
+      project = await Project.findOne({ project_name: projectName, companyName });
+    }
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    const initialLength = project.phases.length;
+
+    // Filter out the phase
+    project.phases = project.phases.filter(phase => {
+      if (phase_id) return phase.phase_id !== phase_id;
+      if (title) return phase.title !== title;
+    });
+
+    if (project.phases.length === initialLength) {
+      return res.status(404).json({ success: false, message: "Phase not found" });
+    }
+
+    await project.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Phase deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Error in deleteProjectPhase:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting phase",
       error: error.message
     });
   }
