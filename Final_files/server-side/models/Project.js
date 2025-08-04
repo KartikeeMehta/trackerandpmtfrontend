@@ -3,11 +3,11 @@ const mongoose = require("mongoose");
 // Define the schema for each phase (without status)
 const phaseSchema = new mongoose.Schema(
   {
-    phase_id: { type: String},
+    phase_id: { type: String },
     title: { type: String, required: true },
     description: { type: String },
     dueDate: { type: String, required: true },
-     status: {
+    status: {
       type: String,
       enum: ["Pending", "In Progress", "Completed"],
       default: "Pending"
@@ -50,4 +50,31 @@ const projectSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Project", projectSchema);
+// ✅ Subtask Schema
+const subtaskSchema = new mongoose.Schema(
+  {
+    subtask_id: { type: String, unique: true },
+    subtask_title: { type: String, required: true },
+    description: { type: String },
+    assigned_team: { type: String },
+    assigned_member: { type: String },
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Completed"],
+      default: "Pending"
+    },
+    phase_id: { type: String, required: true }, // Link to which phase this subtask belongs
+    companyName: { type: String, required: true }
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const Project = mongoose.model("Project", projectSchema);
+const Subtask = mongoose.model("Subtask", subtaskSchema);
+
+module.exports = {
+  Project: mongoose.model("Project", projectSchema),
+  Subtask: mongoose.model("Subtask", subtaskSchema)
+};

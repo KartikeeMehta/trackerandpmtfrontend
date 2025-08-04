@@ -13,6 +13,9 @@ router.delete('/:projectId', authMiddleware, projectController.deleteProject);  
 router.get("/team-member/:teamMemberId/projects", authMiddleware, projectController.getProjectsByTeamMember); // ✅ get projects by team member
 router.post('/add-phase', authMiddleware, addProjectPhase); // ✅ add project phase
 router.post('/update-phase-status', authMiddleware, updatePhaseStatus); // ✅ update phase status
+router.get("/phases/:projectId", authMiddleware, projectController.getProjectPhases);
 router.post('/delete-phase', authMiddleware, projectController.deleteProjectPhase);
+router.post("/subtask/add", authMiddleware, projectController.addSubtask);
+router.get("/subtasks/:project_id", authMiddleware, projectController.getSubtasksByProjectId);
 
 module.exports = router;
