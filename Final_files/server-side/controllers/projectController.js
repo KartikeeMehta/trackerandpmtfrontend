@@ -463,9 +463,11 @@ exports.updatePhaseStatus = async (req, res) => {
 exports.getProjectPhases = async (req, res) => {
   try {
     const { projectId } = req.params;
-    console.log("Fetching phases for project:", projectId);
+    const companyName = req.user.companyName;
 
-    const project = await Project.findOne({ project_id: projectId });
+    console.log("Fetching phases for project:", projectId, "from company:", companyName);
+
+    const project = await Project.findOne({ project_id: projectId, companyName });
 
     if (!project) {
       return res.status(404).json({ success: false, message: "Project not found" });
@@ -546,16 +548,17 @@ exports.addSubtask = async (req, res) => {
       description,
       assigned_team,
       assigned_member,
-      phase_id,
-      companyName
+      phase_id
     } = req.body;
+
+    const companyName = req.user.companyName; // ✅ Get from logged-in user
 
     if (!subtask_title || !phase_id || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     // Count how many subtasks exist for this phase to autogenerate ID
-    const existingSubtasks = await Subtask.find({ phase_id });
+    const existingSubtasks = await Subtask.find({ phase_id, companyName });
     const nextIndex = existingSubtasks.length + 1;
     const subtask_id = `${phase_id}-${nextIndex}`;
 
@@ -590,11 +593,12 @@ exports.addSubtask = async (req, res) => {
 exports.getSubtasksByProjectId = async (req, res) => {
   try {
     const { project_id } = req.params;
+    const companyName = req.user.companyName;
 
     console.log("🔍 Getting subtasks for project_id:", project_id);
 
-    // 1. Find the project
-    const project = await Project.findOne({ project_id });
+    // 1. Find the project under the user's company
+    const project = await Project.findOne({ project_id, companyName });
 
     if (!project) {
       return res.status(404).json({ success: false, message: "Project not found" });
@@ -605,8 +609,11 @@ exports.getSubtasksByProjectId = async (req, res) => {
 
     console.log("📌 Phase IDs in this project:", phaseIds);
 
-    // 3. Find all subtasks linked to those phases
-    const subtasks = await Subtask.find({ phase_id: { $in: phaseIds } });
+    // 3. Find all subtasks linked to those phases under the same company
+    const subtasks = await Subtask.find({
+      phase_id: { $in: phaseIds },
+      companyName
+    });
 
     return res.status(200).json({ success: true, subtasks });
   } catch (error) {
