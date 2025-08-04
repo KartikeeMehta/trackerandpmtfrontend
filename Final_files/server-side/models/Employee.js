@@ -18,7 +18,7 @@ const employeeSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  role: { type: String, default: "employee" },
+  role: { type: String, default: "employee" }, // employee, teamLead, admin, manager, teamMember
   token: { type: String },
   location: { type: String },
   resetOTP: { type: String },

@@ -204,7 +204,7 @@ exports.updateTasksByTeamMemberId = async (req, res) => {
     }
 
     // Check permissions
-    const isAuthorized = ["owner", "admin"].includes(
+    const isAuthorized = ["owner", "admin", "manager"].includes(
       req.user.role.toLowerCase()
     );
     if (!isAuthorized) {
@@ -379,6 +379,7 @@ exports.updateTaskById = async (req, res) => {
     const assignedToId = task.assignedTo;
     const isOwner = currentUserRole === "owner";
     const isAdmin = currentUserRole === "admin";
+    const isManager = currentUserRole === "manager";
     const isTeamLead = currentUserRole === "team_lead";
     const isEmployee = currentUserRole === "employee";
     const isUpdatingOwnTask = assignedToId === currentUserTeamMemberId;
@@ -392,6 +393,7 @@ exports.updateTaskById = async (req, res) => {
 
     if (
       (isAdmin && task.assignedByRole === "owner") ||
+      (isManager && task.assignedByRole === "owner") ||
       (isTeamLead &&
         (task.assignedByRole === "owner" || task.assignedByRole === "admin")) ||
       (isTeamLead && isUpdatingOwnTask) // team_lead cannot update own tasks
@@ -501,10 +503,10 @@ exports.deleteTaskById = async (req, res) => {
     const assigneeRole = assignee.role.toLowerCase();
 
     // 🔐 Role-based permission checks
-    if (userRole === "admin") {
+    if (userRole === "admin" || userRole === "manager") {
       if (!["team_lead", "employee"].includes(assigneeRole)) {
         return res.status(403).json({
-          message: "Admins can only delete tasks of team_leads or employees.",
+          message: "Admins and managers can only delete tasks of team_leads or employees.",
         });
       }
     } else if (userRole === "team_lead") {

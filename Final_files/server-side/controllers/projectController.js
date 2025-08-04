@@ -9,8 +9,8 @@ const getPerformer = (user) =>
 
 exports.createProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only owner can add projects" });
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+      return res.status(403).json({ message: "Only owner, admin, and manager can add projects" });
     }
 
     const {
@@ -90,8 +90,8 @@ exports.createProject = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
   try {
-    if (req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only owner can view projects" });
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+      return res.status(403).json({ message: "Only owner, admin, and manager can view projects" });
     }
 
     const userCompany = req.user.companyName;
@@ -110,8 +110,8 @@ exports.getProjectById = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
   try {
-    if (req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only owner can view projects" });
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+      return res.status(403).json({ message: "Only owner, admin, and manager can view projects" });
     }
 
     const userCompany = req.user.companyName;
@@ -127,10 +127,10 @@ exports.getAllProjects = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner") {
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
       return res
         .status(403)
-        .json({ message: "Only owner can update projects" });
+        .json({ message: "Only owner, admin, and manager can update projects" });
     }
 
     const { add_members = [], remove_members = [], ...otherUpdates } = req.body;
@@ -202,10 +202,10 @@ exports.updateProject = async (req, res) => {
 
 exports.deleteProject = async (req, res) => {
   try {
-    if (req.user.role !== "owner") {
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
       return res
         .status(403)
-        .json({ message: "Only owner can delete projects" });
+        .json({ message: "Only owner, admin, and manager can delete projects" });
     }
 
     const userCompany = req.user.companyName;
@@ -239,7 +239,7 @@ exports.getProjectsByTeamMember = async (req, res) => {
     const { teamMemberId } = req.params;
     console.log("Looking for projects for teamMemberId:", teamMemberId);
 
-    // Role-based access control - allow owner, admin, and team leads to view any member's projects
+    // Role-based access control - allow owner, admin, manager, and team leads to view any member's projects
     if (
       req.user.role === "employee" &&
       req.user.teamMemberId !== teamMemberId

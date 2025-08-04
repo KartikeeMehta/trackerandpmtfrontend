@@ -3,7 +3,7 @@ const Employee = require("../models/Employee");
 module.exports = {
     isAuthorizedToAssign: (req, res, next) => {
         const { role } = req.user;
-        if (['owner', 'Admin', 'team_lead'].includes(role)) return next();
+        if (['owner', 'Admin', 'manager', 'team_lead'].includes(role)) return next();
         return res.status(403).json({ message: 'Access denied for assigning tasks.' });
     },
 

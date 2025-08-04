@@ -19,7 +19,7 @@ const taskSchema = new mongoose.Schema({
   },
   assignedByRole: {
     type: String,
-    enum: ["owner", "admin", "team_lead"],
+    enum: ["owner", "admin", "manager", "team_lead"],
     required: true,
   },
   project: {

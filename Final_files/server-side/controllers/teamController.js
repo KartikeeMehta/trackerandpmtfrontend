@@ -12,8 +12,8 @@ exports.createTeam = async (req, res) => {
   try {
     const { teamName, description, teamLead, teamMembers } = req.body;
 
-    if (!req.user || req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only owner can create teams" });
+    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager")) {
+      return res.status(403).json({ message: "Only owner, admin, and manager can create teams" });
     }
 
     // Validate team lead using teamMemberId and role
@@ -77,8 +77,8 @@ exports.deleteTeam = async (req, res) => {
   try {
     const { teamName } = req.query;
 
-    if (!req.user || req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only admin can delete teams" });
+    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager")) {
+      return res.status(403).json({ message: "Only owner, admin, and manager can delete teams" });
     }
 
     if (!teamName) {
@@ -117,8 +117,8 @@ exports.updateTeam = async (req, res) => {
   try {
     const { teamName, description, teamLead, teamMembers } = req.body;
 
-    if (!req.user || req.user.role !== "owner") {
-      return res.status(403).json({ message: "Only owner can edit teams" });
+    if (!req.user || (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager")) {
+      return res.status(403).json({ message: "Only owner, admin, and manager can edit teams" });
     }
 
     if (!teamName) {

@@ -13,8 +13,8 @@ const getPerformer = (user) =>
 
 // API: Add new Employee
 exports.addEmployee = async (req, res) => {
-  if (req.user.role !== "owner") {
-    return res.status(403).json({ message: "Only owners can add employees" });
+  if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+    return res.status(403).json({ message: "Only owners, admins, and managers can add employees" });
   }
 
   const { name, email, designation, role, location, phoneNo, profileLogo } =
@@ -231,7 +231,7 @@ exports.editEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    if (req.user.role !== "owner" && req.user.role !== "admin") {
+    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
       return res.status(403).json({ message: "Unauthorized to edit employee" });
     }
 
@@ -334,6 +334,21 @@ exports.getAllAdmins = async (req, res) => {
     res.status(200).json(admins);
   } catch (error) {
     console.error("Error fetching admins:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get all employees with role: "manager"
+exports.getAllManagers = async (req, res) => {
+  try {
+    const userCompany = req.user.companyName;
+    const managers = await Employee.find({
+      role: "manager",
+      companyName: userCompany,
+    }).select("-password");
+    res.status(200).json(managers);
+  } catch (error) {
+    console.error("Error fetching managers:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
