@@ -270,3 +270,51 @@ exports.getProjectsByTeamMember = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.addProjectPhase = async (req, res) => {
+  try {
+    const { projectId, projectName, title, description, dueDate } = req.body;
+    const companyName = req.user.companyName;
+
+    let project;
+
+    // Try finding by project_id first
+    if (projectId) {
+      project = await Project.findOne({ project_id: projectId, companyName });
+    }
+
+    // Fallback to project_name if project_id is not given or not found
+    if (!project && projectName) {
+      project = await Project.findOne({ project_name: projectName, companyName });
+    }
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found"
+      });
+    }
+
+    const newPhase = {
+      title,
+      description,
+      dueDate
+    };
+
+    project.phases.push(newPhase);
+    await project.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Phase added successfully",
+      phases: project.phases
+    });
+  } catch (error) {
+    console.error("Error in addProjectPhase:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error adding phase",
+      error: error.message
+    });
+  }
+};
