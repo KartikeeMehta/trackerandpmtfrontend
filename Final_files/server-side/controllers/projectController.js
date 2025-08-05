@@ -25,30 +25,34 @@ exports.createProject = async (req, res) => {
       project_description,
       start_date,
       end_date,
-      project_lead, // teamMemberId of the project lead
-      team_members = [], // Array of teamMemberIds
+      project_lead,
+      team_members = [],
       project_status,
       team_id,
     } = req.body;
 
-    // Count existing projects to generate next ID
-    const count = await Project.countDocuments();
-    const generatedProjectId = `Pr-${count + 1}`;
+    const companyName = req.user.companyName;
 
-    // Validate team_members presence
+    // ✅ Extract initials from company name (e.g., "Alpha Beta Corp" => "ABC")
+    const initials = companyName
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase())
+      .join("");
+
+    // ✅ Count projects of this company
+    const count = await Project.countDocuments({ companyName });
+
+    const generatedProjectId = `${initials}-Pr-${count + 1}`;
+
     if (!Array.isArray(team_members) || team_members.length === 0) {
       return res.status(400).json({ message: "Team members are required" });
     }
 
-    // Vaidate Team Lead
     const lead = await Employee.findOne({ teamMemberId: project_lead });
     if (!lead || lead.role !== "teamLead") {
-      return res
-        .status(404)
-        .json({ message: "Team Lead not found or invalid" });
+      return res.status(404).json({ message: "Team Lead not found or invalid" });
     }
 
-    // Validate team members
     const validMembers = await Employee.find({
       teamMemberId: { $in: team_members },
       role: "teamMember",
@@ -60,7 +64,6 @@ exports.createProject = async (req, res) => {
         .json({ message: "One or more team members are invalid" });
     }
 
-    // Create project
     const newProject = new Project({
       project_id: generatedProjectId,
       project_name,
@@ -72,19 +75,18 @@ exports.createProject = async (req, res) => {
       team_members: validMembers.map((m) => m.teamMemberId),
       project_status,
       team_id,
-      companyName: req.user.companyName, // Add company isolation
+      companyName,
     });
 
     await newProject.save();
 
-    // Create activity log
     await Activity.create({
       type: "Project",
       action: "add",
       name: newProject.project_name,
       description: `Created project ${newProject.project_name}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
+      companyName,
     });
 
     res.status(201).json({ message: "Project created", project: newProject });

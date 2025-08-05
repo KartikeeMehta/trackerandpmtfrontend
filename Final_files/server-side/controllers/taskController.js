@@ -2,7 +2,7 @@ const Task = require("../models/Task");
 const Employee = require("../models/Employee");
 const Team = require("../models/Team");
 const Activity = require("../models/Activity");
-const Project = require("../models/Project");
+const {Project} = require("../models/Project");
 const User = require("../models/User");
 
 const getPerformer = (user) =>
@@ -12,8 +12,7 @@ const getPerformer = (user) =>
 
 exports.createTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, project, priority, dueDate } =
-      req.body;
+    const { title, description, assignedTo, project, priority, dueDate } = req.body;
 
     if (!title || title.trim() === "") {
       return res.status(400).json({ message: "Title is required." });
@@ -21,10 +20,7 @@ exports.createTask = async (req, res) => {
     if (!project || project.trim() === "") {
       return res.status(400).json({ message: "Project is required." });
     }
-    if (
-      !priority ||
-      !["low", "medium", "high", "critical"].includes(priority)
-    ) {
+    if (!priority || !["low", "medium", "high", "critical"].includes(priority)) {
       return res.status(400).json({
         message: "Priority must be one of: low, medium, high, critical.",
       });
@@ -33,16 +29,15 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ message: "Due date is required." });
     }
 
-    // Validate project existence
     const userCompany = req.user.companyName;
+
+    // Validate project existence
     const projectDoc = await Project.findOne({
       project_id: project,
       companyName: userCompany,
     });
     if (!projectDoc) {
-      return res
-        .status(404)
-        .json({ message: "Project with this project_id not found." });
+      return res.status(404).json({ message: "Project with this project_id not found." });
     }
 
     // Check if the provided teamMemberId exists
@@ -51,19 +46,33 @@ exports.createTask = async (req, res) => {
       companyName: userCompany,
     });
     if (!employee) {
-      return res
-        .status(404)
-        .json({ message: "Employee with this teamMemberId not found." });
+      return res.status(404).json({ message: "Employee with this teamMemberId not found." });
     }
 
-    // Auto-generate task_id
-    const lastTask = await Task.findOne().sort({ createdAt: -1 });
-    let newTaskId = "TSK-001";
-    if (lastTask && lastTask.task_id) {
-      const lastIdNum = parseInt(lastTask.task_id.split("-")[1]);
-      const nextIdNum = lastIdNum + 1;
-      newTaskId = `TSK-${nextIdNum.toString().padStart(3, "0")}`;
+    // Auto-generate task_id like COMP-TSK-001
+    const companyInitials = userCompany
+      .split(" ")
+      .map(word => word[0])
+      .join("")
+      .toUpperCase();
+
+    const lastCompanyTask = await Task.find({ companyName: userCompany })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
+    let taskNumber = 1;
+    if (
+      lastCompanyTask.length &&
+      lastCompanyTask[0].task_id &&
+      lastCompanyTask[0].task_id.startsWith(`${companyInitials}-TSK-`)
+    ) {
+      const lastIdNum = parseInt(lastCompanyTask[0].task_id.split("-TSK-")[1]);
+      if (!isNaN(lastIdNum)) {
+        taskNumber = lastIdNum + 1;
+      }
     }
+
+    const newTaskId = `${companyInitials}-TSK-${taskNumber.toString().padStart(3, "0")}`;
 
     const task = new Task({
       task_id: newTaskId,
@@ -75,7 +84,7 @@ exports.createTask = async (req, res) => {
       project,
       priority,
       dueDate,
-      companyName: req.user.companyName, // Add company isolation
+      companyName: userCompany,
     });
 
     await task.save();
@@ -86,7 +95,7 @@ exports.createTask = async (req, res) => {
       name: task.title,
       description: `Created task ${task.title}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
+      companyName: userCompany,
     });
 
     // Fetch assigner's name for response
@@ -99,9 +108,7 @@ exports.createTask = async (req, res) => {
     const taskObj = task.toObject();
     taskObj.assignedBy = assignedByName;
 
-    res
-      .status(201)
-      .json({ message: "Task created successfully.", task: taskObj });
+    res.status(201).json({ message: "Task created successfully.", task: taskObj });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error creating task.", error });
