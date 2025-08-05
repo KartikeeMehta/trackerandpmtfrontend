@@ -102,33 +102,39 @@ const PhaseDetails = () => {
         } else {
           setSubtasks([]);
         }
-        // Comments remain static
-        setComments([
-          {
-            id: 1,
-            user: "EMP001",
-            userName: "John Doe",
-            message: "Wireframes completed and ready for review",
-            timestamp: "2024-01-21T10:30:00Z",
-          },
-          {
-            id: 2,
-            user: "EMP003",
-            userName: "Jane Smith",
-            message: "Working on mockups, should be done by tomorrow",
-            timestamp: "2024-01-22T14:15:00Z",
-          },
-        ]);
+        // Fetch comments for this phase
+        await fetchComments(token);
       } catch (error) {
         console.error("Error fetching data:", error);
         setPhase(null);
         setSubtasks([]);
+        setComments([]);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [phaseId, projectId, navigate]);
+
+  const fetchComments = async (token) => {
+    try {
+      const commentsResponse = await apiHandler.GetApi(
+        `${api_url.getPhaseComments}${projectId}/phases/${phaseId}/comments`,
+        token
+      );
+      if (
+        commentsResponse.success &&
+        Array.isArray(commentsResponse.comments)
+      ) {
+        setComments(commentsResponse.comments);
+      } else {
+        setComments([]);
+      }
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      setComments([]);
+    }
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -272,20 +278,26 @@ const PhaseDetails = () => {
     });
   };
 
-  const handleSubmitComment = (e) => {
+  const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const commentData = {
-      id: Date.now(),
-      user: "EMP001", // TODO: Get current user
-      userName: "Current User", // TODO: Get current user name
-      message: newComment,
-      timestamp: new Date().toISOString(),
-    };
-
-    setComments((prev) => [commentData, ...prev]);
-    setNewComment("");
+    const token = localStorage.getItem("token");
+    try {
+      const payload = {
+        text: newComment,
+      };
+      await apiHandler.PostApi(
+        `${api_url.addPhaseComment}${projectId}/phases/${phaseId}/comments`,
+        payload,
+        token
+      );
+      // Re-fetch comments
+      await fetchComments(token);
+      setNewComment("");
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+    }
   };
 
   const formatTimestamp = (timestamp) => {
@@ -552,21 +564,23 @@ const PhaseDetails = () => {
 
             {/* Comments List */}
             <div className="space-y-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-3">
+              {comments.map((comment, index) => (
+                <div key={index} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                    {comment.userName.charAt(0).toUpperCase()}
+                    {comment.commentedBy
+                      ? comment.commentedBy.charAt(0).toUpperCase()
+                      : "U"}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-medium text-gray-900">
-                        {comment.userName}
+                        {comment.commentedBy || "Unknown User"}
                       </span>
                       <span className="text-xs text-gray-500">
                         {formatTimestamp(comment.timestamp)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700">{comment.message}</p>
+                    <p className="text-sm text-gray-700">{comment.text}</p>
                   </div>
                 </div>
               ))}
