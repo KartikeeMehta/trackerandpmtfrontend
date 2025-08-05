@@ -1,6 +1,6 @@
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
-const { Project, Subtask } = require("../models/Project");
+const { Project } = require("../models/Project");
 const mongoose = require("mongoose");
 
 const getPerformer = (user) =>
@@ -34,16 +34,27 @@ exports.createProject = async (req, res) => {
 
     const companyName = req.user.companyName;
 
-    // ✅ Extract initials from company name (e.g., "Alpha Beta Corp" => "ABC")
+    // ✅ Get initials from company name (e.g., "Web Blaze" => "WB")
     const initials = companyName
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase())
       .join("");
 
-    // ✅ Count projects of this company
-    const count = await Project.countDocuments({ companyName });
+    // ✅ Find latest project ID for the company
+    const lastProject = await Project.findOne({ companyName })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const generatedProjectId = `${initials}-Pr-${count + 1}`;
+    let lastNumber = 0;
+
+    if (lastProject && lastProject.project_id) {
+      const match = lastProject.project_id.match(/(\d+)$/);
+      if (match) {
+        lastNumber = parseInt(match[1]);
+      }
+    }
+
+    const generatedProjectId = `${initials}-Pr-${lastNumber + 1}`;
 
     if (!Array.isArray(team_members) || team_members.length === 0) {
       return res.status(400).json({ message: "Team members are required" });
@@ -575,25 +586,46 @@ exports.updateSubtaskStatus = async (req, res) => {
       });
     }
 
-    const subtask = await Subtask.findOne({
-      subtask_id,
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
       companyName,
     });
 
-    if (!subtask) {
+    if (!project) {
       return res.status(404).json({
         success: false,
         message: "Subtask not found",
       });
     }
 
-    subtask.status = status;
-    await subtask.save();
+    // Update the subtask status using array update
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $set: {
+          "phases.$[].subtasks.$[subtask].status": status,
+          "phases.$[].subtasks.$[subtask].updatedAt": new Date(),
+        },
+      },
+      {
+        arrayFilters: [{ "subtask.subtask_id": subtask_id }],
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
 
     return res.status(200).json({
       success: true,
       message: "Subtask status updated successfully",
-      subtask,
     });
   } catch (error) {
     console.error("Error updating subtask status:", error);
@@ -618,30 +650,61 @@ exports.editSubtask = async (req, res) => {
       });
     }
 
-    const subtask = await Subtask.findOne({
-      subtask_id,
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
       companyName,
     });
 
-    if (!subtask) {
+    if (!project) {
       return res.status(404).json({
         success: false,
         message: "Subtask not found",
       });
     }
 
-    // Update fields if provided
-    if (subtask_title) subtask.subtask_title = subtask_title;
-    if (description) subtask.description = description;
-    if (assigned_member) subtask.assigned_member = assigned_member;
-    if (images) subtask.images = images;
+    // Prepare update object
+    const updateFields = {
+      "phases.$[].subtasks.$[subtask].updatedAt": new Date(),
+    };
 
-    await subtask.save();
+    if (subtask_title) {
+      updateFields["phases.$[].subtasks.$[subtask].subtask_title"] = subtask_title;
+    }
+    if (description) {
+      updateFields["phases.$[].subtasks.$[subtask].description"] = description;
+    }
+    if (assigned_member) {
+      updateFields["phases.$[].subtasks.$[subtask].assigned_member"] = assigned_member;
+    }
+    if (images) {
+      updateFields["phases.$[].subtasks.$[subtask].images"] = images;
+    }
+
+    // Update the subtask using array update
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $set: updateFields,
+      },
+      {
+        arrayFilters: [{ "subtask.subtask_id": subtask_id }],
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
 
     return res.status(200).json({
       success: true,
       message: "Subtask updated successfully",
-      subtask,
     });
   } catch (error) {
     console.error("Error editing subtask:", error);
@@ -665,19 +728,38 @@ exports.deleteSubtask = async (req, res) => {
       });
     }
 
-    const subtask = await Subtask.findOne({
-      subtask_id,
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
       companyName,
     });
 
-    if (!subtask) {
+    if (!project) {
       return res.status(404).json({
         success: false,
         message: "Subtask not found",
       });
     }
 
-    await Subtask.deleteOne({ subtask_id, companyName });
+    // Remove the subtask from the phase using $pull
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $pull: {
+          "phases.$.subtasks": { subtask_id: subtask_id }
+        }
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -705,10 +787,31 @@ exports.getSubtaskActivity = async (req, res) => {
       });
     }
 
-    const subtask = await Subtask.findOne({
-      subtask_id: subtaskId,
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtaskId,
       companyName,
     });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Find the specific subtask in the embedded structure
+    let subtask = null;
+    let phase = null;
+    
+    for (const p of project.phases) {
+      const foundSubtask = p.subtasks.find(s => s.subtask_id === subtaskId);
+      if (foundSubtask) {
+        subtask = foundSubtask;
+        phase = p;
+        break;
+      }
+    }
 
     if (!subtask) {
       return res.status(404).json({
@@ -730,7 +833,7 @@ exports.getSubtaskActivity = async (req, res) => {
       {
         id: 2,
         action: "Subtask assigned",
-        details: `Assigned to ${subtask.assigned_member}`,
+        details: `Assigned to ${subtask.assigned_member || "Not assigned"}`,
         timestamp:
           subtask.createdAt || new Date(Date.now() - 86400000).toISOString(),
         user: "Project Manager",
@@ -778,7 +881,7 @@ exports.addSubtask = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Get the project to find the assigned team
+    // Find the project and the specific phase
     const project = await Project.findOne({
       "phases.phase_id": phase_id,
       companyName,
@@ -791,28 +894,56 @@ exports.addSubtask = async (req, res) => {
       });
     }
 
+    // Find the specific phase
+    const phase = project.phases.find(p => p.phase_id === phase_id);
+    if (!phase) {
+      return res.status(404).json({
+        success: false,
+        message: "Phase not found",
+      });
+    }
+
     // Use project's assigned team as default if not provided
     const finalAssignedTeam =
       assigned_team || project.assigned_team || "Not assigned";
 
     // Count how many subtasks exist for this phase to autogenerate ID
-    const existingSubtasks = await Subtask.find({ phase_id, companyName });
+    const existingSubtasks = phase.subtasks || [];
     const nextIndex = existingSubtasks.length + 1;
     const subtask_id = `${phase_id}-${nextIndex}`;
 
-    const newSubtask = new Subtask({
+    const newSubtask = {
       subtask_id,
       subtask_title,
       description,
       assigned_team: finalAssignedTeam,
       assigned_member,
       status: "Pending",
-      phase_id,
-      companyName,
       images: images || [],
-    });
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    await newSubtask.save();
+    // Add subtask to the phase
+    const result = await Project.updateOne(
+      { 
+        project_id: project.project_id, 
+        companyName,
+        "phases.phase_id": phase_id 
+      },
+      { 
+        $push: { 
+          "phases.$.subtasks": newSubtask 
+        } 
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to add subtask to phase",
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -845,18 +976,23 @@ exports.getSubtasksByProjectId = async (req, res) => {
         .json({ success: false, message: "Project not found" });
     }
 
-    // 2. Extract all phase_ids from the project
-    const phaseIds = project.phases.map((phase) => phase.phase_id);
-
-    console.log("📌 Phase IDs in this project:", phaseIds);
-
-    // 3. Find all subtasks linked to those phases under the same company
-    const subtasks = await Subtask.find({
-      phase_id: { $in: phaseIds },
-      companyName,
+    // 2. Extract all subtasks from all phases
+    const allSubtasks = [];
+    project.phases.forEach(phase => {
+      if (phase.subtasks && phase.subtasks.length > 0) {
+        // Add phase information to each subtask for context
+        const subtasksWithPhase = phase.subtasks.map(subtask => ({
+          ...subtask.toObject ? subtask.toObject() : subtask,
+          phase_id: phase.phase_id,
+          phase_title: phase.title
+        }));
+        allSubtasks.push(...subtasksWithPhase);
+      }
     });
 
-    return res.status(200).json({ success: true, subtasks });
+    console.log("📌 Total subtasks found:", allSubtasks.length);
+
+    return res.status(200).json({ success: true, subtasks: allSubtasks });
   } catch (error) {
     console.error("❌ Error fetching subtasks:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
