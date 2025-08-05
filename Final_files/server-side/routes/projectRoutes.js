@@ -29,8 +29,8 @@ router.post(
   "/delete-phase",
   authMiddleware,
   projectController.deleteProjectPhase
-);
-router.post("/subtask/add", authMiddleware, projectController.addSubtask);
+); // ✅ delete project phase
+router.post("/subtask/add", authMiddleware, projectController.addSubtask); // ✅ add subtask
 router.post(
   "/subtask/update-status",
   authMiddleware,
@@ -42,11 +42,13 @@ router.get(
   "/subtasks/:project_id",
   authMiddleware,
   projectController.getSubtasksByProjectId
-);
+); // ✅ get subtasks by project ID
 router.get(
   "/subtask/activity/:subtaskId",
   authMiddleware,
   projectController.getSubtaskActivity
-);
+); // ✅ get subtask activity by subtask ID
+router.post("/:projectId/phases/:phaseId/comments", authMiddleware,projectController.addCommentToPhase); // ✅ add comment to phase
+router.get("/:projectId/phases/:phaseId/comments", authMiddleware, projectController.getPhaseComments); // ✅ get comments for a phase
 
 module.exports = router;

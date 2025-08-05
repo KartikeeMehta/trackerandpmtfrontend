@@ -1,6 +1,7 @@
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
 const { Project, Subtask } = require("../models/Project");
+const mongoose = require("mongoose");
 
 const getPerformer = (user) =>
   user?.firstName
@@ -859,5 +860,121 @@ exports.getSubtasksByProjectId = async (req, res) => {
   } catch (error) {
     console.error("❌ Error fetching subtasks:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+exports.addCommentToPhase = async (req, res) => {
+  try {
+    const { projectId, phaseId } = req.params;
+    const { text } = req.body;
+    const userId = req.user._id;
+    const companyName = req.user.companyName; // ✅ Added
+
+    if (!text || text.trim() === "") {
+      return res.status(400).json({ success: false, message: "Comment text is required" });
+    }
+
+    // ✅ Added companyName to query
+    const project = await Project.findOne({ project_id: projectId, companyName });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    const phase = project.phases.find((p) => p.phase_id === phaseId);
+    if (!phase) {
+      return res.status(404).json({ success: false, message: "Phase not found" });
+    }
+
+    const newComment = {
+      text,
+      commentedBy: new mongoose.Types.ObjectId(userId),
+      timestamp: new Date(),
+    };
+
+    phase.comments.push(newComment);
+    await project.save();
+
+    const lastComment = phase.comments[phase.comments.length - 1];
+
+    const populatedUser = await mongoose
+      .model("User")
+      .findById(lastComment.commentedBy)
+      .select("firstName lastName");
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment added successfully",
+      comment: {
+        text: lastComment.text,
+        commentedBy: populatedUser
+          ? `${populatedUser.firstName} ${populatedUser.lastName}`
+          : "Unknown",
+        timestamp: lastComment.timestamp.toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      },
+    });
+  } catch (err) {
+    console.error("Error adding comment:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.getPhaseComments = async (req, res) => {
+  try {
+    const { projectId, phaseId } = req.params;
+    const companyName = req.user.companyName;
+
+    // Populate both firstName and lastName from User model
+    const project = await Project.findOne({ project_id: projectId, companyName }).populate(
+      "phases.comments.commentedBy",
+      "firstName lastName email"
+    );
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const phase = project.phases.find(
+      (p) => p.phase_id?.trim() === phaseId.trim()
+    );
+
+    if (!phase) {
+      return res.status(404).json({
+        success: false,
+        message: "Phase not found",
+      });
+    }
+
+    const formattedComments = (phase.comments || []).map((c) => ({
+      text: c.text,
+      commentedBy:
+        c.commentedBy?.firstName && c.commentedBy?.lastName
+          ? `${c.commentedBy.firstName} ${c.commentedBy.lastName}`
+          : "Unknown",
+      timestamp: new Date(c.timestamp).toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    }));
+
+    res.status(200).json({
+      success: true,
+      comments: formattedComments,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to get comments",
+      error: error.message,
+    });
   }
 };
