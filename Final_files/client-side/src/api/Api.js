@@ -32,6 +32,17 @@ export const api_url = {
   addTask: BASE_URL + "/tasks/createTask",
   getProjectsByTeamMember: BASE_URL + "/projects/team-member/", // append teamMemberId/projects
   getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
+  // --- Added for Phases & Subtasks ---
+  addPhase: BASE_URL + "/projects/add-phase", // POST
+  updatePhaseStatus: BASE_URL + "/projects/update-phase-status", // POST
+  deletePhase: BASE_URL + "/projects/delete-phase", // POST (not DELETE)
+  getPhases: BASE_URL + "/projects/phases/", // append :projectId (GET)
+  getSubtasks: BASE_URL + "/projects/subtasks/", // append :project_id (GET)
+  addSubtask: BASE_URL + "/projects/subtask/add", // POST
+  updateSubtaskStatus: BASE_URL + "/projects/subtask/update-status", // POST
+  editSubtask: BASE_URL + "/projects/subtask/edit", // POST
+  deleteSubtask: BASE_URL + "/projects/subtask/delete", // POST
+  getSubtaskActivity: BASE_URL + "/projects/subtask/activity",
 };
 
 export const Methods = {

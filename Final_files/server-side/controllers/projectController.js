@@ -36,7 +36,7 @@ exports.createProject = async (req, res) => {
     // ✅ Extract initials from company name (e.g., "Alpha Beta Corp" => "ABC")
     const initials = companyName
       .split(" ")
-      .map(word => word.charAt(0).toUpperCase())
+      .map((word) => word.charAt(0).toUpperCase())
       .join("");
 
     // ✅ Count projects of this company
@@ -50,7 +50,9 @@ exports.createProject = async (req, res) => {
 
     const lead = await Employee.findOne({ teamMemberId: project_lead });
     if (!lead || lead.role !== "teamLead") {
-      return res.status(404).json({ message: "Team Lead not found or invalid" });
+      return res
+        .status(404)
+        .json({ message: "Team Lead not found or invalid" });
     }
 
     const validMembers = await Employee.find({
@@ -152,11 +154,9 @@ exports.updateProject = async (req, res) => {
       req.user.role !== "admin" &&
       req.user.role !== "manager"
     ) {
-      return res
-        .status(403)
-        .json({
-          message: "Only owner, admin, and manager can update projects",
-        });
+      return res.status(403).json({
+        message: "Only owner, admin, and manager can update projects",
+      });
     }
 
     const { add_members = [], remove_members = [], ...otherUpdates } = req.body;
@@ -233,11 +233,9 @@ exports.deleteProject = async (req, res) => {
       req.user.role !== "admin" &&
       req.user.role !== "manager"
     ) {
-      return res
-        .status(403)
-        .json({
-          message: "Only owner, admin, and manager can delete projects",
-        });
+      return res.status(403).json({
+        message: "Only owner, admin, and manager can delete projects",
+      });
     }
 
     const userCompany = req.user.companyName;
@@ -467,12 +465,22 @@ exports.getProjectPhases = async (req, res) => {
     const { projectId } = req.params;
     const companyName = req.user.companyName;
 
-    console.log("Fetching phases for project:", projectId, "from company:", companyName);
+    console.log(
+      "Fetching phases for project:",
+      projectId,
+      "from company:",
+      companyName
+    );
 
-    const project = await Project.findOne({ project_id: projectId, companyName });
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    });
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     return res.status(200).json({
@@ -494,11 +502,16 @@ exports.deleteProjectPhase = async (req, res) => {
     const companyName = req.user.companyName;
 
     if (!projectId && !projectName) {
-      return res.status(400).json({ success: false, message: "Project ID or Project Name is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Project ID or Project Name is required",
+      });
     }
 
     if (!phase_id && !title) {
-      return res.status(400).json({ success: false, message: "Phase ID or Title is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Phase ID or Title is required" });
     }
 
     // Find the project
@@ -507,38 +520,242 @@ exports.deleteProjectPhase = async (req, res) => {
       project = await Project.findOne({ project_id: projectId, companyName });
     }
     if (!project && projectName) {
-      project = await Project.findOne({ project_name: projectName, companyName });
+      project = await Project.findOne({
+        project_name: projectName,
+        companyName,
+      });
     }
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     const initialLength = project.phases.length;
 
     // Filter out the phase
-    project.phases = project.phases.filter(phase => {
+    project.phases = project.phases.filter((phase) => {
       if (phase_id) return phase.phase_id !== phase_id;
       if (title) return phase.title !== title;
     });
 
     if (project.phases.length === initialLength) {
-      return res.status(404).json({ success: false, message: "Phase not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Phase not found" });
     }
 
     await project.save();
 
     return res.status(200).json({
       success: true,
-      message: "Phase deleted successfully"
+      message: "Phase deleted successfully",
     });
-
   } catch (error) {
     console.error("Error in deleteProjectPhase:", error);
     return res.status(500).json({
       success: false,
       message: "Error deleting phase",
-      error: error.message
+      error: error.message,
+    });
+  }
+};
+
+exports.updateSubtaskStatus = async (req, res) => {
+  try {
+    const { subtask_id, status } = req.body;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID and status are required",
+      });
+    }
+
+    const subtask = await Subtask.findOne({
+      subtask_id,
+      companyName,
+    });
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    subtask.status = status;
+    await subtask.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask status updated successfully",
+      subtask,
+    });
+  } catch (error) {
+    console.error("Error updating subtask status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating subtask status",
+      error: error.message,
+    });
+  }
+};
+
+exports.editSubtask = async (req, res) => {
+  try {
+    const { subtask_id, subtask_title, description, assigned_member, images } =
+      req.body;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    const subtask = await Subtask.findOne({
+      subtask_id,
+      companyName,
+    });
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Update fields if provided
+    if (subtask_title) subtask.subtask_title = subtask_title;
+    if (description) subtask.description = description;
+    if (assigned_member) subtask.assigned_member = assigned_member;
+    if (images) subtask.images = images;
+
+    await subtask.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask updated successfully",
+      subtask,
+    });
+  } catch (error) {
+    console.error("Error editing subtask:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error editing subtask",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteSubtask = async (req, res) => {
+  try {
+    const { subtask_id } = req.body;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    const subtask = await Subtask.findOne({
+      subtask_id,
+      companyName,
+    });
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    await Subtask.deleteOne({ subtask_id, companyName });
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting subtask:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting subtask",
+      error: error.message,
+    });
+  }
+};
+
+exports.getSubtaskActivity = async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const companyName = req.user.companyName;
+
+    if (!subtaskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    const subtask = await Subtask.findOne({
+      subtask_id: subtaskId,
+      companyName,
+    });
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Generate activity log based on subtask data
+    const activities = [
+      {
+        id: 1,
+        action: "Status updated",
+        details: `Status changed to "${subtask.status}"`,
+        timestamp: subtask.updatedAt || new Date().toISOString(),
+        user: "System",
+        type: "status_update",
+      },
+      {
+        id: 2,
+        action: "Subtask assigned",
+        details: `Assigned to ${subtask.assigned_member}`,
+        timestamp:
+          subtask.createdAt || new Date(Date.now() - 86400000).toISOString(),
+        user: "Project Manager",
+        type: "assignment",
+      },
+      {
+        id: 3,
+        action: "Subtask created",
+        details: "Subtask was created",
+        timestamp:
+          subtask.createdAt || new Date(Date.now() - 172800000).toISOString(),
+        user: "Project Manager",
+        type: "creation",
+      },
+    ];
+
+    return res.status(200).json({
+      success: true,
+      activities: activities,
+    });
+  } catch (error) {
+    console.error("Error fetching subtask activity:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching subtask activity",
+      error: error.message,
     });
   }
 };
@@ -550,14 +767,32 @@ exports.addSubtask = async (req, res) => {
       description,
       assigned_team,
       assigned_member,
-      phase_id
+      phase_id,
+      images,
     } = req.body;
 
-    const companyName = req.user.companyName; // ✅ Get from logged-in user
+    const companyName = req.user.companyName;
 
     if (!subtask_title || !phase_id || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
+
+    // Get the project to find the assigned team
+    const project = await Project.findOne({
+      "phases.phase_id": phase_id,
+      companyName,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found for this phase",
+      });
+    }
+
+    // Use project's assigned team as default if not provided
+    const finalAssignedTeam =
+      assigned_team || project.assigned_team || "Not assigned";
 
     // Count how many subtasks exist for this phase to autogenerate ID
     const existingSubtasks = await Subtask.find({ phase_id, companyName });
@@ -568,11 +803,12 @@ exports.addSubtask = async (req, res) => {
       subtask_id,
       subtask_title,
       description,
-      assigned_team,
+      assigned_team: finalAssignedTeam,
       assigned_member,
       status: "Pending",
       phase_id,
-      companyName
+      companyName,
+      images: images || [],
     });
 
     await newSubtask.save();
@@ -580,14 +816,14 @@ exports.addSubtask = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Subtask added successfully",
-      subtask: newSubtask
+      subtask: newSubtask,
     });
   } catch (error) {
     console.error("Error adding subtask:", error);
     res.status(500).json({
       success: false,
       message: "Failed to add subtask",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -603,18 +839,20 @@ exports.getSubtasksByProjectId = async (req, res) => {
     const project = await Project.findOne({ project_id, companyName });
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     // 2. Extract all phase_ids from the project
-    const phaseIds = project.phases.map(phase => phase.phase_id);
+    const phaseIds = project.phases.map((phase) => phase.phase_id);
 
     console.log("📌 Phase IDs in this project:", phaseIds);
 
     // 3. Find all subtasks linked to those phases under the same company
     const subtasks = await Subtask.find({
       phase_id: { $in: phaseIds },
-      companyName
+      companyName,
     });
 
     return res.status(200).json({ success: true, subtasks });

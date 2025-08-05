@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -27,7 +27,22 @@ const PhasesTab = ({ project }) => {
     description: "",
     assigned_members: [],
     status: "pending",
+    due_date: "",
   });
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const dropdownRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdownId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,56 +63,38 @@ const PhasesTab = ({ project }) => {
           setEmployees([]);
         }
 
-        // TODO: Fetch phases from backend when API is ready
-        // For now, using mock data
-        setPhases([
-          {
-            id: 1,
-            title: "Project Planning",
-            description: "Define project scope, objectives, and deliverables",
-            status: "completed",
-            assigned_members: ["EMP001", "EMP002"],
-            created_at: "2024-01-15",
-            due_date: "2024-01-30",
-          },
-          {
-            id: 2,
-            title: "Design Phase",
-            description:
-              "Create wireframes, mockups, and design specifications",
-            status: "in_progress",
-            assigned_members: ["EMP003"],
-            created_at: "2024-01-20",
-            due_date: "2024-02-15",
-          },
-          {
-            id: 3,
-            title: "Development Phase",
-            description:
-              "Implement features and functionality according to specifications",
-            status: "pending",
-            assigned_members: ["EMP001", "EMP004"],
-            created_at: "2024-02-01",
-            due_date: "2024-03-15",
-          },
-        ]);
+        // Fetch phases from backend
+        if (project?.project_id) {
+          const phasesResponse = await apiHandler.GetApi(
+            api_url.getPhases + project.project_id,
+            token
+          );
+          if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+            setPhases(phasesResponse.phases);
+          } else {
+            setPhases([]);
+          }
+        } else {
+          setPhases([]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
+        setPhases([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [project?.project_id]);
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return <CheckCircle size={16} className="text-green-600" />;
-      case "in_progress":
+      case "In Progress":
         return <Clock size={16} className="text-blue-600" />;
-      case "pending":
+      case "Pending":
         return <AlertCircle size={16} className="text-yellow-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
@@ -106,11 +103,11 @@ const PhasesTab = ({ project }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return "bg-green-100 text-green-800";
-      case "in_progress":
+      case "In Progress":
         return "bg-blue-100 text-blue-800";
-      case "pending":
+      case "Pending":
         return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -119,11 +116,11 @@ const PhasesTab = ({ project }) => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return "Completed";
-      case "in_progress":
+      case "In Progress":
         return "In Progress";
-      case "pending":
+      case "Pending":
         return "Pending";
       default:
         return status;
@@ -141,6 +138,7 @@ const PhasesTab = ({ project }) => {
       description: "",
       assigned_members: [],
       status: "pending",
+      due_date: "",
     });
     setShowAddModal(true);
   };
@@ -152,44 +150,81 @@ const PhasesTab = ({ project }) => {
 
   const handleDeletePhase = async (phaseId) => {
     if (window.confirm("Are you sure you want to delete this phase?")) {
-      // TODO: Implement delete API call
-      setPhases((prev) => prev.filter((phase) => phase.id !== phaseId));
+      const token = localStorage.getItem("token");
+      try {
+        await apiHandler.PostApi(
+          api_url.deletePhase,
+          {
+            projectId: project?.project_id,
+            phase_id: phaseId,
+          },
+          token
+        );
+        // Re-fetch phases
+        if (project?.project_id) {
+          const phasesResponse = await apiHandler.GetApi(
+            api_url.getPhases + project.project_id,
+            token
+          );
+          if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+            setPhases(phasesResponse.phases);
+          }
+        }
+      } catch (error) {
+        console.error("Error deleting phase:", error);
+      }
     }
   };
 
   const handlePhaseClick = (phase) => {
     navigate("/PhaseDetails", {
       state: {
-        phaseId: phase.id,
+        phaseId: phase.phase_id,
         projectId: project?.project_id,
       },
     });
   };
 
   const handleSubmitPhase = async (phaseData, isEdit = false) => {
+    const token = localStorage.getItem("token");
     try {
-      // TODO: Implement API call to save phase
       if (isEdit) {
+        // No API for editing phase details, keep static
         setPhases((prev) =>
           prev.map((phase) =>
-            phase.id === editingPhase.id ? { ...phase, ...phaseData } : phase
+            phase.phase_id === editingPhase.phase_id
+              ? { ...phase, ...phaseData }
+              : phase
           )
         );
         setShowEditModal(false);
         setEditingPhase(null);
       } else {
-        const newPhaseData = {
-          ...phaseData,
-          id: Date.now(),
-          created_at: new Date().toISOString().split("T")[0],
+        // Add phase via API
+        const payload = {
+          projectId: project?.project_id,
+          title: phaseData.title,
+          description: phaseData.description,
+          dueDate: phaseData.due_date || "",
         };
-        setPhases((prev) => [...prev, newPhaseData]);
+        await apiHandler.PostApi(api_url.addPhase, payload, token);
+        // Re-fetch phases
+        if (project?.project_id) {
+          const phasesResponse = await apiHandler.GetApi(
+            api_url.getPhases + project.project_id,
+            token
+          );
+          if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+            setPhases(phasesResponse.phases);
+          }
+        }
         setShowAddModal(false);
         setNewPhase({
           title: "",
           description: "",
           assigned_members: [],
           status: "pending",
+          due_date: "",
         });
       }
     } catch (error) {
@@ -228,7 +263,7 @@ const PhasesTab = ({ project }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {phases.map((phase) => (
           <div
-            key={phase.id}
+            key={phase.phase_id}
             className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
           >
             {/* Phase Header */}
@@ -245,26 +280,35 @@ const PhasesTab = ({ project }) => {
                   {getStatusText(phase.status)}
                 </span>
               </div>
-              <div className="relative">
-                <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                  onClick={() =>
+                    setOpenDropdownId(
+                      openDropdownId === phase.phase_id ? null : phase.phase_id
+                    )
+                  }
+                >
                   <MoreVertical size={16} className="text-gray-500" />
                 </button>
-                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                  <button
-                    onClick={() => handleEditPhase(phase)}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Edit size={14} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeletePhase(phase.id)}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                  >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
+                {openDropdownId === phase.phase_id && (
+                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+                    <button
+                      onClick={() => handleEditPhase(phase)}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Edit size={14} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeletePhase(phase.phase_id)}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -275,20 +319,11 @@ const PhasesTab = ({ project }) => {
 
             {/* Phase Stats */}
             <div className="space-y-3">
-              {/* Assigned Members */}
-              <div className="flex items-center gap-2">
-                <Users size={14} className="text-gray-500" />
-                <span className="text-xs text-gray-600">
-                  {getAssignedMembers(phase.assigned_members).length} members
-                  assigned
-                </span>
-              </div>
-
               {/* Due Date */}
               <div className="flex items-center gap-2">
                 <Calendar size={14} className="text-gray-500" />
                 <span className="text-xs text-gray-600">
-                  Due: {phase.due_date || "Not set"}
+                  Due: {phase.dueDate || "Not set"}
                 </span>
               </div>
 
@@ -363,22 +398,19 @@ const PhasesTab = ({ project }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
+                      Due Date
                     </label>
-                    <select
-                      value={newPhase.status}
+                    <input
+                      type="date"
+                      value={newPhase.due_date}
                       onChange={(e) =>
                         setNewPhase((prev) => ({
                           ...prev,
-                          status: e.target.value,
+                          due_date: e.target.value,
                         }))
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
@@ -465,9 +497,9 @@ const PhasesTab = ({ project }) => {
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
                     </select>
                   </div>
                 </div>

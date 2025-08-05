@@ -16,6 +16,7 @@ import EmpLogin from "./pages/Login/emp_login";
 import AllTask from "./pages/AllTask";
 import ProjectOverview from "./pages/ProjectDetails/ProjectOverview";
 import PhaseDetails from "./pages/ProjectDetails/PhaseDetails";
+import SubtaskDetails from "./pages/ProjectDetails/SubtaskDetails";
 import CreateTask from "./pages/CreateTask";
 import EditTask from "./pages/EditTask";
 import Settings from "./pages/Settings";
@@ -137,6 +138,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <PhaseDetails />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/SubtaskDetails"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <SubtaskDetails />
               </MainLayout>
             </ProtectedRoute>
           }

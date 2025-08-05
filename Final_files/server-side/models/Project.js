@@ -10,8 +10,8 @@ const phaseSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Pending", "In Progress", "Completed"],
-      default: "Pending"
-    }
+      default: "Pending",
+    },
   },
   { _id: false } // Optional: keep true if you want phase _id
 );
@@ -61,10 +61,11 @@ const subtaskSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Pending", "In Progress", "Completed"],
-      default: "Pending"
+      default: "Pending",
     },
     phase_id: { type: String, required: true }, // Link to which phase this subtask belongs
-    companyName: { type: String, required: true }
+    companyName: { type: String, required: true },
+    images: [{ type: String }], // Array of image URLs or file paths
   },
   {
     timestamps: true,
@@ -76,5 +77,5 @@ const Subtask = mongoose.model("Subtask", subtaskSchema);
 
 module.exports = {
   Project: mongoose.model("Project", projectSchema),
-  Subtask: mongoose.model("Subtask", subtaskSchema)
+  Subtask: mongoose.model("Subtask", subtaskSchema),
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -35,7 +35,22 @@ const PhaseDetails = () => {
     description: "",
     assigned_member: "",
     status: "pending",
+    images: [],
   });
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const dropdownRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdownId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,10 +58,8 @@ const PhaseDetails = () => {
         navigate("/ProjectDetails", { state: { project_id: projectId } });
         return;
       }
-
       setLoading(true);
       const token = localStorage.getItem("token");
-
       try {
         // Fetch employees for assignment
         const employeesResponse = await apiHandler.GetApi(
@@ -60,47 +73,36 @@ const PhaseDetails = () => {
         } else {
           setEmployees([]);
         }
-
-        // TODO: Fetch phase details from backend when API is ready
-        // For now, using mock data
-        setPhase({
-          id: phaseId,
-          title: "Design Phase",
-          description:
-            "Create wireframes, mockups, and design specifications for the project. This phase involves working closely with the client to understand their requirements and creating detailed design documents that will guide the development process.",
-          status: "in_progress",
-          assigned_members: ["EMP001", "EMP003"],
-          created_at: "2024-01-20",
-          due_date: "2024-02-15",
-        });
-
-        setSubtasks([
-          {
-            id: 1,
-            title: "Create wireframes",
-            description: "Design basic wireframes for all pages",
-            status: "completed",
-            assigned_member: "EMP001",
-            created_at: "2024-01-21",
-          },
-          {
-            id: 2,
-            title: "Design mockups",
-            description: "Create high-fidelity mockups",
-            status: "in_progress",
-            assigned_member: "EMP003",
-            created_at: "2024-01-22",
-          },
-          {
-            id: 3,
-            title: "Client review",
-            description: "Present designs to client for feedback",
-            status: "pending",
-            assigned_member: "EMP001",
-            created_at: "2024-01-23",
-          },
-        ]);
-
+        // Fetch all phases for the project, then find the current phase
+        const phasesResponse = await apiHandler.GetApi(
+          api_url.getPhases + projectId,
+          token
+        );
+        let foundPhase = null;
+        if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+          foundPhase = phasesResponse.phases.find(
+            (p) => String(p.phase_id) === String(phaseId)
+          );
+        }
+        setPhase(foundPhase || null);
+        // Fetch subtasks for this project
+        const subtasksResponse = await apiHandler.GetApi(
+          api_url.getSubtasks + projectId,
+          token
+        );
+        if (
+          subtasksResponse.success &&
+          Array.isArray(subtasksResponse.subtasks)
+        ) {
+          // Filter subtasks for this specific phase
+          const phaseSubtasks = subtasksResponse.subtasks.filter(
+            (subtask) => String(subtask.phase_id) === String(phaseId)
+          );
+          setSubtasks(phaseSubtasks);
+        } else {
+          setSubtasks([]);
+        }
+        // Comments remain static
         setComments([
           {
             id: 1,
@@ -119,21 +121,22 @@ const PhaseDetails = () => {
         ]);
       } catch (error) {
         console.error("Error fetching data:", error);
+        setPhase(null);
+        setSubtasks([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [phaseId, projectId, navigate]);
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return <CheckCircle size={16} className="text-green-600" />;
-      case "in_progress":
+      case "In Progress":
         return <Clock size={16} className="text-blue-600" />;
-      case "pending":
+      case "Pending":
         return <AlertCircle size={16} className="text-yellow-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
@@ -142,11 +145,11 @@ const PhaseDetails = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return "bg-green-100 text-green-800";
-      case "in_progress":
+      case "In Progress":
         return "bg-blue-100 text-blue-800";
-      case "pending":
+      case "Pending":
         return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -155,11 +158,11 @@ const PhaseDetails = () => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case "completed":
+      case "Completed":
         return "Completed";
-      case "in_progress":
+      case "In Progress":
         return "In Progress";
-      case "pending":
+      case "Pending":
         return "Pending";
       default:
         return status;
@@ -171,9 +174,31 @@ const PhaseDetails = () => {
     return member ? member.name : "Unknown";
   };
 
-  const handleStatusChange = (newStatus) => {
+  const handleStatusChange = async (newStatus) => {
     setPhase((prev) => ({ ...prev, status: newStatus }));
-    // TODO: Implement API call to update status
+    // Update phase status via API
+    const token = localStorage.getItem("token");
+    try {
+      await apiHandler.PostApi(
+        api_url.updatePhaseStatus,
+        { projectId, phaseId, status: newStatus },
+        token
+      );
+      // Re-fetch phase details
+      const phasesResponse = await apiHandler.GetApi(
+        api_url.getPhases + projectId,
+        token
+      );
+      let foundPhase = null;
+      if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+        foundPhase = phasesResponse.phases.find(
+          (p) => String(p.phase_id) === String(phaseId)
+        );
+      }
+      setPhase(foundPhase || null);
+    } catch (error) {
+      console.error("Error updating phase status:", error);
+    }
   };
 
   const handleAddSubtask = () => {
@@ -182,24 +207,68 @@ const PhaseDetails = () => {
       description: "",
       assigned_member: "",
       status: "pending",
+      images: [],
     });
     setShowAddSubtask(true);
   };
 
-  const handleSubmitSubtask = (e) => {
+  const handleSubmitSubtask = async (e) => {
     e.preventDefault();
-    const subtaskData = {
-      ...newSubtask,
-      id: Date.now(),
-      created_at: new Date().toISOString().split("T")[0],
-    };
-    setSubtasks((prev) => [...prev, subtaskData]);
-    setShowAddSubtask(false);
-    setNewSubtask({
-      title: "",
-      description: "",
-      assigned_member: "",
-      status: "pending",
+    const token = localStorage.getItem("token");
+    try {
+      const payload = {
+        subtask_title: newSubtask.title,
+        description: newSubtask.description,
+        assigned_team: "", // No team selection in UI
+        assigned_member: newSubtask.assigned_member,
+        phase_id: phaseId,
+        images: newSubtask.images,
+      };
+      await apiHandler.PostApi(api_url.addSubtask, payload, token);
+      // Re-fetch subtasks
+      const subtasksResponse = await apiHandler.GetApi(
+        api_url.getSubtasks + projectId,
+        token
+      );
+      if (
+        subtasksResponse.success &&
+        Array.isArray(subtasksResponse.subtasks)
+      ) {
+        // Filter subtasks for this specific phase
+        const phaseSubtasks = subtasksResponse.subtasks.filter(
+          (subtask) => String(subtask.phase_id) === String(phaseId)
+        );
+        setSubtasks(phaseSubtasks);
+      }
+      setShowAddSubtask(false);
+      setNewSubtask({
+        title: "",
+        description: "",
+        assigned_member: "",
+        status: "pending",
+        images: [],
+      });
+    } catch (error) {
+      console.error("Error adding subtask:", error);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const imageUrls = files.map((file) => URL.createObjectURL(file));
+    setNewSubtask((prev) => ({
+      ...prev,
+      images: [...prev.images, ...imageUrls],
+    }));
+  };
+
+  const handleSubtaskClick = (subtask) => {
+    navigate("/SubtaskDetails", {
+      state: {
+        subtaskId: subtask.subtask_id,
+        phaseId: phaseId,
+        projectId: projectId,
+      },
     });
   };
 
@@ -286,20 +355,29 @@ const PhaseDetails = () => {
             >
               {getStatusText(phase.status)}
             </span>
-            <div className="relative">
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() =>
+                  setOpenDropdownId(
+                    openDropdownId === phase.phase_id ? null : phase.phase_id
+                  )
+                }
+              >
                 <MoreVertical size={16} className="text-gray-500" />
               </button>
-              <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                  <Edit size={14} />
-                  Edit
-                </button>
-                <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600">
-                  <Trash2 size={14} />
-                  Delete
-                </button>
-              </div>
+              {openDropdownId === phase.phase_id && (
+                <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+                  <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                    <Edit size={14} />
+                    Edit
+                  </button>
+                  <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600">
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -323,9 +401,9 @@ const PhaseDetails = () => {
                       onChange={(e) => handleStatusChange(e.target.value)}
                       className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
                     </select>
                   </div>
                 </div>
@@ -351,13 +429,14 @@ const PhaseDetails = () => {
                 <div className="space-y-3">
                   {subtasks.map((subtask) => (
                     <div
-                      key={subtask.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                      key={subtask.subtask_id}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSubtaskClick(subtask)}
                     >
                       {getStatusIcon(subtask.status)}
                       <div className="flex-1">
                         <h4 className="text-sm font-medium text-gray-900">
-                          {subtask.title}
+                          {subtask.subtask_title}
                         </h4>
                         <p className="text-xs text-gray-600">
                           {subtask.description}
@@ -366,6 +445,23 @@ const PhaseDetails = () => {
                           Assigned to:{" "}
                           {getAssignedMemberName(subtask.assigned_member)}
                         </p>
+                        {subtask.images && subtask.images.length > 0 && (
+                          <div className="flex gap-1 mt-2">
+                            {subtask.images.slice(0, 3).map((image, index) => (
+                              <img
+                                key={index}
+                                src={image}
+                                alt={`Subtask image ${index + 1}`}
+                                className="w-8 h-8 rounded object-cover"
+                              />
+                            ))}
+                            {subtask.images.length > 3 && (
+                              <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-600">
+                                +{subtask.images.length - 3}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(
@@ -382,34 +478,6 @@ const PhaseDetails = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Assigned Members */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Users size={18} className="text-blue-600" />
-                  Assigned Members
-                </h3>
-                <div className="space-y-3">
-                  {phase.assigned_members.map((memberId) => {
-                    const member = employees.find(
-                      (emp) => emp.teamMemberId === memberId
-                    );
-                    return (
-                      <div key={memberId} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                          {member?.name.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {member?.name || "Unknown"}
-                          </p>
-                          <p className="text-xs text-gray-500">{memberId}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* Phase Info */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -418,16 +486,16 @@ const PhaseDetails = () => {
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-medium text-gray-500">
-                      Created
+                      Phase ID
                     </label>
-                    <p className="text-sm text-gray-900">{phase.created_at}</p>
+                    <p className="text-sm text-gray-900">{phase.phase_id}</p>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500">
                       Due Date
                     </label>
                     <p className="text-sm text-gray-900">
-                      {phase.due_date || "Not set"}
+                      {phase.dueDate || "Not set"}
                     </p>
                   </div>
                 </div>
@@ -579,6 +647,30 @@ const PhaseDetails = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Images
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {newSubtask.images.length > 0 && (
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {newSubtask.images.map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Preview ${index + 1}`}
+                            className="w-16 h-16 rounded object-cover"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Status
                     </label>
                     <select
@@ -591,9 +683,9 @@ const PhaseDetails = () => {
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
                     </select>
                   </div>
                 </div>
