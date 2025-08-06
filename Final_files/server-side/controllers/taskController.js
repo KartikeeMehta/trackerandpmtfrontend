@@ -2,7 +2,7 @@ const Task = require("../models/Task");
 const Employee = require("../models/Employee");
 const Team = require("../models/Team");
 const Activity = require("../models/Activity");
-const {Project} = require("../models/Project");
+const { Project } = require("../models/Project");
 const User = require("../models/User");
 
 const getPerformer = (user) =>
@@ -12,7 +12,8 @@ const getPerformer = (user) =>
 
 exports.createTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, project, priority, dueDate } = req.body;
+    const { title, description, assignedTo, project, priority, dueDate } =
+      req.body;
 
     if (!title || title.trim() === "") {
       return res.status(400).json({ message: "Title is required." });
@@ -20,7 +21,10 @@ exports.createTask = async (req, res) => {
     if (!project || project.trim() === "") {
       return res.status(400).json({ message: "Project is required." });
     }
-    if (!priority || !["low", "medium", "high", "critical"].includes(priority)) {
+    if (
+      !priority ||
+      !["low", "medium", "high", "critical"].includes(priority)
+    ) {
       return res.status(400).json({
         message: "Priority must be one of: low, medium, high, critical.",
       });
@@ -37,7 +41,9 @@ exports.createTask = async (req, res) => {
       companyName: userCompany,
     });
     if (!projectDoc) {
-      return res.status(404).json({ message: "Project with this project_id not found." });
+      return res
+        .status(404)
+        .json({ message: "Project with this project_id not found." });
     }
 
     // Check if the provided teamMemberId exists
@@ -46,13 +52,15 @@ exports.createTask = async (req, res) => {
       companyName: userCompany,
     });
     if (!employee) {
-      return res.status(404).json({ message: "Employee with this teamMemberId not found." });
+      return res
+        .status(404)
+        .json({ message: "Employee with this teamMemberId not found." });
     }
 
     // Auto-generate task_id like COMP-TSK-001
     const companyInitials = userCompany
       .split(" ")
-      .map(word => word[0])
+      .map((word) => word[0])
       .join("")
       .toUpperCase();
 
@@ -72,7 +80,9 @@ exports.createTask = async (req, res) => {
       }
     }
 
-    const newTaskId = `${companyInitials}-TSK-${taskNumber.toString().padStart(3, "0")}`;
+    const newTaskId = `${companyInitials}-TSK-${taskNumber
+      .toString()
+      .padStart(3, "0")}`;
 
     const task = new Task({
       task_id: newTaskId,
@@ -108,7 +118,9 @@ exports.createTask = async (req, res) => {
     const taskObj = task.toObject();
     taskObj.assignedBy = assignedByName;
 
-    res.status(201).json({ message: "Task created successfully.", task: taskObj });
+    res
+      .status(201)
+      .json({ message: "Task created successfully.", task: taskObj });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error creating task.", error });
@@ -388,14 +400,14 @@ exports.updateTaskById = async (req, res) => {
     const isAdmin = currentUserRole === "admin";
     const isManager = currentUserRole === "manager";
     const isTeamLead = currentUserRole === "team_lead";
-    const isEmployee = currentUserRole === "employee";
+    const isTeamMember = currentUserRole === "teamMember";
     const isUpdatingOwnTask = assignedToId === currentUserTeamMemberId;
 
     // Restriction logic
-    if (isEmployee && !isUpdatingOwnTask) {
-      return res
-        .status(403)
-        .json({ message: "Employees can only update their own task status." });
+    if (isTeamMember && !isUpdatingOwnTask) {
+      return res.status(403).json({
+        message: "Team members can only update their own task status.",
+      });
     }
 
     if (
@@ -427,14 +439,14 @@ exports.updateTaskById = async (req, res) => {
 
     const updatePayload = {};
 
-    // If employee, allow only status
-    if (isEmployee) {
+    // If team member, allow only status
+    if (isTeamMember) {
       if (typeof status === "string") {
         updatePayload.status = status;
       } else {
         return res
           .status(400)
-          .json({ message: "Employees can only update the status field." });
+          .json({ message: "Team members can only update the status field." });
       }
     } else {
       if (title) updatePayload.title = title;
@@ -479,8 +491,8 @@ exports.deleteTaskById = async (req, res) => {
 
     const userRole = req.user.role.toLowerCase();
 
-    // ❌ Employee cannot delete any task
-    if (userRole === "employee") {
+    // ❌ Team members cannot delete any task
+    if (userRole === "teamMember") {
       return res
         .status(403)
         .json({ message: "You are not authorized to delete tasks." });
@@ -511,9 +523,10 @@ exports.deleteTaskById = async (req, res) => {
 
     // 🔐 Role-based permission checks
     if (userRole === "admin" || userRole === "manager") {
-      if (!["team_lead", "employee"].includes(assigneeRole)) {
+      if (!["team_lead", "teamMember"].includes(assigneeRole)) {
         return res.status(403).json({
-          message: "Admins and managers can only delete tasks of team_leads or employees.",
+          message:
+            "Admins and managers can only delete tasks of team_leads or team members.",
         });
       }
     } else if (userRole === "team_lead") {
@@ -522,9 +535,9 @@ exports.deleteTaskById = async (req, res) => {
           .status(403)
           .json({ message: "Team leads cannot delete their own tasks." });
       }
-      if (assigneeRole !== "employee") {
+      if (assigneeRole !== "teamMember") {
         return res.status(403).json({
-          message: "Team leads can only delete tasks assigned to employees.",
+          message: "Team leads can only delete tasks assigned to team members.",
         });
       }
     }
@@ -559,7 +572,7 @@ exports.getTasksByMemberInProject = async (req, res) => {
 
     // 🔐 Role-based access control
     if (
-      req.user.role === "employee" &&
+      req.user.role === "teamMember" &&
       req.user.teamMemberId !== teamMemberId
     ) {
       return res.status(403).json({ message: "Unauthorized access" });

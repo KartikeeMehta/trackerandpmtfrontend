@@ -283,7 +283,7 @@ exports.getProjectsByTeamMember = async (req, res) => {
 
     // Role-based access control - allow owner, admin, manager, and team leads to view any member's projects
     if (
-      req.user.role === "employee" &&
+      req.user.role === "teamMember" &&
       req.user.teamMemberId !== teamMemberId
     ) {
       return res.status(403).json({ message: "Unauthorized access" });
@@ -669,13 +669,15 @@ exports.editSubtask = async (req, res) => {
     };
 
     if (subtask_title) {
-      updateFields["phases.$[].subtasks.$[subtask].subtask_title"] = subtask_title;
+      updateFields["phases.$[].subtasks.$[subtask].subtask_title"] =
+        subtask_title;
     }
     if (description) {
       updateFields["phases.$[].subtasks.$[subtask].description"] = description;
     }
     if (assigned_member) {
-      updateFields["phases.$[].subtasks.$[subtask].assigned_member"] = assigned_member;
+      updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
+        assigned_member;
     }
     if (images) {
       updateFields["phases.$[].subtasks.$[subtask].images"] = images;
@@ -749,8 +751,8 @@ exports.deleteSubtask = async (req, res) => {
       },
       {
         $pull: {
-          "phases.$.subtasks": { subtask_id: subtask_id }
-        }
+          "phases.$.subtasks": { subtask_id: subtask_id },
+        },
       }
     );
 
@@ -803,9 +805,9 @@ exports.getSubtaskActivity = async (req, res) => {
     // Find the specific subtask in the embedded structure
     let subtask = null;
     let phase = null;
-    
+
     for (const p of project.phases) {
-      const foundSubtask = p.subtasks.find(s => s.subtask_id === subtaskId);
+      const foundSubtask = p.subtasks.find((s) => s.subtask_id === subtaskId);
       if (foundSubtask) {
         subtask = foundSubtask;
         phase = p;
@@ -895,7 +897,7 @@ exports.addSubtask = async (req, res) => {
     }
 
     // Find the specific phase
-    const phase = project.phases.find(p => p.phase_id === phase_id);
+    const phase = project.phases.find((p) => p.phase_id === phase_id);
     if (!phase) {
       return res.status(404).json({
         success: false,
@@ -926,15 +928,15 @@ exports.addSubtask = async (req, res) => {
 
     // Add subtask to the phase
     const result = await Project.updateOne(
-      { 
-        project_id: project.project_id, 
+      {
+        project_id: project.project_id,
         companyName,
-        "phases.phase_id": phase_id 
+        "phases.phase_id": phase_id,
       },
-      { 
-        $push: { 
-          "phases.$.subtasks": newSubtask 
-        } 
+      {
+        $push: {
+          "phases.$.subtasks": newSubtask,
+        },
       }
     );
 
@@ -978,13 +980,13 @@ exports.getSubtasksByProjectId = async (req, res) => {
 
     // 2. Extract all subtasks from all phases
     const allSubtasks = [];
-    project.phases.forEach(phase => {
+    project.phases.forEach((phase) => {
       if (phase.subtasks && phase.subtasks.length > 0) {
         // Add phase information to each subtask for context
-        const subtasksWithPhase = phase.subtasks.map(subtask => ({
-          ...subtask.toObject ? subtask.toObject() : subtask,
+        const subtasksWithPhase = phase.subtasks.map((subtask) => ({
+          ...(subtask.toObject ? subtask.toObject() : subtask),
           phase_id: phase.phase_id,
-          phase_title: phase.title
+          phase_title: phase.title,
         }));
         allSubtasks.push(...subtasksWithPhase);
       }
@@ -1007,19 +1009,28 @@ exports.addCommentToPhase = async (req, res) => {
     const companyName = req.user.companyName; // ✅ Added
 
     if (!text || text.trim() === "") {
-      return res.status(400).json({ success: false, message: "Comment text is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Comment text is required" });
     }
 
     // ✅ Added companyName to query
-    const project = await Project.findOne({ project_id: projectId, companyName });
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    });
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     const phase = project.phases.find((p) => p.phase_id === phaseId);
     if (!phase) {
-      return res.status(404).json({ success: false, message: "Phase not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Phase not found" });
     }
 
     const newComment = {
@@ -1057,7 +1068,9 @@ exports.addCommentToPhase = async (req, res) => {
     });
   } catch (err) {
     console.error("Error adding comment:", err);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -1067,10 +1080,10 @@ exports.getPhaseComments = async (req, res) => {
     const companyName = req.user.companyName;
 
     // Populate both firstName and lastName from User model
-    const project = await Project.findOne({ project_id: projectId, companyName }).populate(
-      "phases.comments.commentedBy",
-      "firstName lastName email"
-    );
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    }).populate("phases.comments.commentedBy", "firstName lastName email");
 
     if (!project) {
       return res.status(404).json({

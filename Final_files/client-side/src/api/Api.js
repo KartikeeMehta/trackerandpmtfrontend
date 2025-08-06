@@ -8,6 +8,7 @@ export const api_url = {
   addEmployee: BASE_URL + "/employees/addEmployee",
   employeeFirstLogin: BASE_URL + "/employees/employeeFirstLogin",
   getAllEmployees: BASE_URL + "/employees/all",
+  getAllRoles: BASE_URL + "/employees/roles",
   getAllProjects: BASE_URL + "/projects",
   deleteEmployee: BASE_URL + "/employees/deleteEmployee/:teamMemberId",
   updateTeamMember: BASE_URL + "/employees/editEmployee/:teamMemberId",

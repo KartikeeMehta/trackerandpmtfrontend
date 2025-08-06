@@ -31,6 +31,7 @@ const Section_a = () => {
   const navigate = useNavigate();
   const [teamMembers, setTeamMembers] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
   const [filteredMembers, setFilteredMembers] = useState([]);
@@ -124,6 +125,25 @@ const Section_a = () => {
       }
     };
     fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const response = await apiHandler.GetApi(api_url.getAllRoles, token);
+        if (response && response.success && Array.isArray(response.roles)) {
+          setRoles(response.roles);
+        } else {
+          console.error("Failed to fetch roles:", response);
+          setRoles([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch roles:", err);
+        setRoles([]);
+      }
+    };
+    fetchRoles();
   }, []);
 
   const handleAddFormChange = (e) => {
@@ -430,9 +450,11 @@ const Section_a = () => {
                       onChange={handleAddFormChange}
                     >
                       <option value="">Select</option>
-                      <option value="admin">Admin</option>
-                      <option value="teamLead">Team Lead</option>
-                      <option value="teamMember">Team Member</option>
+                      {roles.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -560,9 +582,11 @@ const Section_a = () => {
                               }
                             >
                               <option value="">Select</option>
-                              <option value="admin">Admin</option>
-                              <option value="teamLead">Team Lead</option>
-                              <option value="teamMember">Team Member</option>
+                              {roles.map((role) => (
+                                <option key={role.value} value={role.value}>
+                                  {role.label}
+                                </option>
+                              ))}
                             </select>
                           </div>
                           <DialogFooter>
@@ -742,9 +766,11 @@ const Section_a = () => {
                             }
                           >
                             <option value="">Select</option>
-                            <option value="admin">Admin</option>
-                            <option value="teamLead">Team Lead</option>
-                            <option value="teamMember">Team Member</option>
+                            {roles.map((role) => (
+                              <option key={role.value} value={role.value}>
+                                {role.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <DialogFooter>
