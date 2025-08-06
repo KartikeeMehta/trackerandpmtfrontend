@@ -37,6 +37,7 @@ const PhaseDetails = () => {
     status: "pending",
     images: [],
   });
+  const [selectedImages, setSelectedImages] = useState([]);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef();
 
@@ -222,15 +223,33 @@ const PhaseDetails = () => {
     e.preventDefault();
     const token = localStorage.getItem("token");
     try {
-      const payload = {
-        subtask_title: newSubtask.title,
-        description: newSubtask.description,
-        assigned_team: "", // No team selection in UI
-        assigned_member: newSubtask.assigned_member,
-        phase_id: phaseId,
-        images: newSubtask.images,
-      };
-      await apiHandler.PostApi(api_url.addSubtask, payload, token);
+      const formData = new FormData();
+      formData.append("subtask_title", newSubtask.title);
+      formData.append("description", newSubtask.description);
+      formData.append("assigned_team", ""); // No team selection in UI
+      formData.append("assigned_member", newSubtask.assigned_member);
+      formData.append("phase_id", phaseId);
+      
+      // Add selected images as files
+      if (selectedImages.length > 0) {
+        selectedImages.forEach((image) => {
+          formData.append("images", image);
+        });
+      }
+
+      console.log("Uploading images:", selectedImages.length, "files");
+      console.log("FormData entries:");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+
+      // Use imageUpload method for FormData
+      const response = await apiHandler.imageUpload(api_url.addSubtask, formData, token);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to add subtask');
+      }
+
       // Re-fetch subtasks
       const subtasksResponse = await apiHandler.GetApi(
         api_url.getSubtasks + projectId,
@@ -254,6 +273,7 @@ const PhaseDetails = () => {
         status: "pending",
         images: [],
       });
+      setSelectedImages([]);
     } catch (error) {
       console.error("Error adding subtask:", error);
     }
@@ -261,11 +281,34 @@ const PhaseDetails = () => {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
-    setNewSubtask((prev) => ({
-      ...prev,
-      images: [...prev.images, ...imageUrls],
-    }));
+    
+    // Check if adding these files would exceed the 2-image limit
+    // For new subtasks, we only check selectedImages since there are no existing images yet
+    const totalImages = selectedImages.length + files.length;
+    
+    if (totalImages > 2) {
+      alert("You can only upload a maximum of 2 images. Please select fewer files.");
+      return;
+    }
+    
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const oversizedFiles = files.filter(file => file.size > maxSize);
+    
+    if (oversizedFiles.length > 0) {
+      alert(`Some files are too large. Maximum file size is 5MB.`);
+      return;
+    }
+    
+    // Check file types
+    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
+    
+    if (invalidFiles.length > 0) {
+      alert("Please select only image files.");
+      return;
+    }
+    
+    setSelectedImages(prev => [...prev, ...files]);
   };
 
   const handleSubtaskClick = (subtask) => {
@@ -661,7 +704,7 @@ const PhaseDetails = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Images
+                      Images ({selectedImages.length}/2)
                     </label>
                     <input
                       type="file"
@@ -670,17 +713,26 @@ const PhaseDetails = () => {
                       onChange={handleImageUpload}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    {newSubtask.images.length > 0 && (
+                    {selectedImages.length > 0 && (
                       <div className="flex gap-2 mt-2 flex-wrap">
-                        {newSubtask.images.map((image, index) => (
-                          <img
-                            key={index}
-                            src={image}
-                            alt={`Preview ${index + 1}`}
-                            className="w-16 h-16 rounded object-cover"
-                          />
+                        {selectedImages.map((image, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={URL.createObjectURL(image)}
+                              alt={`Preview ${index + 1}`}
+                              className="w-16 h-16 rounded object-cover border"
+                            />
+                            <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                              +
+                            </span>
+                          </div>
                         ))}
                       </div>
+                    )}
+                    {selectedImages.length === 2 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Maximum 2 images reached
+                      </p>
                     )}
                   </div>
                   <div>

@@ -1,6 +1,7 @@
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
 const { Project } = require("../models/Project");
+const { uploadCompressedImage } = require("../utils/cloudinaryUpload");
 const mongoose = require("mongoose");
 
 const getPerformer = (user) =>
@@ -639,8 +640,11 @@ exports.updateSubtaskStatus = async (req, res) => {
 
 exports.editSubtask = async (req, res) => {
   try {
-    const { subtask_id, subtask_title, description, assigned_member, images } =
-      req.body;
+    const subtask_id = req.body.subtask_id;
+    const subtask_title = req.body.subtask_title;
+    const description = req.body.description;
+    const assigned_member = req.body.assigned_member;
+    const existing_images = req.body.existing_images;
     const companyName = req.user.companyName;
 
     if (!subtask_id) {
@@ -663,6 +667,65 @@ exports.editSubtask = async (req, res) => {
       });
     }
 
+    // Handle file uploads if present
+    let finalImages = [];
+    
+    // Add existing images if provided
+    if (existing_images) {
+      try {
+        const parsedExistingImages = JSON.parse(existing_images);
+        finalImages = [...parsedExistingImages];
+      } catch (error) {
+        console.error("Error parsing existing images:", error);
+      }
+    }
+
+    // Handle new uploaded files - upload to Cloudinary
+    if (req.files && req.files.length > 0) {
+      console.log(`Processing ${req.files.length} uploaded files (max 2 allowed)`);
+      console.log("Files received:", req.files.map(f => ({ name: f.originalname, size: f.size })));
+      
+      const uploadPromises = req.files.map(async (file, index) => {
+        try {
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const filename = `subtask_${timestamp}_${randomString}_${index}`;
+          
+          console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
+          console.log(`File details:`, {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            bufferLength: file.buffer ? file.buffer.length : 'No buffer'
+          });
+          
+          const result = await uploadCompressedImage(file.buffer, filename);
+          console.log(`Cloudinary upload successful for file ${index + 1}:`, result.secure_url);
+          
+          return result.secure_url;
+        } catch (error) {
+          console.error(`Error uploading file ${index + 1} to Cloudinary:`, error);
+          throw error;
+        }
+      });
+
+      try {
+        const uploadedUrls = await Promise.all(uploadPromises);
+        finalImages = [...finalImages, ...uploadedUrls];
+        console.log(`Successfully uploaded ${uploadedUrls.length} images to Cloudinary`);
+        console.log("Final images array:", finalImages);
+      } catch (error) {
+        console.error("Error uploading images to Cloudinary:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading images to Cloudinary",
+          error: error.message,
+        });
+      }
+    } else {
+      console.log("No files received in request");
+    }
+
     // Prepare update object
     const updateFields = {
       "phases.$[].subtasks.$[subtask].updatedAt": new Date(),
@@ -679,9 +742,11 @@ exports.editSubtask = async (req, res) => {
       updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
         assigned_member;
     }
-    if (images) {
-      updateFields["phases.$[].subtasks.$[subtask].images"] = images;
+    if (finalImages.length > 0) {
+      updateFields["phases.$[].subtasks.$[subtask].images"] = finalImages;
     }
+
+    console.log("Updating subtask with images:", finalImages);
 
     // Update the subtask using array update
     const result = await Project.updateOne(
@@ -707,6 +772,7 @@ exports.editSubtask = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Subtask updated successfully",
+      images: finalImages,
     });
   } catch (error) {
     console.error("Error editing subtask:", error);
@@ -874,7 +940,6 @@ exports.addSubtask = async (req, res) => {
       assigned_team,
       assigned_member,
       phase_id,
-      images,
     } = req.body;
 
     const companyName = req.user.companyName;
@@ -883,37 +948,65 @@ exports.addSubtask = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Find the project and the specific phase
+    // Find project + phase
     const project = await Project.findOne({
       "phases.phase_id": phase_id,
       companyName,
     });
+    if (!project) return res.status(404).json({ message: "Project not found" });
 
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: "Project not found for this phase",
-      });
-    }
-
-    // Find the specific phase
     const phase = project.phases.find((p) => p.phase_id === phase_id);
-    if (!phase) {
-      return res.status(404).json({
-        success: false,
-        message: "Phase not found",
-      });
+    if (!phase) return res.status(404).json({ message: "Phase not found" });
+
+    // Assigned team fallback logic
+    let finalAssignedTeam = assigned_team || "Not assigned";
+    if (!assigned_team && project.team_id) {
+      const Team = require("../models/Team");
+      const team = await Team.findOne({ _id: project.team_id, companyName });
+      finalAssignedTeam = team ? team.teamName : "Not assigned";
     }
 
-    // Use project's assigned team as default if not provided
-    const finalAssignedTeam =
-      assigned_team || project.assigned_team || "Not assigned";
-
-    // Count how many subtasks exist for this phase to autogenerate ID
-    const existingSubtasks = phase.subtasks || [];
-    const nextIndex = existingSubtasks.length + 1;
+    // Subtask ID generation
+    const nextIndex = (phase.subtasks || []).length + 1;
     const subtask_id = `${phase_id}-${nextIndex}`;
 
+    // 🌟 Upload all images to Cloudinary (compressed)
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      console.log(`Processing ${req.files.length} uploaded files for new subtask (max 2 allowed)`);
+      
+      const uploadPromises = req.files.map(async (file, index) => {
+        try {
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const filename = `subtask_${timestamp}_${randomString}_${index}`;
+          
+          console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
+          
+          const result = await uploadCompressedImage(file.buffer, filename);
+          console.log(`Cloudinary upload successful for file ${index + 1}:`, result.secure_url);
+          
+          return result.secure_url;
+        } catch (error) {
+          console.error(`Error uploading file ${index + 1} to Cloudinary:`, error);
+          throw error;
+        }
+      });
+
+      try {
+        imageUrls = await Promise.all(uploadPromises);
+        console.log(`Successfully uploaded ${imageUrls.length} images to Cloudinary for new subtask`);
+      } catch (error) {
+        console.error("Error uploading images to Cloudinary:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading images to Cloudinary",
+          error: error.message,
+        });
+      }
+    }
+
+    // Build subtask object
     const newSubtask = {
       subtask_id,
       subtask_title,
@@ -921,12 +1014,12 @@ exports.addSubtask = async (req, res) => {
       assigned_team: finalAssignedTeam,
       assigned_member,
       status: "Pending",
-      images: images || [],
+      images: imageUrls,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    // Add subtask to the phase
+    // Push into embedded subtasks
     const result = await Project.updateOne(
       {
         project_id: project.project_id,
@@ -941,10 +1034,7 @@ exports.addSubtask = async (req, res) => {
     );
 
     if (result.modifiedCount === 0) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to add subtask to phase",
-      });
+      return res.status(500).json({ message: "Failed to add subtask to phase" });
     }
 
     res.status(201).json({
@@ -978,8 +1068,38 @@ exports.getSubtasksByProjectId = async (req, res) => {
         .json({ success: false, message: "Project not found" });
     }
 
-    // 2. Extract all subtasks from all phases
+    // 2. Extract all subtasks from all phases and populate team information
     const allSubtasks = [];
+    
+    // Get team name if project has team_id
+    let teamName = "Not assigned";
+    if (project.team_id) {
+      const Team = require("../models/Team");
+      const team = await Team.findOne({ 
+        _id: project.team_id, 
+        companyName 
+      });
+      teamName = team ? team.teamName : "Not assigned";
+    }
+    
+    // Update existing subtasks that don't have team information
+    let hasUpdates = false;
+    project.phases.forEach((phase) => {
+      if (phase.subtasks && phase.subtasks.length > 0) {
+        phase.subtasks.forEach((subtask) => {
+          if (!subtask.assigned_team || subtask.assigned_team === "Not assigned") {
+            subtask.assigned_team = teamName;
+            hasUpdates = true;
+          }
+        });
+      }
+    });
+    
+    // Save the project if any updates were made
+    if (hasUpdates) {
+      await project.save();
+    }
+    
     project.phases.forEach((phase) => {
       if (phase.subtasks && phase.subtasks.length > 0) {
         // Add phase information to each subtask for context

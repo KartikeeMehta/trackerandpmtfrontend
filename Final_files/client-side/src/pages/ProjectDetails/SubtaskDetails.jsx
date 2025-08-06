@@ -34,6 +34,8 @@ const SubtaskDetails = () => {
   const [editingSubtask, setEditingSubtask] = useState(null);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   const dropdownRef = useRef();
 
   useEffect(() => {
@@ -245,6 +247,7 @@ const SubtaskDetails = () => {
       assigned_member: subtask.assigned_member,
       images: subtask.images || [],
     });
+    setSelectedImages([]); // Reset selected images
     setShowEditModal(true);
     setOpenDropdownId(null);
   };
@@ -272,48 +275,124 @@ const SubtaskDetails = () => {
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    setIsUploading(true);
     try {
-      const payload = {
-        subtask_id: subtaskId,
-        subtask_title: editingSubtask.subtask_title,
-        description: editingSubtask.description,
-        assigned_member: editingSubtask.assigned_member,
-        images: editingSubtask.images,
-      };
-      await apiHandler.PostApi(api_url.editSubtask, payload, token);
-
-      // Re-fetch subtask details
-      const subtasksResponse = await apiHandler.GetApi(
-        api_url.getSubtasks + projectId,
-        token
-      );
-      let foundSubtask = null;
-      if (
-        subtasksResponse.success &&
-        Array.isArray(subtasksResponse.subtasks)
-      ) {
-        foundSubtask = subtasksResponse.subtasks.find(
-          (s) => String(s.subtask_id) === String(subtaskId)
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("subtask_id", subtaskId);
+      formData.append("subtask_title", editingSubtask.subtask_title);
+      formData.append("description", editingSubtask.description);
+      formData.append("assigned_member", editingSubtask.assigned_member);
+      
+      // Add existing images (if any)
+      if (editingSubtask.images && editingSubtask.images.length > 0) {
+        // Filter out preview URLs and keep only actual image data
+        const existingImages = editingSubtask.images.filter(img => 
+          !img.startsWith('blob:') // Keep only non-preview images
         );
+        if (existingImages.length > 0) {
+          formData.append("existing_images", JSON.stringify(existingImages));
+        }
       }
-      setSubtask(foundSubtask || null);
+      
+      // Add new selected images
+      if (selectedImages.length > 0) {
+        selectedImages.forEach((image) => {
+          formData.append("images", image);
+        });
+      }
+
+      console.log("Uploading images:", selectedImages.length, "files");
+      console.log("Existing images:", editingSubtask.images?.length || 0);
+      console.log("FormData entries:");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+
+      // Use imageUpload method for FormData
+      const response = await apiHandler.imageUpload(api_url.editSubtask, formData, token);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update subtask');
+      }
+
+      console.log("Upload successful:", response);
+
+      // Close modal first
       setShowEditModal(false);
       setEditingSubtask(null);
+      setSelectedImages([]);
 
-      // Refresh activity log
-      await fetchActivityLog(subtaskId, token);
+      // Re-fetch subtask details with a small delay to ensure server has processed the update
+      setTimeout(async () => {
+        try {
+          const subtasksResponse = await apiHandler.GetApi(
+            api_url.getSubtasks + projectId,
+            token
+          );
+          let foundSubtask = null;
+          if (
+            subtasksResponse.success &&
+            Array.isArray(subtasksResponse.subtasks)
+          ) {
+            foundSubtask = subtasksResponse.subtasks.find(
+              (s) => String(s.subtask_id) === String(subtaskId)
+            );
+          }
+          console.log("Re-fetched subtask:", foundSubtask?.images?.length || 0, "images");
+          setSubtask(foundSubtask || null);
+
+          // Refresh activity log
+          await fetchActivityLog(subtaskId, token);
+        } catch (error) {
+          console.error("Error re-fetching subtask data:", error);
+        }
+      }, 500); // Small delay to ensure server has processed the update
+
     } catch (error) {
       console.error("Error updating subtask:", error);
+      // Keep modal open if there's an error so user can try again
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
-    setEditingSubtask((prev) => ({
-      ...prev,
-      images: [...prev.images, ...imageUrls],
-    }));
+    
+    // Count existing images (excluding blob URLs which are previews)
+    const existingImages = editingSubtask.images ? 
+      editingSubtask.images.filter(img => !img.startsWith('blob:')) : [];
+    
+    // Check if adding these files would exceed the 2-image limit
+    const totalImages = existingImages.length + files.length;
+    
+    if (totalImages > 2) {
+      alert("You can only upload a maximum of 2 images. Please select fewer files.");
+      return;
+    }
+    
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const oversizedFiles = files.filter(file => file.size > maxSize);
+    
+    if (oversizedFiles.length > 0) {
+      alert(`Some files are too large. Maximum file size is 5MB.`);
+      return;
+    }
+    
+    // Check file types
+    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
+    
+    if (invalidFiles.length > 0) {
+      alert("Please select only image files.");
+      return;
+    }
+    
+    setSelectedImages(files);
+    
+    // Note: We don't add preview URLs to editingSubtask.images anymore
+    // as we want to keep existing images separate from new previews
   };
 
   const formatDate = (dateString) => {
@@ -602,7 +681,7 @@ const SubtaskDetails = () => {
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {subtask.images.map((image, index) => (
                       <div
-                        key={index}
+                        key={`${image}-${index}`}
                         className="relative group cursor-pointer"
                         onClick={() => handleImageClick(image)}
                       >
@@ -610,6 +689,13 @@ const SubtaskDetails = () => {
                           src={image}
                           alt={`Subtask image ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border border-gray-200 group-hover:border-blue-300 transition-colors"
+                          onError={(e) => {
+                            console.error("Failed to load image:", image);
+                            e.target.style.display = 'none';
+                          }}
+                          onLoad={() => {
+                            console.log("Successfully loaded image:", image);
+                          }}
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
                           <Eye
@@ -738,7 +824,7 @@ const SubtaskDetails = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Edit Subtask
               </h3>
-              <form onSubmit={handleSubmitEdit}>
+              <form onSubmit={handleSubmitEdit} encType="multipart/form-data">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,7 +888,7 @@ const SubtaskDetails = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Images
+                      Images ({editingSubtask.images ? editingSubtask.images.filter(img => !img.startsWith('blob:')).length : 0} existing + {selectedImages.length} new = {((editingSubtask.images ? editingSubtask.images.filter(img => !img.startsWith('blob:')).length : 0) + selectedImages.length)}/2)
                     </label>
                     <input
                       type="file"
@@ -811,16 +897,48 @@ const SubtaskDetails = () => {
                       onChange={handleImageUpload}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    {editingSubtask.images.length > 0 && (
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {editingSubtask.images.map((image, index) => (
-                          <img
-                            key={index}
-                            src={image}
-                            alt={`Preview ${index + 1}`}
-                            className="w-16 h-16 rounded object-cover"
-                          />
-                        ))}
+                    
+                    {/* Show existing images */}
+                    {editingSubtask.images && editingSubtask.images.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600 mb-2">Existing Images:</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {editingSubtask.images
+                            .filter(img => !img.startsWith('blob:'))
+                            .map((image, index) => (
+                              <div key={`existing-${index}`} className="relative">
+                                <img
+                                  src={image}
+                                  alt={`Existing ${index + 1}`}
+                                  className="w-16 h-16 rounded object-cover border"
+                                />
+                                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                  ✓
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Show new image previews */}
+                    {selectedImages.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600 mb-2">New Images:</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {selectedImages.map((image, index) => (
+                            <div key={`new-${index}`} className="relative">
+                              <img
+                                src={URL.createObjectURL(image)}
+                                alt={`New ${index + 1}`}
+                                className="w-16 h-16 rounded object-cover border border-green-300"
+                              />
+                              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                +
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -831,6 +949,7 @@ const SubtaskDetails = () => {
                     onClick={() => {
                       setShowEditModal(false);
                       setEditingSubtask(null);
+                      setSelectedImages([]);
                     }}
                     className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
@@ -838,9 +957,14 @@ const SubtaskDetails = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={isUploading}
+                    className={`px-4 py-2 rounded-lg ${
+                      isUploading 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    } text-white`}
                   >
-                    Update Subtask
+                    {isUploading ? 'Updating...' : 'Update Subtask'}
                   </button>
                 </div>
               </form>
