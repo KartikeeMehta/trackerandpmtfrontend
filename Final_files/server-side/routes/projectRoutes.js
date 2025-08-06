@@ -15,6 +15,11 @@ router.get("/:projectId", authMiddleware, projectController.getProjectById); // 
 router.get("/", authMiddleware, projectController.getAllProjects); // ✅ get all projects
 router.put("/:projectId", authMiddleware, projectController.updateProject); // ✅ update project
 router.delete("/:projectId", authMiddleware, projectController.deleteProject); // ✅ delete project
+router.delete(
+  "/:projectId/permanent",
+  authMiddleware,
+  projectController.permanentlyDeleteProject
+); // ✅ permanently delete project
 router.get(
   "/team-member/:teamMemberId/projects",
   authMiddleware,
@@ -43,7 +48,12 @@ router.post(
   authMiddleware,
   projectController.updateSubtaskStatus
 ); // ✅ update subtask status
-router.post("/subtask/edit", authMiddleware, upload.array("images", 2), projectController.editSubtask); // ✅ edit subtask
+router.post(
+  "/subtask/edit",
+  authMiddleware,
+  upload.array("images", 2),
+  projectController.editSubtask
+); // ✅ edit subtask
 router.post("/subtask/delete", authMiddleware, projectController.deleteSubtask); // ✅ delete subtask
 router.get(
   "/subtasks/:project_id",
@@ -55,7 +65,15 @@ router.get(
   authMiddleware,
   projectController.getSubtaskActivity
 ); // ✅ get subtask activity by subtask ID
-router.post("/:projectId/phases/:phaseId/comments", authMiddleware,projectController.addCommentToPhase); // ✅ add comment to phase
-router.get("/:projectId/phases/:phaseId/comments", authMiddleware, projectController.getPhaseComments); // ✅ get comments for a phase
+router.post(
+  "/:projectId/phases/:phaseId/comments",
+  authMiddleware,
+  projectController.addCommentToPhase
+); // ✅ add comment to phase
+router.get(
+  "/:projectId/phases/:phaseId/comments",
+  authMiddleware,
+  projectController.getPhaseComments
+); // ✅ get comments for a phase
 
 module.exports = router;

@@ -21,6 +21,31 @@ import {
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  });
+  if (!message) return null;
+  return (
+    <div className={`fixed`} style={{ top: "10%", right: "1%" }}>
+      <div
+        className={`px-6 py-3 rounded shadow-lg text-white font-medium transition-all ${
+          type === "success" ? "bg-green-600" : "bg-red-600"
+        }`}
+        role="alert"
+      >
+        {message}
+        <button className="ml-4 text-white font-bold" onClick={onClose}>
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SubtaskDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,6 +61,8 @@ const SubtaskDetails = () => {
   const [activityLog, setActivityLog] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [toast, setToast] = useState({ message: "", type: "success" });
   const dropdownRef = useRef();
 
   useEffect(() => {
@@ -276,6 +303,8 @@ const SubtaskDetails = () => {
     e.preventDefault();
     const token = localStorage.getItem("token");
     setIsUploading(true);
+    setUploadProgress(0);
+    setToast({ message: "", type: "success" });
     try {
       // Create FormData for file upload
       const formData = new FormData();
@@ -283,18 +312,18 @@ const SubtaskDetails = () => {
       formData.append("subtask_title", editingSubtask.subtask_title);
       formData.append("description", editingSubtask.description);
       formData.append("assigned_member", editingSubtask.assigned_member);
-      
+
       // Add existing images (if any)
       if (editingSubtask.images && editingSubtask.images.length > 0) {
         // Filter out preview URLs and keep only actual image data
-        const existingImages = editingSubtask.images.filter(img => 
-          !img.startsWith('blob:') // Keep only non-preview images
+        const existingImages = editingSubtask.images.filter(
+          (img) => !img.startsWith("blob:") // Keep only non-preview images
         );
         if (existingImages.length > 0) {
           formData.append("existing_images", JSON.stringify(existingImages));
         }
       }
-      
+
       // Add new selected images
       if (selectedImages.length > 0) {
         selectedImages.forEach((image) => {
@@ -309,11 +338,16 @@ const SubtaskDetails = () => {
         console.log(key, value);
       }
 
-      // Use imageUpload method for FormData
-      const response = await apiHandler.imageUpload(api_url.editSubtask, formData, token);
-      
+      // Use imageUpload method for FormData with progress tracking
+      const response = await apiHandler.imageUpload(
+        api_url.editSubtask,
+        formData,
+        token,
+        (progress) => setUploadProgress(progress)
+      );
+
       if (!response.success) {
-        throw new Error(response.message || 'Failed to update subtask');
+        throw new Error(response.message || "Failed to update subtask");
       }
 
       console.log("Upload successful:", response);
@@ -339,7 +373,11 @@ const SubtaskDetails = () => {
               (s) => String(s.subtask_id) === String(subtaskId)
             );
           }
-          console.log("Re-fetched subtask:", foundSubtask?.images?.length || 0, "images");
+          console.log(
+            "Re-fetched subtask:",
+            foundSubtask?.images?.length || 0,
+            "images"
+          );
           setSubtask(foundSubtask || null);
 
           // Refresh activity log
@@ -349,50 +387,74 @@ const SubtaskDetails = () => {
         }
       }, 500); // Small delay to ensure server has processed the update
 
+      setToast({ message: "Subtask updated successfully!", type: "success" });
     } catch (error) {
       console.error("Error updating subtask:", error);
+      setToast({
+        message: error.message || "Failed to update subtask",
+        type: "error",
+      });
       // Keep modal open if there's an error so user can try again
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    
+
     // Count existing images (excluding blob URLs which are previews)
-    const existingImages = editingSubtask.images ? 
-      editingSubtask.images.filter(img => !img.startsWith('blob:')) : [];
-    
+    const existingImages = editingSubtask.images
+      ? editingSubtask.images.filter((img) => !img.startsWith("blob:"))
+      : [];
+
     // Check if adding these files would exceed the 2-image limit
     const totalImages = existingImages.length + files.length;
-    
+
     if (totalImages > 2) {
-      alert("You can only upload a maximum of 2 images. Please select fewer files.");
+      alert(
+        "You can only upload a maximum of 2 images. Please select fewer files."
+      );
       return;
     }
-    
+
     // Check file size (5MB limit)
     const maxSize = 5 * 1024 * 1024; // 5MB
-    const oversizedFiles = files.filter(file => file.size > maxSize);
-    
+    const oversizedFiles = files.filter((file) => file.size > maxSize);
+
     if (oversizedFiles.length > 0) {
       alert(`Some files are too large. Maximum file size is 5MB.`);
       return;
     }
-    
+
     // Check file types
-    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
-    
+    const invalidFiles = files.filter(
+      (file) => !file.type.startsWith("image/")
+    );
+
     if (invalidFiles.length > 0) {
       alert("Please select only image files.");
       return;
     }
-    
+
     setSelectedImages(files);
-    
+
     // Note: We don't add preview URLs to editingSubtask.images anymore
     // as we want to keep existing images separate from new previews
+  };
+
+  const handleRemoveExistingImage = (indexToRemove) => {
+    setEditingSubtask((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, index) => index !== indexToRemove),
+    }));
+  };
+
+  const handleRemoveNewImage = (indexToRemove) => {
+    setSelectedImages((prev) =>
+      prev.filter((_, index) => index !== indexToRemove)
+    );
   };
 
   const formatDate = (dateString) => {
@@ -691,7 +753,7 @@ const SubtaskDetails = () => {
                           className="w-full h-32 object-cover rounded-lg border border-gray-200 group-hover:border-blue-300 transition-colors"
                           onError={(e) => {
                             console.error("Failed to load image:", image);
-                            e.target.style.display = 'none';
+                            e.target.style.display = "none";
                           }}
                           onLoad={() => {
                             console.log("Successfully loaded image:", image);
@@ -819,7 +881,33 @@ const SubtaskDetails = () => {
       {/* Edit Subtask Modal */}
       {showEditModal && editingSubtask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative">
+            {isUploading && (
+              <div className="absolute inset-0 bg-white bg-opacity-90 rounded-xl flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-gray-700 font-medium">
+                    Updating Subtask...
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Please wait while we upload your images
+                  </p>
+                  {uploadProgress > 0 && (
+                    <div className="mt-4 w-full max-w-xs mx-auto">
+                      <div className="bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        {Math.round(uploadProgress)}% complete
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Edit Subtask
@@ -888,7 +976,13 @@ const SubtaskDetails = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Images ({editingSubtask.images ? editingSubtask.images.filter(img => !img.startsWith('blob:')).length : 0} existing + {selectedImages.length} new = {((editingSubtask.images ? editingSubtask.images.filter(img => !img.startsWith('blob:')).length : 0) + selectedImages.length)}/2)
+                      Images (
+                      {(editingSubtask.images
+                        ? editingSubtask.images.filter(
+                            (img) => !img.startsWith("blob:")
+                          ).length
+                        : 0) + selectedImages.length}
+                      /2)
                     </label>
                     <input
                       type="file"
@@ -897,45 +991,76 @@ const SubtaskDetails = () => {
                       onChange={handleImageUpload}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    
+
                     {/* Show existing images */}
-                    {editingSubtask.images && editingSubtask.images.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-600 mb-2">Existing Images:</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {editingSubtask.images
-                            .filter(img => !img.startsWith('blob:'))
-                            .map((image, index) => (
-                              <div key={`existing-${index}`} className="relative">
-                                <img
-                                  src={image}
-                                  alt={`Existing ${index + 1}`}
-                                  className="w-16 h-16 rounded object-cover border"
-                                />
-                                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                  ✓
-                                </span>
-                              </div>
-                            ))}
+                    {editingSubtask.images &&
+                      editingSubtask.images.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">
+                            Existing Images:
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            {editingSubtask.images
+                              .filter((img) => !img.startsWith("blob:"))
+                              .map((image, index) => (
+                                <div
+                                  key={`existing-${index}`}
+                                  className="relative group"
+                                >
+                                  <img
+                                    src={image}
+                                    alt={`Existing ${index + 1}`}
+                                    className="w-16 h-16 rounded object-cover border border-gray-300 group-hover:border-red-300 transition-colors"
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center">
+                                    <button
+                                      type="button"
+                                      className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Prevent image click
+                                        handleRemoveExistingImage(index);
+                                      }}
+                                      title="Remove image"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    
+                      )}
+
                     {/* Show new image previews */}
                     {selectedImages.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-sm text-gray-600 mb-2">New Images:</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          New Images:
+                        </p>
                         <div className="flex gap-2 flex-wrap">
                           {selectedImages.map((image, index) => (
-                            <div key={`new-${index}`} className="relative">
+                            <div
+                              key={`new-${index}`}
+                              className="relative group"
+                            >
                               <img
                                 src={URL.createObjectURL(image)}
                                 alt={`New ${index + 1}`}
-                                className="w-16 h-16 rounded object-cover border border-green-300"
+                                className="w-16 h-16 rounded object-cover border border-green-300 group-hover:border-red-300 transition-colors"
                               />
-                              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                +
-                              </span>
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent image click
+                                    handleRemoveNewImage(index);
+                                  }}
+                                  title="Remove image"
+                                >
+                                  ×
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -951,7 +1076,12 @@ const SubtaskDetails = () => {
                       setEditingSubtask(null);
                       setSelectedImages([]);
                     }}
-                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={isUploading}
+                    className={`px-4 py-2 border border-gray-300 rounded-lg ${
+                      isUploading
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-gray-600 hover:bg-gray-50"
+                    }`}
                   >
                     Cancel
                   </button>
@@ -959,12 +1089,12 @@ const SubtaskDetails = () => {
                     type="submit"
                     disabled={isUploading}
                     className={`px-4 py-2 rounded-lg ${
-                      isUploading 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-blue-600 hover:bg-blue-700'
+                      isUploading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
                     } text-white`}
                   >
-                    {isUploading ? 'Updating...' : 'Update Subtask'}
+                    {isUploading ? "Updating..." : "Update Subtask"}
                   </button>
                 </div>
               </form>
@@ -972,6 +1102,13 @@ const SubtaskDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: toast.type })}
+      />
     </div>
   );
 };

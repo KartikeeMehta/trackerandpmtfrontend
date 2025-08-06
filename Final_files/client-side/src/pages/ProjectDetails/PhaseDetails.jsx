@@ -19,6 +19,31 @@ import {
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  });
+  if (!message) return null;
+  return (
+    <div className={`fixed`} style={{ top: "10%", right: "1%" }}>
+      <div
+        className={`px-6 py-3 rounded shadow-lg text-white font-medium transition-all ${
+          type === "success" ? "bg-green-600" : "bg-red-600"
+        }`}
+        role="alert"
+      >
+        {message}
+        <button className="ml-4 text-white font-bold" onClick={onClose}>
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PhaseDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,6 +63,9 @@ const PhaseDetails = () => {
     images: [],
   });
   const [selectedImages, setSelectedImages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [toast, setToast] = useState({ message: "", type: "success" });
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef();
 
@@ -222,6 +250,9 @@ const PhaseDetails = () => {
   const handleSubmitSubtask = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    setIsUploading(true);
+    setUploadProgress(0);
+    setToast({ message: "", type: "success" });
     try {
       const formData = new FormData();
       formData.append("subtask_title", newSubtask.title);
@@ -229,7 +260,7 @@ const PhaseDetails = () => {
       formData.append("assigned_team", ""); // No team selection in UI
       formData.append("assigned_member", newSubtask.assigned_member);
       formData.append("phase_id", phaseId);
-      
+
       // Add selected images as files
       if (selectedImages.length > 0) {
         selectedImages.forEach((image) => {
@@ -243,11 +274,16 @@ const PhaseDetails = () => {
         console.log(key, value);
       }
 
-      // Use imageUpload method for FormData
-      const response = await apiHandler.imageUpload(api_url.addSubtask, formData, token);
-      
+      // Use imageUpload method for FormData with progress tracking
+      const response = await apiHandler.imageUpload(
+        api_url.addSubtask,
+        formData,
+        token,
+        (progress) => setUploadProgress(progress)
+      );
+
       if (!response.success) {
-        throw new Error(response.message || 'Failed to add subtask');
+        throw new Error(response.message || "Failed to add subtask");
       }
 
       // Re-fetch subtasks
@@ -274,41 +310,59 @@ const PhaseDetails = () => {
         images: [],
       });
       setSelectedImages([]);
+      setToast({ message: "Subtask created successfully!", type: "success" });
     } catch (error) {
       console.error("Error adding subtask:", error);
+      setToast({
+        message: error.message || "Failed to create subtask",
+        type: "error",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    
+
     // Check if adding these files would exceed the 2-image limit
     // For new subtasks, we only check selectedImages since there are no existing images yet
     const totalImages = selectedImages.length + files.length;
-    
+
     if (totalImages > 2) {
-      alert("You can only upload a maximum of 2 images. Please select fewer files.");
+      alert(
+        "You can only upload a maximum of 2 images. Please select fewer files."
+      );
       return;
     }
-    
+
     // Check file size (5MB limit)
     const maxSize = 5 * 1024 * 1024; // 5MB
-    const oversizedFiles = files.filter(file => file.size > maxSize);
-    
+    const oversizedFiles = files.filter((file) => file.size > maxSize);
+
     if (oversizedFiles.length > 0) {
       alert(`Some files are too large. Maximum file size is 5MB.`);
       return;
     }
-    
+
     // Check file types
-    const invalidFiles = files.filter(file => !file.type.startsWith('image/'));
-    
+    const invalidFiles = files.filter(
+      (file) => !file.type.startsWith("image/")
+    );
+
     if (invalidFiles.length > 0) {
       alert("Please select only image files.");
       return;
     }
-    
-    setSelectedImages(prev => [...prev, ...files]);
+
+    setSelectedImages((prev) => [...prev, ...files]);
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setSelectedImages((prev) =>
+      prev.filter((_, index) => index !== indexToRemove)
+    );
   };
 
   const handleSubtaskClick = (subtask) => {
@@ -635,7 +689,31 @@ const PhaseDetails = () => {
       {/* Add Subtask Modal */}
       {showAddSubtask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative">
+            {isUploading && (
+              <div className="absolute inset-0 bg-white bg-opacity-90 rounded-xl flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-gray-700 font-medium">Adding Subtask...</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Please wait while we upload your images
+                  </p>
+                  {uploadProgress > 0 && (
+                    <div className="mt-4 w-full max-w-xs mx-auto">
+                      <div className="bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        {Math.round(uploadProgress)}% complete
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Add Subtask
@@ -716,15 +794,22 @@ const PhaseDetails = () => {
                     {selectedImages.length > 0 && (
                       <div className="flex gap-2 mt-2 flex-wrap">
                         {selectedImages.map((image, index) => (
-                          <div key={index} className="relative">
+                          <div key={index} className="relative group">
                             <img
                               src={URL.createObjectURL(image)}
                               alt={`Preview ${index + 1}`}
-                              className="w-16 h-16 rounded object-cover border"
+                              className="w-16 h-16 rounded object-cover border border-gray-300 group-hover:border-red-300 transition-colors"
                             />
-                            <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                              +
-                            </span>
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded flex items-center justify-center">
+                              <button
+                                type="button"
+                                className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleRemoveImage(index)}
+                                title="Remove image"
+                              >
+                                ×
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -759,15 +844,32 @@ const PhaseDetails = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddSubtask(false)}
-                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={isUploading}
+                    className={`px-4 py-2 border border-gray-300 rounded-lg ${
+                      isUploading
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-gray-600 hover:bg-gray-50"
+                    }`}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={isUploading}
+                    className={`px-4 py-2 rounded-lg text-white ${
+                      isUploading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
                   >
-                    Add Subtask
+                    {isUploading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Adding Subtask...
+                      </div>
+                    ) : (
+                      "Add Subtask"
+                    )}
                   </button>
                 </div>
               </form>
@@ -775,6 +877,13 @@ const PhaseDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: toast.type })}
+      />
     </div>
   );
 };

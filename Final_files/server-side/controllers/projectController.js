@@ -259,6 +259,7 @@ exports.deleteProject = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     project.project_status = "deleted";
+    project.deletedAt = new Date();
     await project.save();
 
     await Activity.create({
@@ -273,6 +274,97 @@ exports.deleteProject = async (req, res) => {
     res.status(200).json({ message: "Project marked as deleted" });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Permanent project deletion with Cloudinary image cleanup
+exports.permanentlyDeleteProject = async (req, res) => {
+  console.log(
+    "permanentlyDeleteProject called with projectId:",
+    req.params.projectId
+  );
+  console.log("User:", req.user);
+
+  try {
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
+      console.log("User role not authorized:", req.user.role);
+      return res.status(403).json({
+        message:
+          "Only owner, admin, and manager can permanently delete projects",
+      });
+    }
+
+    const userCompany = req.user.companyName;
+    console.log("Looking for project with company:", userCompany);
+
+    const project = await Project.findOne({
+      project_id: req.params.projectId,
+      companyName: userCompany,
+    });
+
+    if (!project) {
+      console.log("Project not found");
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    console.log("Project found:", project.project_name);
+
+    // Collect all image URLs from project phases and subtasks
+    const imageUrls = [];
+
+    if (project.phases && Array.isArray(project.phases)) {
+      project.phases.forEach((phase) => {
+        if (phase.subtasks && Array.isArray(phase.subtasks)) {
+          phase.subtasks.forEach((subtask) => {
+            if (subtask.images && Array.isArray(subtask.images)) {
+              imageUrls.push(...subtask.images);
+            }
+          });
+        }
+      });
+    }
+
+    console.log(
+      `Found ${imageUrls.length} images to delete from Cloudinary for project ${project.project_id}`
+    );
+
+    // Delete images from Cloudinary if any exist
+    if (imageUrls.length > 0) {
+      const {
+        deleteMultipleImagesFromCloudinary,
+      } = require("../utils/cloudinaryUpload");
+      const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+        imageUrls
+      );
+      console.log("Cloudinary deletion result:", cloudinaryResult);
+    }
+
+    // Permanently delete the project from database
+    await Project.findByIdAndDelete(project._id);
+    console.log("Project deleted from database");
+
+    await Activity.create({
+      type: "Project",
+      action: "permanently_delete",
+      name: project.project_name,
+      description: `Permanently deleted project ${project.project_name} and ${imageUrls.length} associated images`,
+      performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
+    });
+
+    console.log("Activity logged successfully");
+
+    res.status(200).json({
+      message: "Project permanently deleted",
+      deletedImages: imageUrls.length,
+    });
+  } catch (err) {
+    console.error("Error permanently deleting project:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -667,9 +759,29 @@ exports.editSubtask = async (req, res) => {
       });
     }
 
+    // Find the current subtask to get existing images
+    let currentSubtask = null;
+    for (const phase of project.phases) {
+      const subtask = phase.subtasks.find((s) => s.subtask_id === subtask_id);
+      if (subtask) {
+        currentSubtask = subtask;
+        break;
+      }
+    }
+
+    if (!currentSubtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Get current images from the subtask
+    const currentImages = currentSubtask.images || [];
+
     // Handle file uploads if present
     let finalImages = [];
-    
+
     // Add existing images if provided
     if (existing_images) {
       try {
@@ -682,29 +794,40 @@ exports.editSubtask = async (req, res) => {
 
     // Handle new uploaded files - upload to Cloudinary
     if (req.files && req.files.length > 0) {
-      console.log(`Processing ${req.files.length} uploaded files (max 2 allowed)`);
-      console.log("Files received:", req.files.map(f => ({ name: f.originalname, size: f.size })));
-      
+      console.log(
+        `Processing ${req.files.length} uploaded files (max 2 allowed)`
+      );
+      console.log(
+        "Files received:",
+        req.files.map((f) => ({ name: f.originalname, size: f.size }))
+      );
+
       const uploadPromises = req.files.map(async (file, index) => {
         try {
           const timestamp = Date.now();
           const randomString = Math.random().toString(36).substring(2, 15);
           const filename = `subtask_${timestamp}_${randomString}_${index}`;
-          
+
           console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
           console.log(`File details:`, {
             originalname: file.originalname,
             mimetype: file.mimetype,
             size: file.size,
-            bufferLength: file.buffer ? file.buffer.length : 'No buffer'
+            bufferLength: file.buffer ? file.buffer.length : "No buffer",
           });
-          
+
           const result = await uploadCompressedImage(file.buffer, filename);
-          console.log(`Cloudinary upload successful for file ${index + 1}:`, result.secure_url);
-          
+          console.log(
+            `Cloudinary upload successful for file ${index + 1}:`,
+            result.secure_url
+          );
+
           return result.secure_url;
         } catch (error) {
-          console.error(`Error uploading file ${index + 1} to Cloudinary:`, error);
+          console.error(
+            `Error uploading file ${index + 1} to Cloudinary:`,
+            error
+          );
           throw error;
         }
       });
@@ -712,7 +835,9 @@ exports.editSubtask = async (req, res) => {
       try {
         const uploadedUrls = await Promise.all(uploadPromises);
         finalImages = [...finalImages, ...uploadedUrls];
-        console.log(`Successfully uploaded ${uploadedUrls.length} images to Cloudinary`);
+        console.log(
+          `Successfully uploaded ${uploadedUrls.length} images to Cloudinary`
+        );
         console.log("Final images array:", finalImages);
       } catch (error) {
         console.error("Error uploading images to Cloudinary:", error);
@@ -724,6 +849,33 @@ exports.editSubtask = async (req, res) => {
       }
     } else {
       console.log("No files received in request");
+    }
+
+    // Find images that were removed and delete them from Cloudinary
+    const removedImages = currentImages.filter(
+      (img) => !finalImages.includes(img)
+    );
+    if (removedImages.length > 0) {
+      console.log(
+        `Found ${removedImages.length} images to delete from Cloudinary:`,
+        removedImages
+      );
+
+      try {
+        const {
+          deleteMultipleImagesFromCloudinary,
+        } = require("../utils/cloudinaryUpload");
+        const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+          removedImages
+        );
+        console.log(
+          "Cloudinary deletion result for removed images:",
+          cloudinaryResult
+        );
+      } catch (error) {
+        console.error("Error deleting removed images from Cloudinary:", error);
+        // Continue with the update even if Cloudinary deletion fails
+      }
     }
 
     // Prepare update object
@@ -809,6 +961,16 @@ exports.deleteSubtask = async (req, res) => {
       });
     }
 
+    // Find the subtask to get its images before deletion
+    let subtaskImages = [];
+    for (const phase of project.phases) {
+      const subtask = phase.subtasks.find((s) => s.subtask_id === subtask_id);
+      if (subtask && subtask.images) {
+        subtaskImages = [...subtask.images];
+        break;
+      }
+    }
+
     // Remove the subtask from the phase using $pull
     const result = await Project.updateOne(
       {
@@ -829,9 +991,37 @@ exports.deleteSubtask = async (req, res) => {
       });
     }
 
+    // Delete images from Cloudinary if any exist
+    if (subtaskImages.length > 0) {
+      console.log(
+        `Deleting ${subtaskImages.length} images from Cloudinary for deleted subtask ${subtask_id}:`,
+        subtaskImages
+      );
+
+      try {
+        const {
+          deleteMultipleImagesFromCloudinary,
+        } = require("../utils/cloudinaryUpload");
+        const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+          subtaskImages
+        );
+        console.log(
+          "Cloudinary deletion result for deleted subtask:",
+          cloudinaryResult
+        );
+      } catch (error) {
+        console.error(
+          "Error deleting images from Cloudinary for deleted subtask:",
+          error
+        );
+        // Continue even if Cloudinary deletion fails
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Subtask deleted successfully",
+      deletedImages: subtaskImages.length,
     });
   } catch (error) {
     console.error("Error deleting subtask:", error);
@@ -973,29 +1163,39 @@ exports.addSubtask = async (req, res) => {
     // 🌟 Upload all images to Cloudinary (compressed)
     let imageUrls = [];
     if (req.files && req.files.length > 0) {
-      console.log(`Processing ${req.files.length} uploaded files for new subtask (max 2 allowed)`);
-      
+      console.log(
+        `Processing ${req.files.length} uploaded files for new subtask (max 2 allowed)`
+      );
+
       const uploadPromises = req.files.map(async (file, index) => {
         try {
           const timestamp = Date.now();
           const randomString = Math.random().toString(36).substring(2, 15);
           const filename = `subtask_${timestamp}_${randomString}_${index}`;
-          
+
           console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
-          
+
           const result = await uploadCompressedImage(file.buffer, filename);
-          console.log(`Cloudinary upload successful for file ${index + 1}:`, result.secure_url);
-          
+          console.log(
+            `Cloudinary upload successful for file ${index + 1}:`,
+            result.secure_url
+          );
+
           return result.secure_url;
         } catch (error) {
-          console.error(`Error uploading file ${index + 1} to Cloudinary:`, error);
+          console.error(
+            `Error uploading file ${index + 1} to Cloudinary:`,
+            error
+          );
           throw error;
         }
       });
 
       try {
         imageUrls = await Promise.all(uploadPromises);
-        console.log(`Successfully uploaded ${imageUrls.length} images to Cloudinary for new subtask`);
+        console.log(
+          `Successfully uploaded ${imageUrls.length} images to Cloudinary for new subtask`
+        );
       } catch (error) {
         console.error("Error uploading images to Cloudinary:", error);
         return res.status(500).json({
@@ -1034,7 +1234,9 @@ exports.addSubtask = async (req, res) => {
     );
 
     if (result.modifiedCount === 0) {
-      return res.status(500).json({ message: "Failed to add subtask to phase" });
+      return res
+        .status(500)
+        .json({ message: "Failed to add subtask to phase" });
     }
 
     res.status(201).json({
@@ -1070,36 +1272,39 @@ exports.getSubtasksByProjectId = async (req, res) => {
 
     // 2. Extract all subtasks from all phases and populate team information
     const allSubtasks = [];
-    
+
     // Get team name if project has team_id
     let teamName = "Not assigned";
     if (project.team_id) {
       const Team = require("../models/Team");
-      const team = await Team.findOne({ 
-        _id: project.team_id, 
-        companyName 
+      const team = await Team.findOne({
+        _id: project.team_id,
+        companyName,
       });
       teamName = team ? team.teamName : "Not assigned";
     }
-    
+
     // Update existing subtasks that don't have team information
     let hasUpdates = false;
     project.phases.forEach((phase) => {
       if (phase.subtasks && phase.subtasks.length > 0) {
         phase.subtasks.forEach((subtask) => {
-          if (!subtask.assigned_team || subtask.assigned_team === "Not assigned") {
+          if (
+            !subtask.assigned_team ||
+            subtask.assigned_team === "Not assigned"
+          ) {
             subtask.assigned_team = teamName;
             hasUpdates = true;
           }
         });
       }
     });
-    
+
     // Save the project if any updates were made
     if (hasUpdates) {
       await project.save();
     }
-    
+
     project.phases.forEach((phase) => {
       if (phase.subtasks && phase.subtasks.length > 0) {
         // Add phase information to each subtask for context

@@ -19,6 +19,7 @@ export const api_url = {
   createTeam: BASE_URL + "/teams/createTeam",
   deleteTeam: BASE_URL + "/teams/deleteTeam",
   deleteProject: BASE_URL + "/projects/:projectId",
+  permanentlyDeleteProject: BASE_URL + "/projects/:projectId/permanent",
   updateProject: BASE_URL + "/projects/:projectId",
   updateTeam: BASE_URL + "/teams/updateTeam",
   getTeamMember: BASE_URL + "/employees/team-members",
