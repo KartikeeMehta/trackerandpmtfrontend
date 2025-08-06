@@ -44,13 +44,13 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/tasks", taskRoutes); // task routes
 app.use("/api/otp", otpRoutes);
 
-// Auto-permanent delete job: runs every 5 seconds (for now, as requested)
-cron.schedule("*/5 * * * * *", async () => {
+// Auto-permanent delete job: runs every day at 2am
+cron.schedule("0 2 * * *", async () => {
   console.log("[CRON] Running auto-permanent delete for projects...");
-  const fiveSecondsAgo = new Date(Date.now() - 5000);
+  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
   const projectsToDelete = await Project.find({
     project_status: "deleted",
-    deletedAt: { $lte: fiveSecondsAgo },
+    deletedAt: { $lte: fiveDaysAgo },
   });
   console.log(`[CRON] Found ${projectsToDelete.length} projects to delete.`);
   for (const project of projectsToDelete) {
