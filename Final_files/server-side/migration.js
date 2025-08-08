@@ -101,4 +101,37 @@ const migrateData = async () => {
   }
 };
 
-migrateData();
+const migrateEmployeeRoles = async () => {
+  try {
+    console.log("Starting employee role migration...");
+
+    // Find all employees with "employee" role
+    const employeesToUpdate = await Employee.find({ role: "employee" });
+    console.log(
+      `Found ${employeesToUpdate.length} employees with "employee" role`
+    );
+
+    if (employeesToUpdate.length > 0) {
+      // Update all employees with "employee" role to "teamMember"
+      const result = await Employee.updateMany(
+        { role: "employee" },
+        { $set: { role: "teamMember" } }
+      );
+
+      console.log(
+        `Successfully updated ${result.modifiedCount} employees from "employee" to "teamMember" role`
+      );
+    } else {
+      console.log("No employees found with 'employee' role");
+    }
+
+    console.log("Employee role migration completed successfully!");
+  } catch (error) {
+    console.error("Error during migration:", error);
+  } finally {
+    mongoose.connection.close();
+  }
+};
+
+// Run the migration
+migrateEmployeeRoles();

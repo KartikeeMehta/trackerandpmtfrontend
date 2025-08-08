@@ -13,8 +13,14 @@ const getPerformer = (user) =>
 
 // API: Add new Employee
 exports.addEmployee = async (req, res) => {
-  if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
-    return res.status(403).json({ message: "Only owners, admins, and managers can add employees" });
+  if (
+    req.user.role !== "owner" &&
+    req.user.role !== "admin" &&
+    req.user.role !== "manager"
+  ) {
+    return res
+      .status(403)
+      .json({ message: "Only owners, admins, and managers can add employees" });
   }
 
   const { name, email, designation, role, location, phoneNo, profileLogo } =
@@ -231,7 +237,11 @@ exports.editEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "manager") {
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
       return res.status(403).json({ message: "Unauthorized to edit employee" });
     }
 
@@ -386,5 +396,28 @@ exports.getRecentActivity = async (req, res) => {
   } catch (error) {
     console.error("getRecentActivity error:", error);
     res.status(500).json({ message: "Failed to fetch activity", error });
+  }
+};
+
+// Get all available roles
+exports.getAllRoles = async (req, res) => {
+  try {
+    const roles = [
+      { value: "admin", label: "Admin" },
+      { value: "manager", label: "Manager" },
+      { value: "teamLead", label: "Team Lead" },
+      { value: "teamMember", label: "Team Member" },
+    ];
+
+    res.status(200).json({
+      success: true,
+      roles: roles,
+    });
+  } catch (error) {
+    console.error("Error fetching roles:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

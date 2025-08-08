@@ -1,6 +1,40 @@
 const mongoose = require("mongoose");
 
-// Define the schema for each phase (without status)
+// ✅ Comment Schema (embedded inside phases)
+const commentSchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true },
+    commentedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // ✅ Updated to match your User model
+      required: true,
+    },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+// ✅ Subtask Schema (embedded inside phases)
+const subtaskSchema = new mongoose.Schema(
+  {
+    subtask_id: { type: String, required: true },
+    subtask_title: { type: String, required: true },
+    description: { type: String },
+    assigned_team: { type: String },
+    assigned_member: { type: String },
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Completed"],
+      default: "Pending",
+    },
+    images: [{ type: String }],
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+// ✅ Phase Schema (with embedded comments and subtasks)
 const phaseSchema = new mongoose.Schema(
   {
     phase_id: { type: String },
@@ -10,13 +44,15 @@ const phaseSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Pending", "In Progress", "Completed"],
-      default: "Pending"
-    }
+      default: "Pending",
+    },
+    comments: [commentSchema], // ✅ Embedded comments
+    subtasks: [subtaskSchema], // ✅ Embedded subtasks
   },
-  { _id: false } // Optional: keep true if you want phase _id
+  { _id: false }
 );
 
-// Main project schema
+// ✅ Main Project Schema
 const projectSchema = new mongoose.Schema(
   {
     project_id: { type: String, required: true, unique: true },
@@ -25,7 +61,7 @@ const projectSchema = new mongoose.Schema(
     project_description: { type: String, required: true },
     start_date: { type: String, required: true },
     end_date: { type: String, required: true },
-    phases: [phaseSchema], // ✅ Phases added, no status
+    phases: [phaseSchema], // ✅ Updated to include commentSchema and subtaskSchema
     project_status: {
       type: String,
       enum: ["ongoing", "completed", "on hold", "deleted"],
@@ -44,27 +80,7 @@ const projectSchema = new mongoose.Schema(
     completion_note: { type: String },
     team_id: { type: String },
     companyName: { type: String, required: true },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// ✅ Subtask Schema
-const subtaskSchema = new mongoose.Schema(
-  {
-    subtask_id: { type: String, unique: true },
-    subtask_title: { type: String, required: true },
-    description: { type: String },
-    assigned_team: { type: String },
-    assigned_member: { type: String },
-    status: {
-      type: String,
-      enum: ["Pending", "In Progress", "Completed"],
-      default: "Pending"
-    },
-    phase_id: { type: String, required: true }, // Link to which phase this subtask belongs
-    companyName: { type: String, required: true }
+    deletedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -72,9 +88,7 @@ const subtaskSchema = new mongoose.Schema(
 );
 
 const Project = mongoose.model("Project", projectSchema);
-const Subtask = mongoose.model("Subtask", subtaskSchema);
 
 module.exports = {
-  Project: mongoose.model("Project", projectSchema),
-  Subtask: mongoose.model("Subtask", subtaskSchema)
+  Project,
 };

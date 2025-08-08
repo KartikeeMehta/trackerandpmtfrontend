@@ -7,7 +7,7 @@ import {
   Edit,
   Trash2,
   X,
-  Pencil
+  Pencil,
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -21,8 +21,8 @@ const Section_a = () => {
   const [error, setError] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [tasks, setTasks] = useState([]);
-  console.log(tasks,"tasks------>");
-  
+  console.log(tasks, "tasks------>");
+
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskHistory, setShowTaskHistory] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -43,6 +43,7 @@ const Section_a = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
+  const [roles, setRoles] = useState([]);
 
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
@@ -50,8 +51,7 @@ const Section_a = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  console.log(projects,"projects---------->");
-  
+  console.log(projects, "projects---------->");
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -80,6 +80,25 @@ const Section_a = () => {
   }, []);
 
   useEffect(() => {
+    const fetchRoles = async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const response = await apiHandler.GetApi(api_url.getAllRoles, token);
+        if (response && response.success && Array.isArray(response.roles)) {
+          setRoles(response.roles);
+        } else {
+          console.error("Failed to fetch roles:", response);
+          setRoles([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch roles:", err);
+        setRoles([]);
+      }
+    };
+    fetchRoles();
+  }, []);
+
+  useEffect(() => {
     if (!selectedMember) return;
     fetchProjectsByTeamMember(selectedMember.teamMemberId);
     if (showTaskHistory) {
@@ -91,7 +110,10 @@ const Section_a = () => {
 
   useEffect(() => {
     if (selectedProject && selectedMember) {
-      fetchTasksByMemberInProject(selectedMember.teamMemberId, selectedProject.project_id);
+      fetchTasksByMemberInProject(
+        selectedMember.teamMemberId,
+        selectedProject.project_id
+      );
     }
   }, [selectedProject, selectedMember]);
 
@@ -119,8 +141,8 @@ const Section_a = () => {
     setTaskHistory([]);
     setSelectedTask(null);
     const token = localStorage.getItem("token");
-    console.log(token,"0000000");
-    
+    console.log(token, "0000000");
+
     try {
       const response = await apiHandler.GetApi(
         api_url.getTaskHistory + memberId,
@@ -152,9 +174,15 @@ const Section_a = () => {
       console.log("Projects response:", response);
       console.log("Response type:", typeof response);
       console.log("Response keys:", Object.keys(response));
-      
+
       // Check if response contains an error message
-      if (response.message && (response.message.includes("No projects found") || response.message.includes("No projects found for the given teamMemberId"))) {
+      if (
+        response.message &&
+        (response.message.includes("No projects found") ||
+          response.message.includes(
+            "No projects found for the given teamMemberId"
+          ))
+      ) {
         console.log("No projects found for this team member");
         setProjects([]);
       } else if (Array.isArray(response.projects)) {
@@ -276,7 +304,6 @@ const Section_a = () => {
     }
   };
 
-
   const handleDeleteTask = async () => {
     setDeleteTaskLoading(true);
     setDeleteTaskError("");
@@ -310,7 +337,6 @@ const Section_a = () => {
     }
   };
 
-
   function formatName(name) {
     if (!name) return "";
     return name
@@ -318,18 +344,17 @@ const Section_a = () => {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
       .join(" ");
   }
-  const teamMembers = [
-    { id: 'teamMember', label: 'teamMember' },
-    { id: 'teamLead', label: 'teamLead' },
-    { id: 'admin', label: 'admin' },
-  ];
+  const teamMembers = roles.map((role) => ({
+    id: role.value,
+    label: role.label,
+  }));
   const handleRoleSelect = (item) => {
-
     setSelectedRole(item.label);
   };
 
-  const filteredMembers = members.filter((member) => member.role === selectedRole);
-
+  const filteredMembers = members.filter(
+    (member) => member.role === selectedRole
+  );
 
   const filteredMembersBySearch = filteredMembers.filter((member) =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -338,7 +363,7 @@ const Section_a = () => {
   // Function to get project name by project ID
   const getProjectNameById = (projectId) => {
     if (!projectId || !projects.length) return "Unknown Project";
-    const project = projects.find(p => p.project_id === projectId);
+    const project = projects.find((p) => p.project_id === projectId);
     return project ? project.project_name : "Unknown Project";
   };
 
@@ -348,8 +373,12 @@ const Section_a = () => {
       <div className="w-80 bg-white/90 backdrop-blur-sm shadow-xl h-screen overflow-y-auto border-r border-gray-200">
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Team Members</h2>
-            <p className="text-gray-600 text-sm">Select a member to view their tasks</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Team Members
+            </h2>
+            <p className="text-gray-600 text-sm">
+              Select a member to view their tasks
+            </p>
           </div>
 
           <div className="space-y-6">
@@ -403,11 +432,13 @@ const Section_a = () => {
                             : "bg-gray-50 hover:bg-gray-100 text-gray-700"
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          selectedMember?._id === member._id
-                            ? "bg-white/20 text-white"
-                            : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
-                        }`}>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            selectedMember?._id === member._id
+                              ? "bg-white/20 text-white"
+                              : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                          }`}
+                        >
                           {member.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium">{member.name}</span>
@@ -456,11 +487,17 @@ const Section_a = () => {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     Tasks for {formatName(selectedMember.name)}
                   </h1>
-                  <p className="text-gray-600">Manage and track task progress</p>
+                  <p className="text-gray-600">
+                    Manage and track task progress
+                  </p>
                 </div>
                 <button
                   className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  onClick={() => navigate("/CreateTask", { state: { selectedMember: selectedMember } })}
+                  onClick={() =>
+                    navigate("/CreateTask", {
+                      state: { selectedMember: selectedMember },
+                    })
+                  }
                 >
                   <Plus size={18} /> Add Task
                 </button>
@@ -474,20 +511,29 @@ const Section_a = () => {
                       Filter by Project
                     </label>
                     {projectsLoading ? (
-                      <div className="text-gray-500 text-sm">Loading projects...</div>
+                      <div className="text-gray-500 text-sm">
+                        Loading projects...
+                      </div>
                     ) : (
                       <div className="flex items-center gap-3">
                         <select
-                          value={selectedProject ? selectedProject.project_id : ""}
+                          value={
+                            selectedProject ? selectedProject.project_id : ""
+                          }
                           onChange={(e) => {
-                            const project = projects.find(p => p.project_id === e.target.value);
+                            const project = projects.find(
+                              (p) => p.project_id === e.target.value
+                            );
                             setSelectedProject(project);
                           }}
                           className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
                         >
                           <option value="">Select a project</option>
                           {projects.map((project) => (
-                            <option key={project.project_id} value={project.project_id}>
+                            <option
+                              key={project.project_id}
+                              value={project.project_id}
+                            >
                               {project.project_name}
                             </option>
                           ))}
@@ -509,19 +555,19 @@ const Section_a = () => {
                 </div>
               </div>
             </div>
-            
-           
-            
+
             {!showTaskHistory ? (
               <>
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
                     <h3 className="text-xl font-bold text-gray-800">
-                      {selectedProject ? `Tasks in ${selectedProject.project_name}` : "Ongoing Tasks"}
+                      {selectedProject
+                        ? `Tasks in ${selectedProject.project_name}`
+                        : "Ongoing Tasks"}
                     </h3>
                   </div>
-                  
+
                   {tasksLoading ? (
                     <div className="text-center py-12">
                       <div className="inline-flex items-center gap-3 text-gray-500">
@@ -535,9 +581,11 @@ const Section_a = () => {
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <CalendarDays size={24} className="text-gray-400" />
                         </div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-2">No tasks found</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          No tasks found
+                        </h4>
                         <p className="text-gray-500 text-sm">
-                          {selectedProject 
+                          {selectedProject
                             ? `No tasks found in ${selectedProject.project_name}`
                             : "No ongoing tasks for this member."}
                         </p>
@@ -549,23 +597,29 @@ const Section_a = () => {
                         <div key={task._id}>
                           <div
                             className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                              selectedTask?._id === task._id 
-                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg" 
+                              selectedTask?._id === task._id
+                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
                                 : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
                             }`}
-                            onClick={() => setSelectedTask(selectedTask?._id === task._id ? null : task)}
+                            onClick={() =>
+                              setSelectedTask(
+                                selectedTask?._id === task._id ? null : task
+                              )
+                            }
                           >
                             <div className="flex justify-between items-start mb-3">
                               <h4 className="font-bold text-gray-900 capitalize text-lg">
                                 {task.title}
                               </h4>
-                              <span className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
-                                task.status === 'completed' 
-                                  ? 'bg-green-100 text-green-700'
-                                  : task.status === 'in-progress'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}>
+                              <span
+                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                  task.status === "completed"
+                                    ? "bg-green-100 text-green-700"
+                                    : task.status === "in-progress"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {task.status}
                               </span>
                             </div>
@@ -573,13 +627,15 @@ const Section_a = () => {
                               {task.description}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs font-medium text-gray-500">Project:</span>
+                              <span className="text-xs font-medium text-gray-500">
+                                Project:
+                              </span>
                               <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
                                 {getProjectNameById(task.project)}
                               </span>
                             </div>
                           </div>
-                          
+
                           {/* Task Details - Appears directly below the selected task */}
                           {selectedTask?._id === task._id && (
                             <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
@@ -588,62 +644,83 @@ const Section_a = () => {
                                   {selectedTask.title}
                                 </h4>
                                 <div className="flex gap-2">
-                                                                     <button
-                                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
-                                     onClick={() => {
-                                       if (selectedMember) {
-                                         navigate("/EditTask", {
-                                           state: {
-                                             taskDetails: selectedTask,
-                                           },
-                                         });
-                                       } else {
-                                         console.warn("No member selected to edit.");
-                                       }
-                                     }}
-                                   >
-                                     <Edit size={16} /> Edit
-                                   </button>
-                                   <button
-                                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
-                                     onClick={() => setShowDeleteConfirm(true)}
-                                   >
-                                     <Trash2 size={16} /> Delete
-                                   </button>
+                                  <button
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                    onClick={() => {
+                                      if (selectedMember) {
+                                        navigate("/EditTask", {
+                                          state: {
+                                            taskDetails: selectedTask,
+                                          },
+                                        });
+                                      } else {
+                                        console.warn(
+                                          "No member selected to edit."
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <Edit size={16} /> Edit
+                                  </button>
+                                  <button
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                  >
+                                    <Trash2 size={16} /> Delete
+                                  </button>
                                 </div>
                               </div>
                               <div className="space-y-3">
                                 <div className="text-gray-700">
-                                  <span className="font-semibold text-gray-800">Description:</span>
+                                  <span className="font-semibold text-gray-800">
+                                    Description:
+                                  </span>
                                   <p className="mt-1 text-gray-600 leading-relaxed">
                                     {selectedTask.description}
                                   </p>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">Status:</span>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                      selectedTask.status === 'completed' 
-                                        ? 'bg-green-100 text-green-700'
-                                        : selectedTask.status === 'in-progress'
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'bg-gray-100 text-gray-700'
-                                    }`}>
+                                    <span className="font-semibold text-gray-700">
+                                      Status:
+                                    </span>
+                                    <span
+                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                        selectedTask.status === "completed"
+                                          ? "bg-green-100 text-green-700"
+                                          : selectedTask.status ===
+                                            "in-progress"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      }`}
+                                    >
                                       {selectedTask.status}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">Assigned To:</span>
-                                    <span className="text-gray-600">{selectedTask.assignedTo}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">Project:</span>
-                                    <span className="text-gray-600">{getProjectNameById(selectedTask.project)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">Created At:</span>
+                                    <span className="font-semibold text-gray-700">
+                                      Assigned To:
+                                    </span>
                                     <span className="text-gray-600">
-                                      {new Date(selectedTask.createdAt).toLocaleString()}
+                                      {selectedTask.assignedTo}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">
+                                      Project:
+                                    </span>
+                                    <span className="text-gray-600">
+                                      {getProjectNameById(selectedTask.project)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-700">
+                                      Created At:
+                                    </span>
+                                    <span className="text-gray-600">
+                                      {new Date(
+                                        selectedTask.createdAt
+                                      ).toLocaleString()}
                                     </span>
                                   </div>
                                 </div>
@@ -655,7 +732,7 @@ const Section_a = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <button
                   className="flex items-center gap-3 text-blue-600 hover:text-blue-700 font-semibold transition-all duration-200 hover:scale-105"
                   onClick={() => setShowTaskHistory(true)}
@@ -675,8 +752,9 @@ const Section_a = () => {
                     {taskHistory.map((task) => (
                       <li
                         key={task._id}
-                        className={`p-4 hover:bg-blue-50 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
-                          }`}
+                        className={`p-4 hover:bg-blue-50 cursor-pointer ${
+                          selectedTask?._id === task._id ? "bg-blue-100" : ""
+                        }`}
                         onClick={() => setSelectedTask(task)}
                       >
                         <div className="flex justify-between items-center">
@@ -702,7 +780,6 @@ const Section_a = () => {
                 </button>
               </>
             )}
-
           </>
         ) : (
           <>
@@ -712,7 +789,9 @@ const Section_a = () => {
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     All Tasks
                   </h1>
-                  <p className="text-gray-600">Manage and track task progress across all team members</p>
+                  <p className="text-gray-600">
+                    Manage and track task progress across all team members
+                  </p>
                 </div>
                 <button
                   className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
@@ -722,19 +801,24 @@ const Section_a = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="text-center py-20">
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 max-w-md mx-auto shadow-xl border border-gray-100">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Users size={32} className="text-blue-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to All Tasks</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  Welcome to All Tasks
+                </h3>
                 <p className="text-gray-600 text-lg mb-6">
-                  Select a team member from the sidebar to view and manage their tasks.
+                  Select a team member from the sidebar to view and manage their
+                  tasks.
                 </p>
                 <div className="flex items-center justify-center gap-2 text-gray-500">
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span className="text-sm">Choose a role and member to get started</span>
+                  <span className="text-sm">
+                    Choose a role and member to get started
+                  </span>
                 </div>
               </div>
             </div>

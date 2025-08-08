@@ -6,7 +6,11 @@ const activitySchema = new mongoose.Schema({
     enum: ["Employee", "Team", "Project", "Task"],
     required: true,
   },
-  action: { type: String, enum: ["add", "edit", "delete"], required: true },
+  action: {
+    type: String,
+    enum: ["add", "edit", "delete", "permanently_delete"],
+    required: true,
+  },
   name: { type: String, required: true },
   description: { type: String },
   timestamp: { type: Date, default: Date.now },

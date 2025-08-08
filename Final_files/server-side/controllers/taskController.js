@@ -2,7 +2,7 @@ const Task = require("../models/Task");
 const Employee = require("../models/Employee");
 const Team = require("../models/Team");
 const Activity = require("../models/Activity");
-const Project = require("../models/Project");
+const { Project } = require("../models/Project");
 const User = require("../models/User");
 
 const getPerformer = (user) =>
@@ -33,8 +33,9 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ message: "Due date is required." });
     }
 
-    // Validate project existence
     const userCompany = req.user.companyName;
+
+    // Validate project existence
     const projectDoc = await Project.findOne({
       project_id: project,
       companyName: userCompany,
@@ -56,14 +57,32 @@ exports.createTask = async (req, res) => {
         .json({ message: "Employee with this teamMemberId not found." });
     }
 
-    // Auto-generate task_id
-    const lastTask = await Task.findOne().sort({ createdAt: -1 });
-    let newTaskId = "TSK-001";
-    if (lastTask && lastTask.task_id) {
-      const lastIdNum = parseInt(lastTask.task_id.split("-")[1]);
-      const nextIdNum = lastIdNum + 1;
-      newTaskId = `TSK-${nextIdNum.toString().padStart(3, "0")}`;
+    // Auto-generate task_id like COMP-TSK-001
+    const companyInitials = userCompany
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
+
+    const lastCompanyTask = await Task.find({ companyName: userCompany })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
+    let taskNumber = 1;
+    if (
+      lastCompanyTask.length &&
+      lastCompanyTask[0].task_id &&
+      lastCompanyTask[0].task_id.startsWith(`${companyInitials}-TSK-`)
+    ) {
+      const lastIdNum = parseInt(lastCompanyTask[0].task_id.split("-TSK-")[1]);
+      if (!isNaN(lastIdNum)) {
+        taskNumber = lastIdNum + 1;
+      }
     }
+
+    const newTaskId = `${companyInitials}-TSK-${taskNumber
+      .toString()
+      .padStart(3, "0")}`;
 
     const task = new Task({
       task_id: newTaskId,
@@ -75,7 +94,7 @@ exports.createTask = async (req, res) => {
       project,
       priority,
       dueDate,
-      companyName: req.user.companyName, // Add company isolation
+      companyName: userCompany,
     });
 
     await task.save();
@@ -86,7 +105,7 @@ exports.createTask = async (req, res) => {
       name: task.title,
       description: `Created task ${task.title}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
+      companyName: userCompany,
     });
 
     // Fetch assigner's name for response
@@ -381,14 +400,14 @@ exports.updateTaskById = async (req, res) => {
     const isAdmin = currentUserRole === "admin";
     const isManager = currentUserRole === "manager";
     const isTeamLead = currentUserRole === "team_lead";
-    const isEmployee = currentUserRole === "employee";
+    const isTeamMember = currentUserRole === "teamMember";
     const isUpdatingOwnTask = assignedToId === currentUserTeamMemberId;
 
     // Restriction logic
-    if (isEmployee && !isUpdatingOwnTask) {
-      return res
-        .status(403)
-        .json({ message: "Employees can only update their own task status." });
+    if (isTeamMember && !isUpdatingOwnTask) {
+      return res.status(403).json({
+        message: "Team members can only update their own task status.",
+      });
     }
 
     if (
@@ -420,14 +439,14 @@ exports.updateTaskById = async (req, res) => {
 
     const updatePayload = {};
 
-    // If employee, allow only status
-    if (isEmployee) {
+    // If team member, allow only status
+    if (isTeamMember) {
       if (typeof status === "string") {
         updatePayload.status = status;
       } else {
         return res
           .status(400)
-          .json({ message: "Employees can only update the status field." });
+          .json({ message: "Team members can only update the status field." });
       }
     } else {
       if (title) updatePayload.title = title;
@@ -472,8 +491,8 @@ exports.deleteTaskById = async (req, res) => {
 
     const userRole = req.user.role.toLowerCase();
 
-    // ❌ Employee cannot delete any task
-    if (userRole === "employee") {
+    // ❌ Team members cannot delete any task
+    if (userRole === "teamMember") {
       return res
         .status(403)
         .json({ message: "You are not authorized to delete tasks." });
@@ -504,9 +523,10 @@ exports.deleteTaskById = async (req, res) => {
 
     // 🔐 Role-based permission checks
     if (userRole === "admin" || userRole === "manager") {
-      if (!["team_lead", "employee"].includes(assigneeRole)) {
+      if (!["team_lead", "teamMember"].includes(assigneeRole)) {
         return res.status(403).json({
-          message: "Admins and managers can only delete tasks of team_leads or employees.",
+          message:
+            "Admins and managers can only delete tasks of team_leads or team members.",
         });
       }
     } else if (userRole === "team_lead") {
@@ -515,9 +535,9 @@ exports.deleteTaskById = async (req, res) => {
           .status(403)
           .json({ message: "Team leads cannot delete their own tasks." });
       }
-      if (assigneeRole !== "employee") {
+      if (assigneeRole !== "teamMember") {
         return res.status(403).json({
-          message: "Team leads can only delete tasks assigned to employees.",
+          message: "Team leads can only delete tasks assigned to team members.",
         });
       }
     }
@@ -552,7 +572,7 @@ exports.getTasksByMemberInProject = async (req, res) => {
 
     // 🔐 Role-based access control
     if (
-      req.user.role === "employee" &&
+      req.user.role === "teamMember" &&
       req.user.teamMemberId !== teamMemberId
     ) {
       return res.status(403).json({ message: "Unauthorized access" });

@@ -8,6 +8,7 @@ export const api_url = {
   addEmployee: BASE_URL + "/employees/addEmployee",
   employeeFirstLogin: BASE_URL + "/employees/employeeFirstLogin",
   getAllEmployees: BASE_URL + "/employees/all",
+  getAllRoles: BASE_URL + "/employees/roles",
   getAllProjects: BASE_URL + "/projects",
   deleteEmployee: BASE_URL + "/employees/deleteEmployee/:teamMemberId",
   updateTeamMember: BASE_URL + "/employees/editEmployee/:teamMemberId",
@@ -18,6 +19,7 @@ export const api_url = {
   createTeam: BASE_URL + "/teams/createTeam",
   deleteTeam: BASE_URL + "/teams/deleteTeam",
   deleteProject: BASE_URL + "/projects/:projectId",
+  permanentlyDeleteProject: BASE_URL + "/projects/:projectId/permanent",
   updateProject: BASE_URL + "/projects/:projectId",
   updateTeam: BASE_URL + "/teams/updateTeam",
   getTeamMember: BASE_URL + "/employees/team-members",
@@ -34,7 +36,21 @@ export const api_url = {
   getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
   forget_pass: BASE_URL + "/otp/forgot-password",
   verify_Otp: BASE_URL + "/otp/verify-otp",
-  reset_Password: BASE_URL + "/otp/reset-password"
+  reset_Password: BASE_URL + "/otp/reset-password",
+  // --- Added for Phases & Subtasks ---
+  addPhase: BASE_URL + "/projects/add-phase", // POST
+  updatePhaseStatus: BASE_URL + "/projects/update-phase-status", // POST
+  deletePhase: BASE_URL + "/projects/delete-phase", // POST (not DELETE)
+  getPhases: BASE_URL + "/projects/phases/", // append :projectId (GET)
+  getSubtasks: BASE_URL + "/projects/subtasks/", // append :project_id (GET)
+  addSubtask: BASE_URL + "/projects/subtask/add", // POST
+  updateSubtaskStatus: BASE_URL + "/projects/subtask/update-status", // POST
+  editSubtask: BASE_URL + "/projects/subtask/edit", // POST
+  deleteSubtask: BASE_URL + "/projects/subtask/delete", // POST
+  getSubtaskActivity: BASE_URL + "/projects/subtask/activity",
+  // --- Added for Phase Comments ---
+  addPhaseComment: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (POST)
+  getPhaseComments: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (GET)
 };
 
 export const Methods = {

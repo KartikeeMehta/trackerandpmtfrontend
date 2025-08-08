@@ -1,6 +1,8 @@
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
-const { Project, Subtask } = require("../models/Project");
+const { Project } = require("../models/Project");
+const { uploadCompressedImage } = require("../utils/cloudinaryUpload");
+const mongoose = require("mongoose");
 
 const getPerformer = (user) =>
   user?.firstName
@@ -25,22 +27,40 @@ exports.createProject = async (req, res) => {
       project_description,
       start_date,
       end_date,
-      project_lead, // teamMemberId of the project lead
-      team_members = [], // Array of teamMemberIds
+      project_lead,
+      team_members = [],
       project_status,
       team_id,
     } = req.body;
 
-    // Count existing projects to generate next ID
-    const count = await Project.countDocuments();
-    const generatedProjectId = `Pr-${count + 1}`;
+    const companyName = req.user.companyName;
 
-    // Validate team_members presence
+    // ✅ Get initials from company name (e.g., "Web Blaze" => "WB")
+    const initials = companyName
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("");
+
+    // ✅ Find latest project ID for the company
+    const lastProject = await Project.findOne({ companyName })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let lastNumber = 0;
+
+    if (lastProject && lastProject.project_id) {
+      const match = lastProject.project_id.match(/(\d+)$/);
+      if (match) {
+        lastNumber = parseInt(match[1]);
+      }
+    }
+
+    const generatedProjectId = `${initials}-Pr-${lastNumber + 1}`;
+
     if (!Array.isArray(team_members) || team_members.length === 0) {
       return res.status(400).json({ message: "Team members are required" });
     }
 
-    // Vaidate Team Lead
     const lead = await Employee.findOne({ teamMemberId: project_lead });
     if (!lead || lead.role !== "teamLead") {
       return res
@@ -48,7 +68,6 @@ exports.createProject = async (req, res) => {
         .json({ message: "Team Lead not found or invalid" });
     }
 
-    // Validate team members
     const validMembers = await Employee.find({
       teamMemberId: { $in: team_members },
       role: "teamMember",
@@ -60,7 +79,6 @@ exports.createProject = async (req, res) => {
         .json({ message: "One or more team members are invalid" });
     }
 
-    // Create project
     const newProject = new Project({
       project_id: generatedProjectId,
       project_name,
@@ -72,19 +90,18 @@ exports.createProject = async (req, res) => {
       team_members: validMembers.map((m) => m.teamMemberId),
       project_status,
       team_id,
-      companyName: req.user.companyName, // Add company isolation
+      companyName,
     });
 
     await newProject.save();
 
-    // Create activity log
     await Activity.create({
       type: "Project",
       action: "add",
       name: newProject.project_name,
       description: `Created project ${newProject.project_name}`,
       performedBy: getPerformer(req.user),
-      companyName: req.user.companyName,
+      companyName,
     });
 
     res.status(201).json({ message: "Project created", project: newProject });
@@ -150,11 +167,9 @@ exports.updateProject = async (req, res) => {
       req.user.role !== "admin" &&
       req.user.role !== "manager"
     ) {
-      return res
-        .status(403)
-        .json({
-          message: "Only owner, admin, and manager can update projects",
-        });
+      return res.status(403).json({
+        message: "Only owner, admin, and manager can update projects",
+      });
     }
 
     const { add_members = [], remove_members = [], ...otherUpdates } = req.body;
@@ -231,11 +246,9 @@ exports.deleteProject = async (req, res) => {
       req.user.role !== "admin" &&
       req.user.role !== "manager"
     ) {
-      return res
-        .status(403)
-        .json({
-          message: "Only owner, admin, and manager can delete projects",
-        });
+      return res.status(403).json({
+        message: "Only owner, admin, and manager can delete projects",
+      });
     }
 
     const userCompany = req.user.companyName;
@@ -246,6 +259,7 @@ exports.deleteProject = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     project.project_status = "deleted";
+    project.deletedAt = new Date();
     await project.save();
 
     await Activity.create({
@@ -264,6 +278,97 @@ exports.deleteProject = async (req, res) => {
   }
 };
 
+// Permanent project deletion with Cloudinary image cleanup
+exports.permanentlyDeleteProject = async (req, res) => {
+  console.log(
+    "permanentlyDeleteProject called with projectId:",
+    req.params.projectId
+  );
+  console.log("User:", req.user);
+
+  try {
+    if (
+      req.user.role !== "owner" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "manager"
+    ) {
+      console.log("User role not authorized:", req.user.role);
+      return res.status(403).json({
+        message:
+          "Only owner, admin, and manager can permanently delete projects",
+      });
+    }
+
+    const userCompany = req.user.companyName;
+    console.log("Looking for project with company:", userCompany);
+
+    const project = await Project.findOne({
+      project_id: req.params.projectId,
+      companyName: userCompany,
+    });
+
+    if (!project) {
+      console.log("Project not found");
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    console.log("Project found:", project.project_name);
+
+    // Collect all image URLs from project phases and subtasks
+    const imageUrls = [];
+
+    if (project.phases && Array.isArray(project.phases)) {
+      project.phases.forEach((phase) => {
+        if (phase.subtasks && Array.isArray(phase.subtasks)) {
+          phase.subtasks.forEach((subtask) => {
+            if (subtask.images && Array.isArray(subtask.images)) {
+              imageUrls.push(...subtask.images);
+            }
+          });
+        }
+      });
+    }
+
+    console.log(
+      `Found ${imageUrls.length} images to delete from Cloudinary for project ${project.project_id}`
+    );
+
+    // Delete images from Cloudinary if any exist
+    if (imageUrls.length > 0) {
+      const {
+        deleteMultipleImagesFromCloudinary,
+      } = require("../utils/cloudinaryUpload");
+      const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+        imageUrls
+      );
+      console.log("Cloudinary deletion result:", cloudinaryResult);
+    }
+
+    // Permanently delete the project from database
+    await Project.findByIdAndDelete(project._id);
+    console.log("Project deleted from database");
+
+    await Activity.create({
+      type: "Project",
+      action: "permanently_delete",
+      name: project.project_name,
+      description: `Permanently deleted project ${project.project_name} and ${imageUrls.length} associated images`,
+      performedBy: getPerformer(req.user),
+      companyName: req.user.companyName,
+    });
+
+    console.log("Activity logged successfully");
+
+    res.status(200).json({
+      message: "Project permanently deleted",
+      deletedImages: imageUrls.length,
+    });
+  } catch (err) {
+    console.error("Error permanently deleting project:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 exports.getProjectsByTeamMember = async (req, res) => {
   try {
     const { teamMemberId } = req.params;
@@ -271,7 +376,7 @@ exports.getProjectsByTeamMember = async (req, res) => {
 
     // Role-based access control - allow owner, admin, manager, and team leads to view any member's projects
     if (
-      req.user.role === "employee" &&
+      req.user.role === "teamMember" &&
       req.user.teamMemberId !== teamMemberId
     ) {
       return res.status(403).json({ message: "Unauthorized access" });
@@ -463,12 +568,24 @@ exports.updatePhaseStatus = async (req, res) => {
 exports.getProjectPhases = async (req, res) => {
   try {
     const { projectId } = req.params;
-    console.log("Fetching phases for project:", projectId);
+    const companyName = req.user.companyName;
 
-    const project = await Project.findOne({ project_id: projectId });
+    console.log(
+      "Fetching phases for project:",
+      projectId,
+      "from company:",
+      companyName
+    );
+
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    });
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     return res.status(200).json({
@@ -490,11 +607,16 @@ exports.deleteProjectPhase = async (req, res) => {
     const companyName = req.user.companyName;
 
     if (!projectId && !projectName) {
-      return res.status(400).json({ success: false, message: "Project ID or Project Name is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Project ID or Project Name is required",
+      });
     }
 
     if (!phase_id && !title) {
-      return res.status(400).json({ success: false, message: "Phase ID or Title is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Phase ID or Title is required" });
     }
 
     // Find the project
@@ -503,38 +625,499 @@ exports.deleteProjectPhase = async (req, res) => {
       project = await Project.findOne({ project_id: projectId, companyName });
     }
     if (!project && projectName) {
-      project = await Project.findOne({ project_name: projectName, companyName });
+      project = await Project.findOne({
+        project_name: projectName,
+        companyName,
+      });
     }
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
     const initialLength = project.phases.length;
 
     // Filter out the phase
-    project.phases = project.phases.filter(phase => {
+    project.phases = project.phases.filter((phase) => {
       if (phase_id) return phase.phase_id !== phase_id;
       if (title) return phase.title !== title;
     });
 
     if (project.phases.length === initialLength) {
-      return res.status(404).json({ success: false, message: "Phase not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Phase not found" });
     }
 
     await project.save();
 
     return res.status(200).json({
       success: true,
-      message: "Phase deleted successfully"
+      message: "Phase deleted successfully",
     });
-
   } catch (error) {
     console.error("Error in deleteProjectPhase:", error);
     return res.status(500).json({
       success: false,
       message: "Error deleting phase",
-      error: error.message
+      error: error.message,
+    });
+  }
+};
+
+exports.updateSubtaskStatus = async (req, res) => {
+  try {
+    const { subtask_id, status } = req.body;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID and status are required",
+      });
+    }
+
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
+      companyName,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Update the subtask status using array update
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $set: {
+          "phases.$[].subtasks.$[subtask].status": status,
+          "phases.$[].subtasks.$[subtask].updatedAt": new Date(),
+        },
+      },
+      {
+        arrayFilters: [{ "subtask.subtask_id": subtask_id }],
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask status updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating subtask status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating subtask status",
+      error: error.message,
+    });
+  }
+};
+
+exports.editSubtask = async (req, res) => {
+  try {
+    const subtask_id = req.body.subtask_id;
+    const subtask_title = req.body.subtask_title;
+    const description = req.body.description;
+    const assigned_member = req.body.assigned_member;
+    const existing_images = req.body.existing_images;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
+      companyName,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Find the current subtask to get existing images
+    let currentSubtask = null;
+    for (const phase of project.phases) {
+      const subtask = phase.subtasks.find((s) => s.subtask_id === subtask_id);
+      if (subtask) {
+        currentSubtask = subtask;
+        break;
+      }
+    }
+
+    if (!currentSubtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Get current images from the subtask
+    const currentImages = currentSubtask.images || [];
+
+    // Handle file uploads if present
+    let finalImages = [];
+
+    // Add existing images if provided
+    if (existing_images) {
+      try {
+        const parsedExistingImages = JSON.parse(existing_images);
+        finalImages = [...parsedExistingImages];
+      } catch (error) {
+        console.error("Error parsing existing images:", error);
+      }
+    }
+
+    // Handle new uploaded files - upload to Cloudinary
+    if (req.files && req.files.length > 0) {
+      console.log(
+        `Processing ${req.files.length} uploaded files (max 2 allowed)`
+      );
+      console.log(
+        "Files received:",
+        req.files.map((f) => ({ name: f.originalname, size: f.size }))
+      );
+
+      const uploadPromises = req.files.map(async (file, index) => {
+        try {
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const filename = `subtask_${timestamp}_${randomString}_${index}`;
+
+          console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
+          console.log(`File details:`, {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            bufferLength: file.buffer ? file.buffer.length : "No buffer",
+          });
+
+          const result = await uploadCompressedImage(file.buffer, filename);
+          console.log(
+            `Cloudinary upload successful for file ${index + 1}:`,
+            result.secure_url
+          );
+
+          return result.secure_url;
+        } catch (error) {
+          console.error(
+            `Error uploading file ${index + 1} to Cloudinary:`,
+            error
+          );
+          throw error;
+        }
+      });
+
+      try {
+        const uploadedUrls = await Promise.all(uploadPromises);
+        finalImages = [...finalImages, ...uploadedUrls];
+        console.log(
+          `Successfully uploaded ${uploadedUrls.length} images to Cloudinary`
+        );
+        console.log("Final images array:", finalImages);
+      } catch (error) {
+        console.error("Error uploading images to Cloudinary:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading images to Cloudinary",
+          error: error.message,
+        });
+      }
+    } else {
+      console.log("No files received in request");
+    }
+
+    // Find images that were removed and delete them from Cloudinary
+    const removedImages = currentImages.filter(
+      (img) => !finalImages.includes(img)
+    );
+    if (removedImages.length > 0) {
+      console.log(
+        `Found ${removedImages.length} images to delete from Cloudinary:`,
+        removedImages
+      );
+
+      try {
+        const {
+          deleteMultipleImagesFromCloudinary,
+        } = require("../utils/cloudinaryUpload");
+        const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+          removedImages
+        );
+        console.log(
+          "Cloudinary deletion result for removed images:",
+          cloudinaryResult
+        );
+      } catch (error) {
+        console.error("Error deleting removed images from Cloudinary:", error);
+        // Continue with the update even if Cloudinary deletion fails
+      }
+    }
+
+    // Prepare update object
+    const updateFields = {
+      "phases.$[].subtasks.$[subtask].updatedAt": new Date(),
+    };
+
+    if (subtask_title) {
+      updateFields["phases.$[].subtasks.$[subtask].subtask_title"] =
+        subtask_title;
+    }
+    if (description) {
+      updateFields["phases.$[].subtasks.$[subtask].description"] = description;
+    }
+    if (assigned_member) {
+      updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
+        assigned_member;
+    }
+    if (finalImages.length > 0) {
+      updateFields["phases.$[].subtasks.$[subtask].images"] = finalImages;
+    }
+
+    console.log("Updating subtask with images:", finalImages);
+
+    // Update the subtask using array update
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $set: updateFields,
+      },
+      {
+        arrayFilters: [{ "subtask.subtask_id": subtask_id }],
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask updated successfully",
+      images: finalImages,
+    });
+  } catch (error) {
+    console.error("Error editing subtask:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error editing subtask",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteSubtask = async (req, res) => {
+  try {
+    const { subtask_id } = req.body;
+    const companyName = req.user.companyName;
+
+    if (!subtask_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtask_id,
+      companyName,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Find the subtask to get its images before deletion
+    let subtaskImages = [];
+    for (const phase of project.phases) {
+      const subtask = phase.subtasks.find((s) => s.subtask_id === subtask_id);
+      if (subtask && subtask.images) {
+        subtaskImages = [...subtask.images];
+        break;
+      }
+    }
+
+    // Remove the subtask from the phase using $pull
+    const result = await Project.updateOne(
+      {
+        companyName,
+        "phases.subtasks.subtask_id": subtask_id,
+      },
+      {
+        $pull: {
+          "phases.$.subtasks": { subtask_id: subtask_id },
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found or no changes made",
+      });
+    }
+
+    // Delete images from Cloudinary if any exist
+    if (subtaskImages.length > 0) {
+      console.log(
+        `Deleting ${subtaskImages.length} images from Cloudinary for deleted subtask ${subtask_id}:`,
+        subtaskImages
+      );
+
+      try {
+        const {
+          deleteMultipleImagesFromCloudinary,
+        } = require("../utils/cloudinaryUpload");
+        const cloudinaryResult = await deleteMultipleImagesFromCloudinary(
+          subtaskImages
+        );
+        console.log(
+          "Cloudinary deletion result for deleted subtask:",
+          cloudinaryResult
+        );
+      } catch (error) {
+        console.error(
+          "Error deleting images from Cloudinary for deleted subtask:",
+          error
+        );
+        // Continue even if Cloudinary deletion fails
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask deleted successfully",
+      deletedImages: subtaskImages.length,
+    });
+  } catch (error) {
+    console.error("Error deleting subtask:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting subtask",
+      error: error.message,
+    });
+  }
+};
+
+exports.getSubtaskActivity = async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const companyName = req.user.companyName;
+
+    if (!subtaskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask ID is required",
+      });
+    }
+
+    // Find the project containing the subtask
+    const project = await Project.findOne({
+      "phases.subtasks.subtask_id": subtaskId,
+      companyName,
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Find the specific subtask in the embedded structure
+    let subtask = null;
+    let phase = null;
+
+    for (const p of project.phases) {
+      const foundSubtask = p.subtasks.find((s) => s.subtask_id === subtaskId);
+      if (foundSubtask) {
+        subtask = foundSubtask;
+        phase = p;
+        break;
+      }
+    }
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Generate activity log based on subtask data
+    const activities = [
+      {
+        id: 1,
+        action: "Status updated",
+        details: `Status changed to "${subtask.status}"`,
+        timestamp: subtask.updatedAt || new Date().toISOString(),
+        user: "System",
+        type: "status_update",
+      },
+      {
+        id: 2,
+        action: "Subtask assigned",
+        details: `Assigned to ${subtask.assigned_member || "Not assigned"}`,
+        timestamp:
+          subtask.createdAt || new Date(Date.now() - 86400000).toISOString(),
+        user: "Project Manager",
+        type: "assignment",
+      },
+      {
+        id: 3,
+        action: "Subtask created",
+        details: "Subtask was created",
+        timestamp:
+          subtask.createdAt || new Date(Date.now() - 172800000).toISOString(),
+        user: "Project Manager",
+        type: "creation",
+      },
+    ];
+
+    return res.status(200).json({
+      success: true,
+      activities: activities,
+    });
+  } catch (error) {
+    console.error("Error fetching subtask activity:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching subtask activity",
+      error: error.message,
     });
   }
 };
@@ -547,42 +1130,126 @@ exports.addSubtask = async (req, res) => {
       assigned_team,
       assigned_member,
       phase_id,
-      companyName
     } = req.body;
+
+    const companyName = req.user.companyName;
 
     if (!subtask_title || !phase_id || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Count how many subtasks exist for this phase to autogenerate ID
-    const existingSubtasks = await Subtask.find({ phase_id });
-    const nextIndex = existingSubtasks.length + 1;
+    // Find project + phase
+    const project = await Project.findOne({
+      "phases.phase_id": phase_id,
+      companyName,
+    });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    const phase = project.phases.find((p) => p.phase_id === phase_id);
+    if (!phase) return res.status(404).json({ message: "Phase not found" });
+
+    // Assigned team fallback logic
+    let finalAssignedTeam = assigned_team || "Not assigned";
+    if (!assigned_team && project.team_id) {
+      const Team = require("../models/Team");
+      const team = await Team.findOne({ _id: project.team_id, companyName });
+      finalAssignedTeam = team ? team.teamName : "Not assigned";
+    }
+
+    // Subtask ID generation
+    const nextIndex = (phase.subtasks || []).length + 1;
     const subtask_id = `${phase_id}-${nextIndex}`;
 
-    const newSubtask = new Subtask({
+    // 🌟 Upload all images to Cloudinary (compressed)
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      console.log(
+        `Processing ${req.files.length} uploaded files for new subtask (max 2 allowed)`
+      );
+
+      const uploadPromises = req.files.map(async (file, index) => {
+        try {
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const filename = `subtask_${timestamp}_${randomString}_${index}`;
+
+          console.log(`Uploading file ${index + 1} to Cloudinary:`, filename);
+
+          const result = await uploadCompressedImage(file.buffer, filename);
+          console.log(
+            `Cloudinary upload successful for file ${index + 1}:`,
+            result.secure_url
+          );
+
+          return result.secure_url;
+        } catch (error) {
+          console.error(
+            `Error uploading file ${index + 1} to Cloudinary:`,
+            error
+          );
+          throw error;
+        }
+      });
+
+      try {
+        imageUrls = await Promise.all(uploadPromises);
+        console.log(
+          `Successfully uploaded ${imageUrls.length} images to Cloudinary for new subtask`
+        );
+      } catch (error) {
+        console.error("Error uploading images to Cloudinary:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Error uploading images to Cloudinary",
+          error: error.message,
+        });
+      }
+    }
+
+    // Build subtask object
+    const newSubtask = {
       subtask_id,
       subtask_title,
       description,
-      assigned_team,
+      assigned_team: finalAssignedTeam,
       assigned_member,
       status: "Pending",
-      phase_id,
-      companyName
-    });
+      images: imageUrls,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    await newSubtask.save();
+    // Push into embedded subtasks
+    const result = await Project.updateOne(
+      {
+        project_id: project.project_id,
+        companyName,
+        "phases.phase_id": phase_id,
+      },
+      {
+        $push: {
+          "phases.$.subtasks": newSubtask,
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res
+        .status(500)
+        .json({ message: "Failed to add subtask to phase" });
+    }
 
     res.status(201).json({
       success: true,
       message: "Subtask added successfully",
-      subtask: newSubtask
+      subtask: newSubtask,
     });
   } catch (error) {
     console.error("Error adding subtask:", error);
     res.status(500).json({
       success: false,
       message: "Failed to add subtask",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -590,27 +1257,198 @@ exports.addSubtask = async (req, res) => {
 exports.getSubtasksByProjectId = async (req, res) => {
   try {
     const { project_id } = req.params;
+    const companyName = req.user.companyName;
 
     console.log("🔍 Getting subtasks for project_id:", project_id);
 
-    // 1. Find the project
-    const project = await Project.findOne({ project_id });
+    // 1. Find the project under the user's company
+    const project = await Project.findOne({ project_id, companyName });
 
     if (!project) {
-      return res.status(404).json({ success: false, message: "Project not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
     }
 
-    // 2. Extract all phase_ids from the project
-    const phaseIds = project.phases.map(phase => phase.phase_id);
+    // 2. Extract all subtasks from all phases and populate team information
+    const allSubtasks = [];
 
-    console.log("📌 Phase IDs in this project:", phaseIds);
+    // Get team name if project has team_id
+    let teamName = "Not assigned";
+    if (project.team_id) {
+      const Team = require("../models/Team");
+      const team = await Team.findOne({
+        _id: project.team_id,
+        companyName,
+      });
+      teamName = team ? team.teamName : "Not assigned";
+    }
 
-    // 3. Find all subtasks linked to those phases
-    const subtasks = await Subtask.find({ phase_id: { $in: phaseIds } });
+    // Update existing subtasks that don't have team information
+    let hasUpdates = false;
+    project.phases.forEach((phase) => {
+      if (phase.subtasks && phase.subtasks.length > 0) {
+        phase.subtasks.forEach((subtask) => {
+          if (
+            !subtask.assigned_team ||
+            subtask.assigned_team === "Not assigned"
+          ) {
+            subtask.assigned_team = teamName;
+            hasUpdates = true;
+          }
+        });
+      }
+    });
 
-    return res.status(200).json({ success: true, subtasks });
+    // Save the project if any updates were made
+    if (hasUpdates) {
+      await project.save();
+    }
+
+    project.phases.forEach((phase) => {
+      if (phase.subtasks && phase.subtasks.length > 0) {
+        // Add phase information to each subtask for context
+        const subtasksWithPhase = phase.subtasks.map((subtask) => ({
+          ...(subtask.toObject ? subtask.toObject() : subtask),
+          phase_id: phase.phase_id,
+          phase_title: phase.title,
+        }));
+        allSubtasks.push(...subtasksWithPhase);
+      }
+    });
+
+    console.log("📌 Total subtasks found:", allSubtasks.length);
+
+    return res.status(200).json({ success: true, subtasks: allSubtasks });
   } catch (error) {
     console.error("❌ Error fetching subtasks:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+exports.addCommentToPhase = async (req, res) => {
+  try {
+    const { projectId, phaseId } = req.params;
+    const { text } = req.body;
+    const userId = req.user._id;
+    const companyName = req.user.companyName; // ✅ Added
+
+    if (!text || text.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Comment text is required" });
+    }
+
+    // ✅ Added companyName to query
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    });
+
+    if (!project) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
+    }
+
+    const phase = project.phases.find((p) => p.phase_id === phaseId);
+    if (!phase) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Phase not found" });
+    }
+
+    const newComment = {
+      text,
+      commentedBy: new mongoose.Types.ObjectId(userId),
+      timestamp: new Date(),
+    };
+
+    phase.comments.push(newComment);
+    await project.save();
+
+    const lastComment = phase.comments[phase.comments.length - 1];
+
+    const populatedUser = await mongoose
+      .model("User")
+      .findById(lastComment.commentedBy)
+      .select("firstName lastName");
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment added successfully",
+      comment: {
+        text: lastComment.text,
+        commentedBy: populatedUser
+          ? `${populatedUser.firstName} ${populatedUser.lastName}`
+          : "Unknown",
+        timestamp: lastComment.timestamp.toLocaleString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      },
+    });
+  } catch (err) {
+    console.error("Error adding comment:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.getPhaseComments = async (req, res) => {
+  try {
+    const { projectId, phaseId } = req.params;
+    const companyName = req.user.companyName;
+
+    // Populate both firstName and lastName from User model
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    }).populate("phases.comments.commentedBy", "firstName lastName email");
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const phase = project.phases.find(
+      (p) => p.phase_id?.trim() === phaseId.trim()
+    );
+
+    if (!phase) {
+      return res.status(404).json({
+        success: false,
+        message: "Phase not found",
+      });
+    }
+
+    const formattedComments = (phase.comments || []).map((c) => ({
+      text: c.text,
+      commentedBy:
+        c.commentedBy?.firstName && c.commentedBy?.lastName
+          ? `${c.commentedBy.firstName} ${c.commentedBy.lastName}`
+          : "Unknown",
+      timestamp: new Date(c.timestamp).toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    }));
+
+    res.status(200).json({
+      success: true,
+      comments: formattedComments,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to get comments",
+      error: error.message,
+    });
   }
 };

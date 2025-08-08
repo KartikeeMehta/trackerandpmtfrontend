@@ -148,7 +148,7 @@ PostApiWithoutToken: async (url, data) => {
       });
     return result;
   },
-postApiWithToken: async (url, data, token) => {
+  postApiWithToken: async (url, data, token) => {
     try {
       const response = await axios({
         method: "POST",
@@ -164,7 +164,7 @@ postApiWithToken: async (url, data, token) => {
       return error.response?.data || { success: false, message: "API error" };
     }
   },
-  imageUpload: async (url, data, accessToken) => {
+  imageUpload: async (url, data, accessToken, onProgress) => {
     let result = [];
     try {
       const requestOptions = {
@@ -174,9 +174,44 @@ postApiWithToken: async (url, data, token) => {
         },
         body: data,
       };
-      const response = await fetch(url, requestOptions);
-      result = await response.json();
-      if (result.success) {
+
+      if (onProgress) {
+        // Use XMLHttpRequest for progress tracking
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = (event.loaded / event.total) * 100;
+              onProgress(percentComplete);
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText);
+                resolve(response);
+              } catch (error) {
+                resolve({ success: false, message: "Invalid response format" });
+              }
+            } else {
+              reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            }
+          });
+
+          xhr.addEventListener("error", () => {
+            reject(new Error("Network error"));
+          });
+
+          xhr.open("POST", url);
+          xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+          xhr.send(data);
+        });
+      } else {
+        // Fallback to fetch for backward compatibility
+        const response = await fetch(url, requestOptions);
+        result = await response.json();
       }
     } catch (error) {
       result = await error;
