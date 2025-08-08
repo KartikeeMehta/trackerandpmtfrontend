@@ -330,18 +330,26 @@ const Section_a = () => {
             No Project
           </div>
         ) : (
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {projects.map((project, index) => (
               <div
                 key={project._id || index}
                 onClick={() => handleCardClick(project)}
-                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+                className="group relative  rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
               >
-                {/* Card Header with Actions */}
+                {/* TeamLead Badge */}
+                <div className="absolute top-4 left-4 z-10 ">
+                  <span className="px-4 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-purple-400 to-purple-600 shadow-lg">
+                    TeamLead
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                   <button
                     onClick={(e) => handleEditClick(e, project)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                    className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
                   >
                     <Pencil
                       size={16}
@@ -350,7 +358,7 @@ const Section_a = () => {
                   </button>
                   <button
                     onClick={(e) => handleDeleteClick(e, project)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                    className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
                   >
                     <Trash2
                       size={16}
@@ -359,29 +367,18 @@ const Section_a = () => {
                   </button>
                 </div>
 
-                {/* Status Badge */}
-                <div className="absolute top-4 left-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg bg-gradient-to-r ${getStatusColor(
-                      project.project_status
-                    )} text-white`}
-                  >
-                    {getStatusText(project.project_status)}
-                  </span>
-                </div>
-
                 {/* Card Content */}
                 <div className="p-6 pt-16">
                   {/* Project Avatar */}
                   <div className="flex justify-center mb-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
                       {project.project_name?.charAt(0).toUpperCase() || "P"}
                     </div>
                   </div>
 
-                  {/* Project Title */}
+                  {/* Project Title and Lead */}
                   <div className="text-center mb-3">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1 capitalize">
+                    <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-1 capitalize">
                       {project.project_name}
                     </h3>
                     <p className="text-gray-500 text-sm">

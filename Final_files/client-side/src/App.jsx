@@ -19,6 +19,9 @@ import PhaseDetails from "./pages/ProjectDetails/PhaseDetails";
 import CreateTask from "./pages/CreateTask";
 import EditTask from "./pages/EditTask";
 import Settings from "./pages/Settings";
+import ForgetPassword from "./pages/ForgetPassword";
+import Verification from "./pages/Verification";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
@@ -28,6 +31,9 @@ function App() {
         <Route path="/Register" element={<Register />} />
         <Route path="/Login" element={<Login />} />
         <Route path="/emp-login" element={<EmpLogin />} />
+        <Route path="/ForgetPassword" element={<ForgetPassword />} />
+        <Route path="/Verification" element={<Verification />} />
+        <Route path="/ResetPassword" element={<ResetPassword />} />
         <Route
           path="/TeamMember"
           element={

@@ -27,6 +27,33 @@ export const apiHandler = {
       });
     return result;
   },
+PostApiWithoutToken: async (url, data) => {
+  let result = {};
+
+  const config = {
+    method: Methods.Post,
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      // ❌ DO NOT manually set Cookie
+    },
+    data: data,
+    withCredentials: true, // ✅ Tell Axios to include cookies automatically
+    maxBodyLength: Infinity,
+  };
+
+  await axios
+    .request(config)
+    .then(async (response) => {
+      result = await response.data;
+    })
+    .catch(async (error) => {
+      result = await error?.response?.data || { message: "Network error" };
+    });
+
+  return result;
+},
+
 
   GetApi: async (url, token) => {
     let result = {};

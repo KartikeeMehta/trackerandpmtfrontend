@@ -32,6 +32,9 @@ export const api_url = {
   addTask: BASE_URL + "/tasks/createTask",
   getProjectsByTeamMember: BASE_URL + "/projects/team-member/", // append teamMemberId/projects
   getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
+  forget_pass: BASE_URL + "/otp/forgot-password",
+  verify_Otp: BASE_URL + "/otp/verify-otp",
+  reset_Password: BASE_URL + "/otp/reset-password"
 };
 
 export const Methods = {

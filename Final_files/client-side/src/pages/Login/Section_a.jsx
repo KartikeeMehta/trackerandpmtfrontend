@@ -112,15 +112,14 @@ const Section_a = () => {
           setLoginResponse(response);
           setShowTwoFactorForm(true);
           // Auto-generate device name
-          const deviceName = `${navigator.platform} - ${
-            navigator.userAgent.includes("Chrome")
+          const deviceName = `${navigator.platform} - ${navigator.userAgent.includes("Chrome")
               ? "Chrome"
               : navigator.userAgent.includes("Firefox")
-              ? "Firefox"
-              : navigator.userAgent.includes("Safari")
-              ? "Safari"
-              : "Browser"
-          }`;
+                ? "Firefox"
+                : navigator.userAgent.includes("Safari")
+                  ? "Safari"
+                  : "Browser"
+            }`;
           setDeviceName(deviceName);
           console.log("Auto-generated device name:", deviceName);
         } else {
@@ -314,11 +313,10 @@ const Section_a = () => {
                 id="twoFactorToken"
                 value={twoFactorToken}
                 onChange={(e) => setTwoFactorToken(e.target.value)}
-                className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 text-center text-lg tracking-widest ${
-                  errors.twoFactor
+                className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 text-center text-lg tracking-widest ${errors.twoFactor
                     ? "border-red-500 focus:ring-red-400"
                     : "border-gray-300 focus:ring-blue-400"
-                }`}
+                  }`}
                 placeholder="000000"
                 maxLength={6}
                 autoComplete="off"
@@ -449,11 +447,10 @@ const Section_a = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${
-                errors.email
+              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.email
                   ? "border-red-500 focus:ring-red-400"
                   : "border-gray-300 focus:ring-blue-400"
-              }`}
+                }`}
               autoComplete="email"
             />
             {errors.email && (
@@ -473,11 +470,10 @@ const Section_a = () => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${
-                errors.password
+              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.password
                   ? "border-red-500 focus:ring-red-400"
                   : "border-gray-300 focus:ring-blue-400"
-              } pr-10`}
+                } pr-10`}
               autoComplete="current-password"
             />
             <div
@@ -490,6 +486,9 @@ const Section_a = () => {
               <p className="text-sm text-red-500 mt-1">{errors.password}</p>
             )}
           </div>
+          <h1
+            onClick={() => navigate("/ForgetPassword")}
+            className="flex justify-end text-blue-600 hover:underline cursor-pointer">Forget Password</h1>
           {errors.general && (
             <div className="text-center text-red-600 text-sm mb-2">
               {errors.general}
