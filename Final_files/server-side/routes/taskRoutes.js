@@ -19,14 +19,8 @@ router.get('/history/:teamMemberId', authMiddleware, isAuthorizedToAssign, taskC
 // 🔹 Get ongoing tasks (can be used by any role if needed)
 router.get('/ongoing', authMiddleware, taskController.getOngoingTasks);
 
-// 🔹 Update task(s) for a team member (includes reassignment/status update)[currently not being used]
-router.put('/update/:teamMemberId', authMiddleware, isAuthorizedToAssign, taskController.updateTasksByTeamMemberId);
-
 // 🔹 Update a single task by its taskId
 router.put('/updateTask/:task_id', authMiddleware, isAuthorizedToAssign, taskController.updateTaskById);
-
-// 🔹 Delete all tasks assigned to a team member
-router.delete('/delete/:teamMemberId',  authMiddleware, isAuthorizedToAssign, taskController.deleteTasksByTeamMemberId);
 
 // 🔹 Delete a single task by its taskId
 router.post('/deleteTask/:task_id', authMiddleware, isAuthorizedToAssign, taskController.deleteTaskById);

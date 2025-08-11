@@ -1,5 +1,11 @@
 require("dotenv").config();
 
+if (process.env.QUIET === "true") {
+  console.log = () => {};
+  console.error = () => {};
+  console.warn = () => {};
+}
+
 const express = require("express");
 const mongoose = require("mongoose");
 const app = express();

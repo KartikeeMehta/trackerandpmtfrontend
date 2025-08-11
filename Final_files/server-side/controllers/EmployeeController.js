@@ -156,67 +156,6 @@ exports.employeeFirstLogin = async (req, res) => {
     .json({ message: "Password updated successfully. Please login." });
 };
 
-// API: Employee Login
-exports.login = async (req, res) => {
-  const { email, password, confirmPassword } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-
-  if (confirmPassword !== undefined) {
-    return res
-      .status(400)
-      .json({ message: "Do not include confirmPassword during login" });
-  }
-
-  try {
-    const employee = await Employee.findOne({ email });
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
-
-    if (employee.passwordExpiresAt && new Date() > employee.passwordExpiresAt) {
-      return res.status(403).json({
-        message:
-          "Temporary password has expired. Please contact your administrator.",
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, employee.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Incorrect password" });
-    }
-
-    if (employee.mustChangePassword) {
-      return res
-        .status(400)
-        .json({ message: "Please update your password before logging in" });
-    }
-
-    const token = jwt.sign(
-      { id: employee._id, role: employee.role },
-      "secret123",
-      { expiresIn: "7d" }
-    );
-
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      employee: {
-        id: employee._id,
-        teamMemberId: employee.teamMemberId,
-        name: employee.name,
-        email: employee.email,
-        role: employee.role,
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
 // Edit employee using teamMemberId
 exports.editEmployee = async (req, res) => {
   const { teamMemberId } = req.params;
