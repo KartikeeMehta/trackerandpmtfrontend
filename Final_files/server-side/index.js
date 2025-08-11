@@ -8,27 +8,47 @@ if (process.env.QUIET === "true") {
 
 const express = require("express");
 const mongoose = require("mongoose");
-const app = express();
 const bodyParser = require("body-parser");
 const multer = require("multer");
-const userRoutes = require("./routes/userRoutes");
-const teamRoutes = require("./routes/teamRoutes");
-const employeeRoutes = require("./routes/employeeRoutes"); // updated
-const projectRoutes = require("./routes/projectRoutes");
-const taskRoutes = require("./routes/taskRoutes"); // task routes
-const otpRoutes = require("./routes/otpRoutes");
 const path = require("path");
 const cors = require("cors");
 const cron = require("node-cron");
+const http = require("http");
+const socketIo = require("socket.io");
+
+const User = require("./models/User"); // Adjust path to your User model
+const userRoutes = require("./routes/userRoutes");
+const teamRoutes = require("./routes/teamRoutes");
+const employeeRoutes = require("./routes/employeeRoutes");
+const projectRoutes = require("./routes/projectRoutes");
+const taskRoutes = require("./routes/taskRoutes");
+const otpRoutes = require("./routes/otpRoutes");
+const chatRoutes = require("./routes/chatRoutes"); // NEW
 const { Project } = require("./models/Project");
 const Activity = require("./models/Activity");
 const {
   deleteMultipleImagesFromCloudinary,
 } = require("./utils/cloudinaryUpload");
 
+// ✅ New middleware for Socket.IO authentication
+const chatAuthMiddleware = require("./middleware/chatMiddleware");
+
+const app = express();
+const server = http.createServer(app); // Needed for socket.io
+const io = socketIo(server, {
+  cors: {
+    origin: "http://localhost:5173", // frontend URL
+    credentials: true,
+    methods: ["GET", "POST"],
+  },
+});
+
+// Attach io to app so controllers can use it
+app.set("io", io);
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend URL
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -40,15 +60,17 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected Successfully "))
+  .then(() => console.log("MongoDB Connected Successfully"))
   .catch((err) => console.log("MongoDb Connection error", err));
 
+// ROUTES
 app.use("/api", userRoutes);
 app.use("/api/teams", teamRoutes);
-app.use("/api/employees", employeeRoutes); // updated
+app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/tasks", taskRoutes); // task routes
+app.use("/api/tasks", taskRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("/api/chat", chatRoutes); // NEW
 
 // Auto-permanent delete job: runs every day at 2am
 cron.schedule("0 2 * * *", async () => {
@@ -61,7 +83,6 @@ cron.schedule("0 2 * * *", async () => {
   console.log(`[CRON] Found ${projectsToDelete.length} projects to delete.`);
   for (const project of projectsToDelete) {
     try {
-      // Collect all image URLs from project phases and subtasks
       const imageUrls = [];
       if (project.phases && Array.isArray(project.phases)) {
         project.phases.forEach((phase) => {
@@ -99,11 +120,75 @@ cron.schedule("0 2 * * *", async () => {
   }
 });
 
-// Simple test route for debugging
+// Simple test route
 app.get("/api/test", (req, res) => {
   res.json({ message: "API is working" });
 });
 
-app.listen(8000, () => {
-  console.log("Server is running on port 8000");
+// ✅ Apply chat middleware for Socket.IO connections
+io.use(chatAuthMiddleware);
+
+// SOCKET.IO EVENTS
+io.on("connection", async (socket) => {
+  try {
+    const userId = socket.user?.id;
+    console.log("Socket user id from token:", userId);
+
+    if (!userId) {
+      console.log("No user ID found, disconnecting");
+      return socket.disconnect(true);
+    }
+
+    const user = await User.findById(userId).select("firstName lastName email");
+    if (!user) {
+      console.log("User not found in DB for id:", userId);
+      return socket.disconnect(true);
+    }
+
+    const fullName = `${user.firstName} ${user.lastName}`;
+    console.log("New user connected:", fullName);
+
+    socket.userDetails = user;
+
+    // Join global room so user receives broadcasts
+    socket.join("globalRoom");
+
+    // Send welcome message only to this user
+    socket.emit("receiveMessage", {
+      user: {
+        id: user._id,
+        name: fullName,
+      },
+      message: "Welcome message from server on connect",
+      timestamp: new Date(),
+    });
+
+    // Listen for incoming chat messages
+    socket.on("sendMessage", (messageData) => {
+      console.log("Server received sendMessage:", messageData);
+
+      // Broadcast to all users in globalRoom including sender
+      io.to("globalRoom").emit("receiveMessage", {
+        user: {
+          id: user._id,
+          name: fullName,
+          email: user.email,
+        },
+        message: messageData.message,
+        timestamp: new Date(),
+      });
+    });
+
+    socket.on("disconnect", () => {
+      console.log("User disconnected:", fullName);
+    });
+  } catch (err) {
+    console.error("Socket connection error:", err);
+    socket.disconnect(true);
+  }
+});
+
+const PORT = process.env.PORT || 8000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
