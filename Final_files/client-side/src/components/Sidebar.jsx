@@ -7,6 +7,7 @@ import {
   BookCopy,
   History,
   ChevronLeft,
+  MessageCircle,
 } from "lucide-react";
 const navLinks = [
   {
@@ -35,6 +36,12 @@ const navLinks = [
         label: "Work History",
         icon: <History size={18} />,
       },
+    ],
+  },
+  {
+    label: "COMMUNICATION",
+    items: [
+      { to: "/messaging", label: "Messaging", icon: <MessageCircle size={18} /> },
     ],
   },
 ];

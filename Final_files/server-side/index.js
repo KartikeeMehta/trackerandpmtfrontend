@@ -17,6 +17,7 @@ const http = require("http");
 const socketIo = require("socket.io");
 
 const User = require("./models/User"); // Adjust path to your User model
+const Employee = require("./models/Employee"); // Add Employee model import
 const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
@@ -139,25 +140,39 @@ io.on("connection", async (socket) => {
       return socket.disconnect(true);
     }
 
-    const user = await User.findById(userId).select("firstName lastName email");
+    // Try to find user first, then employee
+    let user = await User.findById(userId).select("firstName lastName email");
+    let isEmployee = false;
+    
     if (!user) {
-      console.log("User not found in DB for id:", userId);
-      return socket.disconnect(true);
+      // Try to find employee
+      user = await Employee.findById(userId).select("name email");
+      if (user) {
+        isEmployee = true;
+        console.log("Employee found in DB for id:", userId);
+      } else {
+        console.log("User/Employee not found in DB for id:", userId);
+        return socket.disconnect(true);
+      }
+    } else {
+      console.log("User found in DB for id:", userId);
     }
 
-    const fullName = `${user.firstName} ${user.lastName}`;
-    console.log("New user connected:", fullName);
+    const fullName = isEmployee ? user.name : `${user.firstName} ${user.lastName}`;
+    console.log("New user connected:", fullName, isEmployee ? "(Employee)" : "(User)");
 
     socket.userDetails = user;
+    socket.isEmployee = isEmployee;
 
     // Join global room so user receives broadcasts
     socket.join("globalRoom");
 
     // Send welcome message only to this user
     socket.emit("receiveMessage", {
-      user: {
-        id: user._id,
+      sender: {
+        _id: user._id,
         name: fullName,
+        email: user.email,
       },
       message: "Welcome message from server on connect",
       timestamp: new Date(),
@@ -169,8 +184,8 @@ io.on("connection", async (socket) => {
 
       // Broadcast to all users in globalRoom including sender
       io.to("globalRoom").emit("receiveMessage", {
-        user: {
-          id: user._id,
+        sender: {
+          _id: user._id,
           name: fullName,
           email: user.email,
         },

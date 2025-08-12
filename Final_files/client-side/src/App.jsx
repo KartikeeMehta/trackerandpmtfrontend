@@ -23,6 +23,9 @@ import Settings from "./pages/Settings";
 import ForgetPassword from "./pages/ForgetPassword";
 import Verification from "./pages/Verification";
 import ResetPassword from "./pages/ResetPassword";
+import Messaging from "./pages/Message/Messaging";
+
+// Main App component
 
 function App() {
   return (
@@ -112,6 +115,16 @@ function App() {
             <ProtectedRoute>
               <MainLayout>
                 <CreateProject />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messaging"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Messaging />
               </MainLayout>
             </ProtectedRoute>
           }

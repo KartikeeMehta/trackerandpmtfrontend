@@ -51,6 +51,9 @@ export const api_url = {
   // --- Added for Phase Comments ---
   addPhaseComment: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (POST)
   getPhaseComments: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (GET)
+  // --- Added for Chat ---
+  sendMessage: BASE_URL + "/chat/send",
+  getMessages: BASE_URL + "/chat",
 };
 
 export const Methods = {
