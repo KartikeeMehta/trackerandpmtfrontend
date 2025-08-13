@@ -467,13 +467,13 @@ const PhaseDetails = () => {
             <div className="relative" ref={dropdownRef}>
               <button
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                onClick={() =>
-                  setOpenDropdownId(
-                    openDropdownId === phase.phase_id ? null : phase.phase_id
-                  )
-                }
+                // onClick={() =>
+                //   setOpenDropdownId(
+                //     openDropdownId === phase.phase_id ? null : phase.phase_id
+                //   )
+                // }
               >
-                <MoreVertical size={16} className="text-gray-500" />
+                {/* <MoreVertical size={16} className="text-gray-500" /> */}
               </button>
               {openDropdownId === phase.phase_id && (
                 <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">

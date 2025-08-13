@@ -2,6 +2,7 @@ import { api_url } from '@/api/Api';
 import { apiHandler } from '@/api/ApiHandler';
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff } from "lucide-react";
 
 const Section_a = () => {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ const Section_a = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 
   const handleResetPassword = async (e) => {
@@ -72,28 +75,41 @@ const Section_a = () => {
         </p>
 
         <form onSubmit={handleResetPassword} className="mt-6 space-y-5">
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
             <input
-              type={showPassword ? 'text' : 'newPassword'}
+              type={showNewPassword ? 'text' : 'password'}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter new password"
             />
+            <div
+              className="absolute right-3 top-[38px] cursor-pointer text-gray-600"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+            >
+              {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </div>
           </div>
 
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
             <input
-              type={showPassword ? 'text' : 'newPassword'}
+              type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Confirm new password"
             />
+            <div
+              className="absolute right-3 top-[38px] cursor-pointer text-gray-600"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </div>
+
           </div>
 
           <div className="flex items-center space-x-2">

@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+
 
 const EmpLogin = () => {
   const [form, setForm] = useState({
@@ -12,6 +15,13 @@ const EmpLogin = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,6 +33,11 @@ const EmpLogin = () => {
     setLoading(true);
     setMessage("");
     setError("");
+      if (form.newPassword !== form.confirmPassword) {
+    setError("New password and confirm password do not match");
+    setLoading(false);
+    return;
+  }
     try {
       const response = await apiHandler.PostApi(
         api_url.employeeFirstLogin,
@@ -30,6 +45,10 @@ const EmpLogin = () => {
       );
       if (response && response.message) {
         setMessage(response.message);
+        setTimeout(() => {
+          navigate("/Login");
+        }, 1000)
+
       } else {
         setError(response?.message || "Login failed");
       }
@@ -83,12 +102,12 @@ const EmpLogin = () => {
               autoComplete="email"
             />
           </div>
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Temporary Password
             </label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="oldPassword"
               value={form.oldPassword}
               onChange={handleChange}
@@ -96,13 +115,21 @@ const EmpLogin = () => {
               required
               autoComplete="current-password"
             />
+
+            <div
+              className="absolute right-3 top-[38px] cursor-pointer text-gray-600"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </div>
           </div>
-          <div>
+
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               New Password
             </label>
             <input
-              type="password"
+              type={showNewPassword ? "text" : "password"}
               name="newPassword"
               value={form.newPassword}
               onChange={handleChange}
@@ -110,13 +137,20 @@ const EmpLogin = () => {
               required
               autoComplete="new-password"
             />
+
+            <div
+              className="absolute right-3 top-[38px] cursor-pointer text-gray-600"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+            >
+              {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </div>
           </div>
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Confirm New Password
             </label>
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               name="confirmPassword"
               value={form.confirmPassword}
               onChange={handleChange}
@@ -124,6 +158,12 @@ const EmpLogin = () => {
               required
               autoComplete="new-password"
             />
+            <div
+              className="absolute right-3 top-[38px] cursor-pointer text-gray-600"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </div>
           </div>
           {error && (
             <div className="text-red-600 text-sm text-center">{error}</div>
