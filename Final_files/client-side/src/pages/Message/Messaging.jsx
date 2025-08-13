@@ -191,6 +191,7 @@ const Messaging = () => {
         console.log("Current messages count:", messages.length);
         console.log("New messages count will be:", messages.length + 1);
 
+        // Immediately update messages state
         setMessages((prev) => {
           const updatedMessages = [...prev, newMessage];
           console.log(
@@ -199,8 +200,11 @@ const Messaging = () => {
           );
           return updatedMessages;
         });
+
+        // Force a re-render by updating a timestamp
+        setNewMessage((prev) => prev); // This triggers a re-render
       } else {
-        console.log("⚠️ Message already exists, skipping duplicate");
+        console.log("Message already exists, skipping duplicate");
       }
     });
 
@@ -242,7 +246,13 @@ const Messaging = () => {
     console.log("🔄 Messages state changed. New count:", messages.length);
     console.log("Latest message:", messages[messages.length - 1]);
     console.log("All messages in state:", messages);
-    scrollToBottom();
+
+    // Scroll to bottom immediately when new messages arrive
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100); // Small delay to ensure DOM is updated
+    }
   }, [messages]);
 
   // Keyboard shortcuts
@@ -369,6 +379,9 @@ const Messaging = () => {
                     Room: {currentUser.companyName}
                   </span>
                 )}
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  {messages.length} messages
+                </span>
               </div>
             </div>
           </div>
@@ -567,7 +580,7 @@ const Messaging = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={1.5}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                 />
               </svg>
             </div>
@@ -579,15 +592,10 @@ const Messaging = () => {
             </p>
           </div>
         ) : (
-          (() => {
-            console.log("🎨 Starting to render messages...");
-            console.log("🎨 messageGroups:", messageGroups);
-            console.log(
-              "🎨 Object.entries(messageGroups):",
-              Object.entries(messageGroups)
-            );
-
-            return Object.entries(messageGroups).map(([date, dateMessages]) => {
+          <div>
+            {console.log("🎨 Starting to render messages...")}
+            {console.log("🎨 messageGroups:", messageGroups)}
+            {Object.entries(messageGroups).map(([date, dateMessages]) => {
               console.log(
                 `🎨 Rendering date group: ${date} with ${dateMessages.length} messages`
               );
@@ -695,8 +703,8 @@ const Messaging = () => {
                   </div>
                 </div>
               );
-            });
-          })()
+            })}
+          </div>
         )}
 
         <div ref={messagesEndRef} />

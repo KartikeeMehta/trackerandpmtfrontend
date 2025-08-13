@@ -95,10 +95,11 @@ exports.sendMessage = async (req, res) => {
 
     // Broadcast to company room
     io.to(companyRoom).emit("receiveMessage", {
-      _id: messageData._id, // Include the message ID
+      _id: messageData._id, // Include the actual message ID from database
       sender: messageData.sender,
       message: messageData.message,
       createdAt: messageData.createdAt,
+      timestamp: messageData.createdAt, // Add timestamp for compatibility
     });
 
     // Also log all connected rooms for debugging
