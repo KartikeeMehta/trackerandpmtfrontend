@@ -95,7 +95,7 @@ const Messaging = () => {
     newSocket.on("connect", () => {
       console.log("Connected to chat server");
       setIsConnected(true);
-      setError(null); // Clear any previous errors
+      setError(null);
     });
 
     newSocket.on("disconnect", () => {
@@ -112,7 +112,7 @@ const Messaging = () => {
       setMessages((prev) => [
         ...prev,
         {
-          _id: Date.now().toString(), // Temporary ID for new messages
+          _id: Date.now().toString(),
           sender: {
             _id: messageData.sender?._id,
             name: messageData.sender?.name,
@@ -156,7 +156,6 @@ const Messaging = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
-      // Ctrl/Cmd + Enter to send message
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
         if (newMessage.trim() && isConnected) {
@@ -179,11 +178,9 @@ const Messaging = () => {
     setNewMessage("");
 
     try {
-      // Send via API only - the backend will handle Socket.IO broadcasting
       await sendMessageViaAPI(messageText);
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Optionally show error message to user
     }
   };
 
@@ -226,67 +223,24 @@ const Messaging = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading messages...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[80vh] bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Team Chat</h1>
-            <p className="text-sm text-gray-500">
-              {isConnected ? "Connected" : "Disconnected"}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div
-              className={`w-3 h-3 rounded-full ${
-                isConnected ? "bg-green-500" : "bg-red-500"
-              }`}
-            ></div>
-            <span className="text-sm text-gray-500">
-              {isConnected ? "Online" : "Offline"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <svg
-                className="h-5 w-5 text-red-400"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 space-y-0 pb-7 scrollbar-hide">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="w-8 h-8 text-gray-400"
+                className="w-6 h-6 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -299,7 +253,78 @@ const Messaging = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Team Chat</h1>
+              <div className="flex items-center space-x-2 mt-1">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected ? "bg-green-500" : "bg-red-500"
+                  }`}
+                ></span>
+                <span className="text-sm text-gray-500">
+                  {isConnected ? "Connected" : "Disconnected"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isConnected ? "bg-green-500" : "bg-red-500"
+                }`}
+              ></div>
+              <span className="text-sm font-medium text-gray-700">
+                {isConnected ? "Online" : "Offline"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+          <div className="flex items-center">
+            <svg
+              className="h-5 w-5 text-red-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <svg
+                className="w-10 h-10 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
               No messages yet
             </h3>
             <p className="text-gray-500">
@@ -308,94 +333,114 @@ const Messaging = () => {
           </div>
         ) : (
           Object.entries(messageGroups).map(([date, dateMessages]) => (
-            <div key={date}>
+            <div key={date} className="mb-8">
               {/* Date Separator */}
-              <div className="flex items-center justify-center my-0">
-                <div className="bg-gray-200 px-3 py-1 rounded-full">
-                  <span className="text-xs text-gray-600 font-medium">
+              <div className="flex items-center justify-center mb-6">
+                <div className="bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+                  <span className="text-sm font-medium text-gray-600">
                     {date}
                   </span>
                 </div>
               </div>
 
               {/* Messages for this date */}
-              {dateMessages.map((message, index) => {
-                const isOwnMessage =
-                  currentUser &&
-                  message.sender &&
-                  (message.sender._id === currentUser._id ||
-                    message.sender.email === currentUser.email ||
-                    (currentUser.firstName &&
-                      currentUser.lastName &&
-                      message.sender.name ===
-                        `${currentUser.firstName} ${currentUser.lastName}`) ||
-                    (currentUser.name &&
-                      message.sender.name === currentUser.name));
+              <div className="space-y-4">
+                {dateMessages.map((message, index) => {
+                  const isOwnMessage =
+                    currentUser &&
+                    message.sender &&
+                    (message.sender._id === currentUser._id ||
+                      message.sender.email === currentUser.email ||
+                      (currentUser.firstName &&
+                        currentUser.lastName &&
+                        message.sender.name ===
+                          `${currentUser.firstName} ${currentUser.lastName}`) ||
+                      (currentUser.name &&
+                        message.sender.name === currentUser.name));
 
-                // Debug logging (remove after testing)
-                console.log("Message:", message);
-                console.log("Current user:", currentUser);
-                console.log("Is own message:", isOwnMessage);
-                console.log("Message sender name:", message.sender?.name);
-                console.log("Current user name:", currentUser?.name);
-                console.log("Current user firstName:", currentUser?.firstName);
-                console.log("Current user lastName:", currentUser?.lastName);
-
-                return (
-                  <div
-                    key={message._id || index}
-                    className={`flex ${
-                      isOwnMessage ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                  return (
                     <div
-                      className={`max-w-xs lg:max-w-md ${
-                        isOwnMessage ? "order-2" : "order-1"
+                      key={message._id || index}
+                      className={`flex ${
+                        isOwnMessage ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {/* Show sender name for all messages */}
                       <div
-                        className={`text-xs mb-1 ${
-                          isOwnMessage ? "text-right" : "text-left"
+                        className={`max-w-xs lg:max-w-md ${
+                          isOwnMessage ? "order-2" : "order-1"
                         }`}
                       >
-                        <span
-                          className={`${
-                            isOwnMessage ? "text-blue-600" : "text-gray-500"
-                          } ${isOwnMessage ? "mr-2" : "ml-2"}`}
-                        >
-                          {message.sender?.name || "Unknown User"}
-                        </span>
-                      </div>
-                      <div
-                        className={`rounded-lg px-4 py-2 ${
-                          isOwnMessage
-                            ? "bg-blue-600 text-white"
-                            : "bg-white text-gray-900 border border-gray-200"
-                        }`}
-                      >
-                        <p className="text-sm">{message.message}</p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            isOwnMessage ? "text-blue-100" : "text-gray-500"
+                        {/* Sender Info */}
+                        <div
+                          className={`flex items-center space-x-2 mb-2 ${
+                            isOwnMessage ? "justify-end" : "justify-start"
                           }`}
                         >
-                          {formatTime(message.createdAt)}
-                        </p>
+                          {!isOwnMessage && (
+                            <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm font-medium">
+                                {message.sender?.name
+                                  ?.charAt(0)
+                                  ?.toUpperCase() || "U"}
+                              </span>
+                            </div>
+                          )}
+
+                          <div
+                            className={`text-sm ${
+                              isOwnMessage ? "text-right" : "text-left"
+                            }`}
+                          >
+                            <span
+                              className={`font-medium ${
+                                isOwnMessage ? "text-blue-600" : "text-gray-700"
+                              }`}
+                            >
+                              {message.sender?.name || "Unknown User"}
+                            </span>
+                            <span className="text-gray-400 ml-2">
+                              {formatTime(message.createdAt)}
+                            </span>
+                          </div>
+
+                          {isOwnMessage && (
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm font-medium">
+                                {message.sender?.name
+                                  ?.charAt(0)
+                                  ?.toUpperCase() || "U"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Message Bubble */}
+                        <div
+                          className={`px-4 py-3 rounded-lg shadow-sm ${
+                            isOwnMessage
+                              ? "bg-blue-600 text-white"
+                              : "bg-white text-gray-900 border border-gray-200"
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">
+                            {message.message}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ))
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-1">
-        <form onSubmit={handleSendMessage} className="flex space-x-4">
+      <div className="bg-white border-t border-gray-200 px-6 py-4">
+        <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
           <div className="flex-1">
             <input
               ref={inputRef}
@@ -408,15 +453,34 @@ const Messaging = () => {
                   : "Connecting..."
               }
               disabled={!isConnected}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
+            <p className="text-xs text-gray-400 mt-2">
+              Press Ctrl+Enter to send quickly
+            </p>
           </div>
+
           <button
             type="submit"
             disabled={!newMessage.trim() || !isConnected}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            Send
+            <div className="flex items-center space-x-2">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+              <span>Send</span>
+            </div>
           </button>
         </form>
       </div>
