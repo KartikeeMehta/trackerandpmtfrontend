@@ -224,6 +224,23 @@ io.on("connection", async (socket) => {
       });
     });
 
+    // Handle explicit company room joining
+    socket.on("joinCompanyRoom", (data) => {
+      if (data.companyName) {
+        const companyRoom = `companyRoom:${data.companyName}`;
+        socket.join(companyRoom);
+        console.log(
+          `User ${fullName} explicitly joined company room: ${companyRoom}`
+        );
+
+        // Send confirmation
+        socket.emit("roomJoined", {
+          companyName: data.companyName,
+          message: `Joined ${data.companyName} chat room`,
+        });
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", fullName);
     });

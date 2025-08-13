@@ -47,6 +47,20 @@ const Messaging = () => {
       if (response && Array.isArray(response)) {
         setMessages(response);
       }
+
+      // After loading messages, try to join company room if socket is connected
+      if (socket && isConnected) {
+        const user = getCurrentUser();
+        const companyName =
+          user?.companyName || user?.company_name || user?.company;
+        if (companyName) {
+          socket.emit("joinCompanyRoom", { companyName: companyName });
+          console.log(
+            "Retrying to join company room after message load:",
+            companyName
+          );
+        }
+      }
     } catch (error) {
       console.error("Error loading messages:", error);
     } finally {
@@ -92,10 +106,34 @@ const Messaging = () => {
       transports: ["websocket", "polling"],
     });
 
+    const joinCompanyRoom = () => {
+      // Debug: Log user data to see available fields
+      console.log("User data for room joining:", user);
+      console.log("Available user fields:", Object.keys(user));
+
+      // Try different possible field names for companyName
+      const companyName = user.companyName || user.company_name || user.company;
+
+      if (companyName) {
+        newSocket.emit("joinCompanyRoom", { companyName: companyName });
+        console.log("Joining company room:", companyName);
+        return true;
+      } else {
+        console.warn("No companyName found in user data:", user);
+        setError(
+          "Unable to join company chat room - company information missing"
+        );
+        return false;
+      }
+    };
+
     newSocket.on("connect", () => {
       console.log("Connected to chat server");
       setIsConnected(true);
       setError(null);
+
+      // Try to join company room
+      joinCompanyRoom();
     });
 
     newSocket.on("disconnect", () => {
@@ -125,6 +163,11 @@ const Messaging = () => {
             new Date().toISOString(),
         },
       ]);
+    });
+
+    newSocket.on("roomJoined", (data) => {
+      console.log("Successfully joined room:", data.message);
+      setError(null);
     });
 
     newSocket.on("connect_error", (error) => {
@@ -223,7 +266,7 @@ const Messaging = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">Loading messages...</p>
@@ -233,7 +276,7 @@ const Messaging = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -264,6 +307,11 @@ const Messaging = () => {
                 <span className="text-sm text-gray-500">
                   {isConnected ? "Connected" : "Disconnected"}
                 </span>
+                {isConnected && currentUser?.companyName && (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Room: {currentUser.companyName}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -279,6 +327,13 @@ const Messaging = () => {
                 {isConnected ? "Online" : "Offline"}
               </span>
             </div>
+
+            {/* Debug Info */}
+            <div className="text-xs text-gray-500">
+              {currentUser?.companyName && (
+                <span>Company: {currentUser.companyName}</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -286,27 +341,50 @@ const Messaging = () => {
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
-          <div className="flex items-center">
-            <svg
-              className="h-5 w-5 text-red-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg
+                className="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
             </div>
+            {error.includes("company information missing") && (
+              <button
+                onClick={() => {
+                  const user = getCurrentUser();
+                  const companyName =
+                    user?.companyName || user?.company_name || user?.company;
+                  if (companyName && socket) {
+                    socket.emit("joinCompanyRoom", {
+                      companyName: companyName,
+                    });
+                    console.log(
+                      "Manual retry to join company room:",
+                      companyName
+                    );
+                  }
+                }}
+                className="ml-4 px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 max-h-[65vh]">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
