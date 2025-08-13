@@ -13,20 +13,23 @@ exports.sendMessage = async (req, res) => {
     console.log("SendMessage - req.user._id:", req.user._id);
 
     // Derive companyName from authenticated principal
-    const companyName = req.user.companyName || req.user.company_name || req.user.company || null;
+    const companyName =
+      req.user.companyName || req.user.company_name || req.user.company || null;
     if (!companyName) {
-      return res.status(400).json({ message: "companyName missing on user context" });
+      return res
+        .status(400)
+        .json({ message: "companyName missing on user context" });
     }
 
     // Determine if the sender is a user or employee
     const user = await User.findById(req.user._id);
     const employee = await Employee.findById(req.user._id);
-    
+
     console.log("SendMessage - Found user:", user);
     console.log("SendMessage - Found employee:", employee);
-    
+
     let senderName;
-    
+
     if (user) {
       senderName = `${user.firstName} ${user.lastName}`;
       console.log("SendMessage - Using user name:", senderName);
@@ -39,12 +42,15 @@ exports.sendMessage = async (req, res) => {
     }
 
     // Determine sender model type (Owner or Employee)
-    let senderModel = 'Owner';
+    let senderModel = "Owner";
     if (employee) {
-      senderModel = 'Employee';
+      senderModel = "Employee";
     }
 
-    console.log("SendMessage - Appending message with senderModel to CompanyChat:", senderModel);
+    console.log(
+      "SendMessage - Appending message with senderModel to CompanyChat:",
+      senderModel
+    );
 
     // Append to per-company daily bucket only
     const now = new Date();
@@ -69,14 +75,32 @@ exports.sendMessage = async (req, res) => {
       sender: {
         _id: req.user._id,
         name: senderName,
-        email: req.user.email
+        email: req.user.email,
       },
       message,
       createdAt: now,
     };
-    
+
     console.log("SendMessage - Broadcasting message data:", messageData);
-    io.to(`companyRoom:${companyName}`).emit("receiveMessage", messageData);
+    console.log("SendMessage - Company name for broadcasting:", companyName);
+    console.log("SendMessage - Target room:", `companyRoom:${companyName}`);
+
+    // Get all connected sockets in the company room
+    const companyRoom = `companyRoom:${companyName}`;
+    const roomSockets = io.sockets.adapter.rooms.get(companyRoom);
+    console.log(
+      "SendMessage - Sockets in room:",
+      roomSockets ? roomSockets.size : 0
+    );
+
+    // Broadcast to company room
+    io.to(companyRoom).emit("receiveMessage", messageData);
+
+    // Also log all connected rooms for debugging
+    console.log(
+      "SendMessage - All connected rooms:",
+      Array.from(io.sockets.adapter.rooms.keys())
+    );
 
     res.status(201).json(messageData);
   } catch (error) {
@@ -88,13 +112,18 @@ exports.sendMessage = async (req, res) => {
 exports.getMessages = async (req, res) => {
   try {
     console.log("GetMessages - Starting to fetch messages");
-    const companyName = req.user.companyName || req.user.company_name || req.user.company || null;
+    const companyName =
+      req.user.companyName || req.user.company_name || req.user.company || null;
     if (!companyName) {
-      return res.status(400).json({ message: "companyName missing on user context" });
+      return res
+        .status(400)
+        .json({ message: "companyName missing on user context" });
     }
 
     // Load all company buckets, flatten messages, and hydrate senders in batch
-    const companyBuckets = await CompanyChat.find({ companyName }).select("messages");
+    const companyBuckets = await CompanyChat.find({ companyName }).select(
+      "messages"
+    );
 
     const flatMessages = [];
     for (const bucket of companyBuckets) {
@@ -112,30 +141,30 @@ exports.getMessages = async (req, res) => {
 
     // Batch hydrate senders
     const userIds = flatMessages
-      .filter((m) => m.senderModel === 'Owner')
+      .filter((m) => m.senderModel === "Owner")
       .map((m) => m.sender);
     const employeeIds = flatMessages
-      .filter((m) => m.senderModel === 'Employee')
+      .filter((m) => m.senderModel === "Employee")
       .map((m) => m.sender);
 
     const [users, employees] = await Promise.all([
-      User.find({ _id: { $in: userIds } }).select('firstName lastName email'),
-      Employee.find({ _id: { $in: employeeIds } }).select('name email'),
+      User.find({ _id: { $in: userIds } }).select("firstName lastName email"),
+      Employee.find({ _id: { $in: employeeIds } }).select("name email"),
     ]);
 
     const userMap = new Map(users.map((u) => [String(u._id), u]));
     const employeeMap = new Map(employees.map((e) => [String(e._id), e]));
 
     const transformedMessages = flatMessages.map((m) => {
-      let senderName = 'Unknown User';
-      let senderEmail = 'unknown@email.com';
-      if (m.senderModel === 'Owner') {
+      let senderName = "Unknown User";
+      let senderEmail = "unknown@email.com";
+      if (m.senderModel === "Owner") {
         const u = userMap.get(String(m.sender));
         if (u) {
           senderName = `${u.firstName} ${u.lastName}`;
           senderEmail = u.email;
         }
-      } else if (m.senderModel === 'Employee') {
+      } else if (m.senderModel === "Employee") {
         const e = employeeMap.get(String(m.sender));
         if (e) {
           senderName = e.name;
@@ -149,7 +178,11 @@ exports.getMessages = async (req, res) => {
       };
     });
 
-    console.log("GetMessages - Returning", transformedMessages.length, "messages");
+    console.log(
+      "GetMessages - Returning",
+      transformedMessages.length,
+      "messages"
+    );
     res.status(200).json(transformedMessages);
   } catch (error) {
     console.error("GetMessages - Error:", error);

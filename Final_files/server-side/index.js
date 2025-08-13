@@ -238,6 +238,14 @@ io.on("connection", async (socket) => {
           companyName: data.companyName,
           message: `Joined ${data.companyName} chat room`,
         });
+
+        // Debug: List all rooms this socket is in
+        const socketRooms = Array.from(socket.rooms);
+        console.log(`User ${fullName} is now in rooms:`, socketRooms);
+
+        // Debug: List all rooms in the system
+        const allRooms = Array.from(io.sockets.adapter.rooms.keys());
+        console.log("All system rooms:", allRooms);
       }
     });
 
@@ -255,6 +263,26 @@ io.on("connection", async (socket) => {
         },
         message: `Echo: ${data.message}`,
         timestamp: new Date(),
+      });
+    });
+
+    // Handle room status check for debugging
+    socket.on("checkRoomStatus", (data) => {
+      console.log(`🔍 Room status check from ${fullName}:`, data);
+
+      // Get all rooms this socket is in
+      const socketRooms = Array.from(socket.rooms);
+      console.log(`User ${fullName} is in rooms:`, socketRooms);
+
+      // Get all system rooms
+      const allRooms = Array.from(io.sockets.adapter.rooms.keys());
+      console.log("All system rooms:", allRooms);
+
+      // Send room status back to client
+      socket.emit("roomStatus", {
+        socketRooms,
+        allRooms,
+        message: `You are in ${socketRooms.length} room(s)`,
       });
     });
 

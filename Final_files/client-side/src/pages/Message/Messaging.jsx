@@ -196,6 +196,12 @@ const Messaging = () => {
       setError(null);
     });
 
+    newSocket.on("roomStatus", (data) => {
+      console.log("🔍 Room status received:", data);
+      console.log("Your rooms:", data.socketRooms);
+      console.log("All system rooms:", data.allRooms);
+    });
+
     newSocket.on("connect_error", (error) => {
       console.error("❌ Socket connection error:", error);
       setIsConnected(false);
@@ -377,6 +383,57 @@ const Messaging = () => {
                 className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
               >
                 Test RT
+              </button>
+            )}
+
+            {/* Debug Room Status Button */}
+            {isConnected && (
+              <button
+                onClick={() => {
+                  if (socket) {
+                    console.log("🔍 Checking socket room status...");
+                    console.log("Socket ID:", socket.id);
+                    console.log("Socket connected:", socket.connected);
+
+                    // Emit a room status check
+                    socket.emit("checkRoomStatus", {
+                      timestamp: new Date().toISOString(),
+                    });
+                  }
+                }}
+                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-md text-sm hover:bg-yellow-200 transition-colors"
+              >
+                Check Rooms
+              </button>
+            )}
+
+            {/* Simulate Real Message Button */}
+            {isConnected && (
+              <button
+                onClick={() => {
+                  if (socket) {
+                    console.log("🧪 Simulating real message flow...");
+
+                    // Simulate the exact message format that the server sends
+                    const simulatedMessage = {
+                      _id: `sim_${Date.now()}`,
+                      sender: {
+                        _id: "simulated_user_id",
+                        name: "Simulated User",
+                        email: "sim@test.com",
+                      },
+                      message: "This is a simulated real message",
+                      createdAt: new Date().toISOString(),
+                    };
+
+                    // Emit it as if it came from the server
+                    socket.emit("receiveMessage", simulatedMessage);
+                    console.log("Sent simulated message:", simulatedMessage);
+                  }
+                }}
+                className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200 transition-colors"
+              >
+                Simulate Message
               </button>
             )}
           </div>
