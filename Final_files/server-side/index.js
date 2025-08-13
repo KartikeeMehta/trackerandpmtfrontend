@@ -141,12 +141,14 @@ io.on("connection", async (socket) => {
     }
 
     // Try to find user first, then employee
-    let user = await User.findById(userId).select("firstName lastName email");
+    let user = await User.findById(userId).select(
+      "firstName lastName email companyName"
+    );
     let isEmployee = false;
-    
+
     if (!user) {
       // Try to find employee
-      user = await Employee.findById(userId).select("name email");
+      user = await Employee.findById(userId).select("name email companyName");
       if (user) {
         isEmployee = true;
         console.log("Employee found in DB for id:", userId);
@@ -158,8 +160,14 @@ io.on("connection", async (socket) => {
       console.log("User found in DB for id:", userId);
     }
 
-    const fullName = isEmployee ? user.name : `${user.firstName} ${user.lastName}`;
-    console.log("New user connected:", fullName, isEmployee ? "(Employee)" : "(User)");
+    const fullName = isEmployee
+      ? user.name
+      : `${user.firstName} ${user.lastName}`;
+    console.log(
+      "New user connected:",
+      fullName,
+      isEmployee ? "(Employee)" : "(User)"
+    );
 
     socket.userDetails = user;
     socket.isEmployee = isEmployee;
@@ -199,8 +207,12 @@ io.on("connection", async (socket) => {
       console.log("Server received sendMessage:", messageData);
 
       // Broadcast to company-scoped room if available, else global
-      const companyName = socket.isEmployee ? socket.userDetails.companyName : socket.userDetails.companyName;
-      const targetRoom = companyName ? `companyRoom:${companyName}` : "globalRoom";
+      const companyName = socket.isEmployee
+        ? socket.userDetails.companyName
+        : socket.userDetails.companyName;
+      const targetRoom = companyName
+        ? `companyRoom:${companyName}`
+        : "globalRoom";
       io.to(targetRoom).emit("receiveMessage", {
         sender: {
           _id: user._id,
