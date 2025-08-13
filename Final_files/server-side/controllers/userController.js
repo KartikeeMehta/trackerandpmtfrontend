@@ -258,3 +258,76 @@ exports.getUserProfile = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Change Password API
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+    const userId = req.user._id;
+
+    // Validate required fields
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      return res.status(400).json({ message: "All password fields are required" });
+    }
+
+    // Check if new password matches confirmation
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ message: "New password and confirmation do not match" });
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    // Check if new password is same as current password
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: "New password must be different from current password" });
+    }
+
+    // First try to find user in User collection
+    let user = await User.findById(userId);
+    if (user) {
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      
+      // Update password
+      user.password = hashedNewPassword;
+      await user.save();
+
+      return res.json({ message: "Password changed successfully" });
+    }
+
+    // If not found in User collection, try Employee collection
+    let employee = await Employee.findById(userId);
+    if (employee) {
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, employee.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      
+      // Update password and reset mustChangePassword flag
+      employee.password = hashedNewPassword;
+      employee.mustChangePassword = false;
+      employee.passwordExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+      await employee.save();
+
+      return res.json({ message: "Password changed successfully" });
+    }
+
+    return res.status(404).json({ message: "User not found" });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

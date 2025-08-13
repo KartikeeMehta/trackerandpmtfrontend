@@ -28,6 +28,7 @@ router.patch(
   userController.update
 );
 router.get("/profile", authMiddleware, userController.getUserProfile);
+router.post("/change-password", authMiddleware, userController.changePassword);
 router.get(
   "/activity/recent",
   authMiddleware,
