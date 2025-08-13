@@ -40,8 +40,19 @@ exports.addEmployee = async (req, res) => {
         .json({ message: "Email already exists for an employee" });
     }
 
+    const owner = await User.findById(req.user._id);
+    if (!owner) return res.status(404).json({ message: "Owner not found" });
+
+    // Generate company initials from company name
+    const companyInitials = owner.companyName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('');
+
+    // Find the last employee with the same company initials pattern
     const lastEmployee = await Employee.findOne({
-      teamMemberId: { $regex: /^WS-\d+$/ },
+      teamMemberId: { $regex: new RegExp(`^${companyInitials.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`) },
+      companyName: owner.companyName
     })
       .sort({ teamMemberId: -1 })
       .collation({ locale: "en", numericOrdering: true });
@@ -51,14 +62,11 @@ exports.addEmployee = async (req, res) => {
       const lastNumber = parseInt(lastEmployee.teamMemberId.split("-")[1]);
       newIdNumber = lastNumber + 1;
     }
-    const teamMemberId = `WS-${newIdNumber.toString().padStart(3, "0")}`;
+    const teamMemberId = `${companyInitials}-${newIdNumber.toString().padStart(3, "0")}`;
 
     const autoPassword = crypto.randomBytes(6).toString("hex");
     const hashedPassword = await bcrypt.hash(autoPassword, 10);
     const passwordExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    const owner = await User.findById(req.user._id);
-    if (!owner) return res.status(404).json({ message: "Owner not found" });
 
     const newEmployee = new Employee({
       name,
