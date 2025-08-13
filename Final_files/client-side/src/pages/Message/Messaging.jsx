@@ -322,7 +322,7 @@ const Messaging = () => {
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -444,7 +444,7 @@ const Messaging = () => {
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 max-h-[68vh]">
         {/* Real-time Message Indicator */}
         {realTimeStatus === "active" && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
@@ -612,9 +612,6 @@ const Messaging = () => {
               disabled={!isConnected}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
-            <p className="text-xs text-gray-400 mt-2">
-              Press Ctrl+Enter to send quickly
-            </p>
           </div>
 
           <button

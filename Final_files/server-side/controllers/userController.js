@@ -85,10 +85,12 @@ exports.register = async (req, res) => {
     await newUser.save();
 
     await sendEmail(
-  email,
-  "🎉 Registration Successful - Welcome to ProjectFlow!",
-  `Dear ${firstName+lastName},\n\nThank you for registering with ProjectFlow.\n\nWe’re excited to have you on board! Your account has been successfully created, and you are now registered as an Owner on our platform.\n\nYou can now log in to your dashboard and begin managing your team, tracking progress, and streamlining your operations.\n\n Login here: [http://localhost:5173/login]\n\nIf you need any assistance getting started, our support team is here to help.\n\nWelcome to a better way to manage your team.\n\nBest regards,\nProjectFlow Support\n[http://localhost:5173]`
-);
+      email,
+      "🎉 Registration Successful - Welcome to ProjectFlow!",
+      `Dear ${
+        firstName + lastName
+      },\n\nThank you for registering with ProjectFlow.\n\nWe’re excited to have you on board! Your account has been successfully created, and you are now registered as an Owner on our platform.\n\nYou can now log in to your dashboard and begin managing your team, tracking progress, and streamlining your operations.\n\n Login here: [http://localhost:5173/login]\n\nIf you need any assistance getting started, our support team is here to help.\n\nWelcome to a better way to manage your team.\n\nBest regards,\nProjectFlow Support\n[http://localhost:5173]`
+    );
 
     res.status(201).json({ message: "Registered as owner" });
   } catch (err) {
