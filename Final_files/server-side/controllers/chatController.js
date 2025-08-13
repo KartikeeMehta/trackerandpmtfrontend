@@ -1,4 +1,3 @@
-const Chat = require("../models/Chat");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
 const CompanyChat = require("../models/CompanyChat");
@@ -39,25 +38,17 @@ exports.sendMessage = async (req, res) => {
       return res.status(404).json({ message: "Sender not found" });
     }
 
-    // Determine sender model type
-    let senderModel = 'User';
+    // Determine sender model type (Owner or Employee)
+    let senderModel = 'Owner';
     if (employee) {
       senderModel = 'Employee';
     }
 
-    console.log("SendMessage - Creating message with senderModel:", senderModel);
+    console.log("SendMessage - Appending message with senderModel to CompanyChat:", senderModel);
 
-    const newMessage = await Chat.create({
-      sender: req.user._id,
-      senderModel: senderModel,
-      companyName,
-      message,
-    });
-
-    console.log("SendMessage - Message created:", newMessage);
-
-    // Also append to per-company daily bucket
-    const bucket = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    // Append to per-company daily bucket only
+    const now = new Date();
+    const bucket = now.toISOString().slice(0, 10); // YYYY-MM-DD
     await CompanyChat.findOneAndUpdate(
       { companyName, bucket },
       {
@@ -66,7 +57,7 @@ exports.sendMessage = async (req, res) => {
             sender: req.user._id,
             senderModel,
             message,
-            createdAt: new Date(),
+            createdAt: now,
           },
         },
       },
@@ -81,13 +72,13 @@ exports.sendMessage = async (req, res) => {
         email: req.user.email
       },
       message,
-      createdAt: newMessage.createdAt,
+      createdAt: now,
     };
     
     console.log("SendMessage - Broadcasting message data:", messageData);
     io.to(`companyRoom:${companyName}`).emit("receiveMessage", messageData);
 
-    res.status(201).json(newMessage);
+    res.status(201).json(messageData);
   } catch (error) {
     console.error("SendMessage - Error:", error);
     res.status(500).json({ message: error.message });
@@ -102,77 +93,61 @@ exports.getMessages = async (req, res) => {
       return res.status(400).json({ message: "companyName missing on user context" });
     }
 
-    const messages = await Chat.find({ companyName })
-      .populate({
-        path: 'sender',
-        select: 'firstName lastName email name',
-        refPath: 'senderModel'
-      })
-      .sort({ createdAt: 1 });
+    // Load all company buckets, flatten messages, and hydrate senders in batch
+    const companyBuckets = await CompanyChat.find({ companyName }).select("messages");
 
-    console.log("GetMessages - Raw messages from DB:", messages.length);
+    const flatMessages = [];
+    for (const bucket of companyBuckets) {
+      for (const msg of bucket.messages) {
+        flatMessages.push({
+          sender: msg.sender,
+          senderModel: msg.senderModel,
+          message: msg.message,
+          createdAt: msg.createdAt,
+        });
+      }
+    }
 
-    // Transform the messages to include the full name
-    const transformedMessages = await Promise.all(messages.map(async (message) => {
-      console.log("GetMessages - Processing message:", message._id);
-      console.log("GetMessages - Message sender:", message.sender);
-      
+    flatMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    // Batch hydrate senders
+    const userIds = flatMessages
+      .filter((m) => m.senderModel === 'Owner')
+      .map((m) => m.sender);
+    const employeeIds = flatMessages
+      .filter((m) => m.senderModel === 'Employee')
+      .map((m) => m.sender);
+
+    const [users, employees] = await Promise.all([
+      User.find({ _id: { $in: userIds } }).select('firstName lastName email'),
+      Employee.find({ _id: { $in: employeeIds } }).select('name email'),
+    ]);
+
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+    const employeeMap = new Map(employees.map((e) => [String(e._id), e]));
+
+    const transformedMessages = flatMessages.map((m) => {
       let senderName = 'Unknown User';
       let senderEmail = 'unknown@email.com';
-      let senderId = message._id;
-
-      if (message.sender) {
-        senderId = message.sender._id;
-        senderEmail = message.sender.email || 'unknown@email.com';
-        
-        // Check if it's a user (has firstName and lastName)
-        if (message.sender.firstName && message.sender.lastName) {
-          senderName = `${message.sender.firstName} ${message.sender.lastName}`;
-          console.log("GetMessages - User name:", senderName);
-        } 
-        // Check if it's an employee (has name field)
-        else if (message.sender.name) {
-          senderName = message.sender.name;
-          console.log("GetMessages - Employee name:", senderName);
-        } 
-        // If neither, try to fetch the sender details directly
-        else {
-          console.log("GetMessages - Sender details not populated, fetching directly");
-          
-          // Try to find as user first
-          const user = await User.findById(message.sender._id).select("firstName lastName email");
-          if (user) {
-            senderName = `${user.firstName} ${user.lastName}`;
-            senderEmail = user.email;
-            console.log("GetMessages - Found user directly:", senderName);
-          } else {
-            // Try to find as employee
-            const employee = await Employee.findById(message.sender._id).select("name email");
-            if (employee) {
-              senderName = employee.name;
-              senderEmail = employee.email;
-              console.log("GetMessages - Found employee directly:", senderName);
-            } else {
-              console.log("GetMessages - No user or employee found for ID:", message.sender._id);
-            }
-          }
+      if (m.senderModel === 'Owner') {
+        const u = userMap.get(String(m.sender));
+        if (u) {
+          senderName = `${u.firstName} ${u.lastName}`;
+          senderEmail = u.email;
         }
-      } else {
-        console.log("GetMessages - No sender found for message:", message._id);
+      } else if (m.senderModel === 'Employee') {
+        const e = employeeMap.get(String(m.sender));
+        if (e) {
+          senderName = e.name;
+          senderEmail = e.email;
+        }
       }
-
-      const transformedMessage = {
-        ...message.toObject(),
-        sender: {
-          _id: senderId,
-          name: senderName,
-          email: senderEmail
-        }
+      return {
+        sender: { _id: m.sender, name: senderName, email: senderEmail },
+        message: m.message,
+        createdAt: m.createdAt,
       };
-      
-      console.log("GetMessages - Transformed message sender:", transformedMessage.sender);
-      return transformedMessage;
-    }));
+    });
 
     console.log("GetMessages - Returning", transformedMessages.length, "messages");
     res.status(200).json(transformedMessages);

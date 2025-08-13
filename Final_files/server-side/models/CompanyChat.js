@@ -7,11 +7,11 @@ const companyChatMessageSchema = new mongoose.Schema(
 			refPath: "senderModel",
 			required: true,
 		},
-		senderModel: {
-			type: String,
-			required: true,
-			enum: ["User", "Employee"],
-		},
+    senderModel: {
+        type: String,
+        required: true,
+        enum: ["Owner", "Employee"],
+    },
 		message: { type: String, required: true },
 		createdAt: { type: Date, default: Date.now },
 	},
