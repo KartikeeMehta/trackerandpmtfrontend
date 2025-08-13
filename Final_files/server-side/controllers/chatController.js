@@ -1,6 +1,7 @@
 const Chat = require("../models/Chat");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
+const CompanyChat = require("../models/CompanyChat");
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -11,6 +12,12 @@ exports.sendMessage = async (req, res) => {
 
     console.log("SendMessage - req.user:", req.user);
     console.log("SendMessage - req.user._id:", req.user._id);
+
+    // Derive companyName from authenticated principal
+    const companyName = req.user.companyName || req.user.company_name || req.user.company || null;
+    if (!companyName) {
+      return res.status(400).json({ message: "companyName missing on user context" });
+    }
 
     // Determine if the sender is a user or employee
     const user = await User.findById(req.user._id);
@@ -43,10 +50,28 @@ exports.sendMessage = async (req, res) => {
     const newMessage = await Chat.create({
       sender: req.user._id,
       senderModel: senderModel,
+      companyName,
       message,
     });
 
     console.log("SendMessage - Message created:", newMessage);
+
+    // Also append to per-company daily bucket
+    const bucket = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    await CompanyChat.findOneAndUpdate(
+      { companyName, bucket },
+      {
+        $push: {
+          messages: {
+            sender: req.user._id,
+            senderModel,
+            message,
+            createdAt: new Date(),
+          },
+        },
+      },
+      { upsert: true, new: true }
+    );
 
     const io = req.app.get("io");
     const messageData = {
@@ -60,7 +85,7 @@ exports.sendMessage = async (req, res) => {
     };
     
     console.log("SendMessage - Broadcasting message data:", messageData);
-    io.to("globalRoom").emit("receiveMessage", messageData);
+    io.to(`companyRoom:${companyName}`).emit("receiveMessage", messageData);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -72,8 +97,12 @@ exports.sendMessage = async (req, res) => {
 exports.getMessages = async (req, res) => {
   try {
     console.log("GetMessages - Starting to fetch messages");
-    
-    const messages = await Chat.find()
+    const companyName = req.user.companyName || req.user.company_name || req.user.company || null;
+    if (!companyName) {
+      return res.status(400).json({ message: "companyName missing on user context" });
+    }
+
+    const messages = await Chat.find({ companyName })
       .populate({
         path: 'sender',
         select: 'firstName lastName email name',

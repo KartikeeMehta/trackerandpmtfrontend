@@ -164,8 +164,24 @@ io.on("connection", async (socket) => {
     socket.userDetails = user;
     socket.isEmployee = isEmployee;
 
-    // Join global room so user receives broadcasts
-    socket.join("globalRoom");
+    // Determine companyName for scoping rooms
+    let companyName = null;
+    if (isEmployee) {
+      // Employee model contains companyName
+      companyName = user.companyName || null;
+    } else {
+      // Owner user model contains companyName
+      companyName = user.companyName || null;
+    }
+
+    if (!companyName) {
+      console.log("Missing companyName on user; defaulting to globalRoom");
+      socket.join("globalRoom");
+    } else {
+      const companyRoom = `companyRoom:${companyName}`;
+      socket.join(companyRoom);
+      console.log(`Joined company room: ${companyRoom}`);
+    }
 
     // Send welcome message only to this user
     socket.emit("receiveMessage", {
@@ -182,8 +198,10 @@ io.on("connection", async (socket) => {
     socket.on("sendMessage", (messageData) => {
       console.log("Server received sendMessage:", messageData);
 
-      // Broadcast to all users in globalRoom including sender
-      io.to("globalRoom").emit("receiveMessage", {
+      // Broadcast to company-scoped room if available, else global
+      const companyName = socket.isEmployee ? socket.userDetails.companyName : socket.userDetails.companyName;
+      const targetRoom = companyName ? `companyRoom:${companyName}` : "globalRoom";
+      io.to(targetRoom).emit("receiveMessage", {
         sender: {
           _id: user._id,
           name: fullName,
