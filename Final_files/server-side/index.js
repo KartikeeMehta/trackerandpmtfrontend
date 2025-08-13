@@ -241,6 +241,23 @@ io.on("connection", async (socket) => {
       }
     });
 
+    // Handle test messages for debugging
+    socket.on("testMessage", (data) => {
+      console.log("Received test message from client:", data);
+
+      // Echo back the test message to confirm real-time communication
+      socket.emit("receiveMessage", {
+        _id: `test_${Date.now()}`,
+        sender: {
+          _id: user._id,
+          name: fullName,
+          email: user.email,
+        },
+        message: `Echo: ${data.message}`,
+        timestamp: new Date(),
+      });
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", fullName);
     });

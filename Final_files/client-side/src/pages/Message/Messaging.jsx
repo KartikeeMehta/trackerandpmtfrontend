@@ -96,6 +96,7 @@ const Messaging = () => {
       return;
     }
 
+    console.log("Initializing socket connection with user:", user);
     setCurrentUser(user);
 
     // Create socket connection with authentication
@@ -128,29 +129,49 @@ const Messaging = () => {
     };
 
     newSocket.on("connect", () => {
-      console.log("Connected to chat server");
+      console.log("✅ Socket connected successfully");
       setIsConnected(true);
       setError(null);
 
       // Try to join company room
       joinCompanyRoom();
+
+      // Test real-time functionality
+      setTimeout(() => {
+        console.log("🧪 Testing real-time message reception...");
+        newSocket.emit("testMessage", {
+          message: "Test message from client",
+          timestamp: new Date().toISOString(),
+        });
+      }, 2000);
     });
 
     newSocket.on("disconnect", () => {
-      console.log("Disconnected from chat server");
+      console.log("❌ Socket disconnected");
       setIsConnected(false);
     });
 
     newSocket.on("receiveMessage", (messageData) => {
-      console.log("Received message:", messageData);
+      console.log("📨 Received real-time message:", messageData);
       console.log("Sender name:", messageData.sender?.name);
       console.log("Sender email:", messageData.sender?.email);
+      console.log("Message content:", messageData.message);
 
-      // Add new message to the list
-      setMessages((prev) => [
-        ...prev,
-        {
-          _id: Date.now().toString(),
+      // Check if this message is already in our list to avoid duplicates
+      const messageExists = messages.some(
+        (msg) =>
+          msg.message === messageData.message &&
+          msg.sender?.name === messageData.sender?.name &&
+          Math.abs(
+            new Date(msg.createdAt) -
+              new Date(messageData.createdAt || messageData.timestamp)
+          ) < 5000 // Within 5 seconds
+      );
+
+      if (!messageExists) {
+        // Add new message to the list
+        const newMessage = {
+          _id: messageData._id || `temp_${Date.now()}_${Math.random()}`,
           sender: {
             _id: messageData.sender?._id,
             name: messageData.sender?.name,
@@ -158,20 +179,25 @@ const Messaging = () => {
           },
           message: messageData.message,
           createdAt:
-            messageData.timestamp ||
             messageData.createdAt ||
+            messageData.timestamp ||
             new Date().toISOString(),
-        },
-      ]);
+        };
+
+        console.log("✅ Adding new message to state:", newMessage);
+        setMessages((prev) => [...prev, newMessage]);
+      } else {
+        console.log("⚠️ Message already exists, skipping duplicate");
+      }
     });
 
     newSocket.on("roomJoined", (data) => {
-      console.log("Successfully joined room:", data.message);
+      console.log("🏠 Successfully joined room:", data.message);
       setError(null);
     });
 
     newSocket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
+      console.error("❌ Socket connection error:", error);
       setIsConnected(false);
       setError(
         "Failed to connect to chat server. Please check your connection."
@@ -182,6 +208,7 @@ const Messaging = () => {
 
     // Cleanup on unmount
     return () => {
+      console.log("🧹 Cleaning up socket connection");
       newSocket.close();
     };
   }, []);
@@ -276,9 +303,9 @@ const Messaging = () => {
   }
 
   return (
-    <div className="flex flex-col bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -334,13 +361,31 @@ const Messaging = () => {
                 <span>Company: {currentUser.companyName}</span>
               )}
             </div>
+
+            {/* Test Button */}
+            {isConnected && (
+              <button
+                onClick={() => {
+                  if (socket) {
+                    socket.emit("testMessage", {
+                      message: "Manual test message",
+                      timestamp: new Date().toISOString(),
+                    });
+                    console.log("Sent manual test message");
+                  }
+                }}
+                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
+              >
+                Test RT
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mx-6 mt-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <svg
@@ -384,7 +429,7 @@ const Messaging = () => {
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 max-h-[65vh]">
+      <div className="flex-1 overflow-y-auto px-6 py-6">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
@@ -517,7 +562,7 @@ const Messaging = () => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
+      <div className="bg-white border-t border-gray-200 px-6 py-4 flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
           <div className="flex-1">
             <input
