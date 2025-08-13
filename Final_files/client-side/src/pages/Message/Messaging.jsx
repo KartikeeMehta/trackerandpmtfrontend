@@ -88,11 +88,9 @@ const Messaging = () => {
     const user = getCurrentUser();
 
     if (!token || !user) {
-      console.log("No token or user found");
       return;
     }
 
-    console.log("Initializing socket connection with user:", user);
     setCurrentUser(user);
 
     // Create socket connection with authentication
@@ -109,16 +107,6 @@ const Messaging = () => {
 
       if (companyName) {
         newSocket.emit("joinCompanyRoom", { companyName: companyName });
-
-        // Set a timeout to check if room joining was successful
-        setTimeout(() => {
-          if (newSocket.connected) {
-            newSocket.emit("checkRoomStatus", {
-              timestamp: new Date().toISOString(),
-            });
-          }
-        }, 1000);
-
         return true;
       } else {
         setError(
@@ -134,14 +122,6 @@ const Messaging = () => {
 
       // Try to join company room
       joinCompanyRoom();
-
-      // Test real-time functionality
-      setTimeout(() => {
-        newSocket.emit("testMessage", {
-          message: "Test message from client",
-          timestamp: new Date().toISOString(),
-        });
-      }, 2000);
     });
 
     newSocket.on("disconnect", () => {
@@ -198,12 +178,8 @@ const Messaging = () => {
       setError(null);
     });
 
-    newSocket.on("roomStatus", (data) => {
-      // Room status received - no logging needed
-    });
-
     newSocket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+      console.error("Socket connection error:", error);
       setIsConnected(false);
       setError(
         "Failed to connect to chat server. Please check your connection."
@@ -214,7 +190,6 @@ const Messaging = () => {
 
     // Cleanup on unmount
     return () => {
-      console.log("🧹 Cleaning up socket connection");
       newSocket.close();
     };
   }, []);
@@ -423,94 +398,6 @@ const Messaging = () => {
                 <span>Company: {currentUser.companyName}</span>
               )}
             </div>
-
-            {/* Test Button */}
-            {isConnected && (
-              <button
-                onClick={() => {
-                  if (socket) {
-                    socket.emit("testMessage", {
-                      message: "Manual test message",
-                      timestamp: new Date().toISOString(),
-                    });
-                  }
-                }}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
-              >
-                Test RT
-              </button>
-            )}
-
-            {/* Debug Room Status Button */}
-            {isConnected && (
-              <button
-                onClick={() => {
-                  if (socket) {
-                    // Emit a room status check
-                    socket.emit("checkRoomStatus", {
-                      timestamp: new Date().toISOString(),
-                    });
-                  }
-                }}
-                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-md text-sm hover:bg-yellow-200 transition-colors"
-              >
-                Check Rooms
-              </button>
-            )}
-
-            {/* Simulate Real Message Button */}
-            {isConnected && (
-              <button
-                onClick={() => {
-                  if (socket) {
-                    // Simulate the exact message format that the server sends
-                    const simulatedMessage = {
-                      _id: `sim_${Date.now()}`,
-                      sender: {
-                        _id: "simulated_user_id",
-                        name: "Simulated User",
-                        email: "sim@test.com",
-                      },
-                      message: "This is a simulated real message",
-                      createdAt: new Date().toISOString(),
-                    };
-
-                    // Emit it as if it came from the server
-                    socket.emit("receiveMessage", simulatedMessage);
-                  }
-                }}
-                className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200 transition-colors"
-              >
-                Simulate Message
-              </button>
-            )}
-
-            {/* Test Company Room Broadcasting */}
-            {isConnected && (
-              <button
-                onClick={() => {
-                  if (socket) {
-                    // Get the company name
-                    const companyName =
-                      currentUser?.companyName ||
-                      currentUser?.company_name ||
-                      currentUser?.company;
-
-                    if (companyName) {
-                      // Emit a test message to the company room
-                      socket.emit("testCompanyRoom", {
-                        companyName: companyName,
-                        message: "Test message to company room",
-                        timestamp: new Date().toISOString(),
-                      });
-                    }
-                  }
-                }}
-                className="px-3 py-1 bg-purple-100 text-purple-700 rounded-md text-sm hover:bg-purple-200 transition-colors"
-              >
-                Test Broadcast
-              </button>
-            )}
           </div>
         </div>
       </div>

@@ -5,18 +5,15 @@ const Project = require("../models/Project");
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  console.log("Authorization header:", authHeader);
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Token not found." });
   }
 
   const token = authHeader.split(" ")[1];
-  console.log("Parsed token:", token);
 
   try {
     const decoded = jwt.verify(token, "secret123");
-    console.log("Decoded token:", decoded); // ✅ Add this for debug
 
     if (!decoded || !decoded.id) {
       return res.status(401).json({ message: "Invalid token payload." });
@@ -31,16 +28,15 @@ const authMiddleware = async (req, res, next) => {
     }
 
     if (!user) {
-      console.log("No user found for ID:", decoded.id);
       return res.status(401).json({ message: "User not found." });
     }
 
-    // ✅ Fix here: use _id instead of id
-    req.user = user; // Attach full user/employee document
+    // Attach full user/employee document
+    req.user = user;
 
     next();
   } catch (err) {
-    console.error(err);
+    console.error("Auth middleware error:", err.message);
     return res.status(401).json({ message: "Invalid token" });
   }
 };

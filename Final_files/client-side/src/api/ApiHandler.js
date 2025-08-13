@@ -2,7 +2,6 @@ import axios from "axios";
 import { Methods } from "./Api";
 export const apiHandler = {
   PostApi: async (url, data, token) => {
-    // console.log("jnkjnjknjknjk",url);
     let result = {};
     let headers = {
       "Content-Type": "application/json",
@@ -27,33 +26,32 @@ export const apiHandler = {
       });
     return result;
   },
-PostApiWithoutToken: async (url, data) => {
-  let result = {};
+  PostApiWithoutToken: async (url, data) => {
+    let result = {};
 
-  const config = {
-    method: Methods.Post,
-    url: url,
-    headers: {
-      "Content-Type": "application/json",
-      // ❌ DO NOT manually set Cookie
-    },
-    data: data,
-    withCredentials: true, // ✅ Tell Axios to include cookies automatically
-    maxBodyLength: Infinity,
-  };
+    const config = {
+      method: Methods.Post,
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        // ❌ DO NOT manually set Cookie
+      },
+      data: data,
+      withCredentials: true, // ✅ Tell Axios to include cookies automatically
+      maxBodyLength: Infinity,
+    };
 
-  await axios
-    .request(config)
-    .then(async (response) => {
-      result = await response.data;
-    })
-    .catch(async (error) => {
-      result = await error?.response?.data || { message: "Network error" };
-    });
+    await axios
+      .request(config)
+      .then(async (response) => {
+        result = await response.data;
+      })
+      .catch(async (error) => {
+        result = (await error?.response?.data) || { message: "Network error" };
+      });
 
-  return result;
-},
-
+    return result;
+  },
 
   GetApi: async (url, token) => {
     let result = {};
@@ -78,7 +76,6 @@ PostApiWithoutToken: async (url, data) => {
   },
 
   PutApi: async (url, data, token) => {
-    console.log(url, data, token);
     let result = {};
     let config = {
       method: Methods.Put,
@@ -234,7 +231,9 @@ PostApiWithoutToken: async (url, data) => {
       requestOptions
     )
       .then((response) => response.text())
-      .then((result) => console.log(result))
-      .catch((error) => console.error(error));
+      .then((result) => {
+        // Result processed silently
+      })
+      .catch((error) => console.error("Upload error:", error));
   },
 };
