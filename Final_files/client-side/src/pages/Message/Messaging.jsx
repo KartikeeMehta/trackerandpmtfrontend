@@ -44,8 +44,6 @@ const Messaging = () => {
       if (!token) return;
 
       const response = await apiHandler.GetApi(`${BASE_URL}/chat`, token);
-      console.log("Loaded messages from API:", response);
-      console.log("Current user from localStorage:", getCurrentUser());
       if (response && Array.isArray(response)) {
         setMessages(response);
       }
@@ -57,10 +55,6 @@ const Messaging = () => {
           user?.companyName || user?.company_name || user?.company;
         if (companyName) {
           socket.emit("joinCompanyRoom", { companyName: companyName });
-          console.log(
-            "Retrying to join company room after message load:",
-            companyName
-          );
         }
       }
     } catch (error) {
@@ -110,21 +104,15 @@ const Messaging = () => {
     });
 
     const joinCompanyRoom = () => {
-      // Debug: Log user data to see available fields
-      console.log("User data for room joining:", user);
-      console.log("Available user fields:", Object.keys(user));
-
       // Try different possible field names for companyName
       const companyName = user.companyName || user.company_name || user.company;
 
       if (companyName) {
         newSocket.emit("joinCompanyRoom", { companyName: companyName });
-        console.log("Joining company room:", companyName);
 
         // Set a timeout to check if room joining was successful
         setTimeout(() => {
           if (newSocket.connected) {
-            console.log("✅ Socket connected, checking room status...");
             newSocket.emit("checkRoomStatus", {
               timestamp: new Date().toISOString(),
             });
@@ -133,7 +121,6 @@ const Messaging = () => {
 
         return true;
       } else {
-        console.warn("No companyName found in user data:", user);
         setError(
           "Unable to join company chat room - company information missing"
         );
@@ -142,7 +129,6 @@ const Messaging = () => {
     };
 
     newSocket.on("connect", () => {
-      console.log("✅ Socket connected successfully");
       setIsConnected(true);
       setError(null);
 
@@ -151,7 +137,6 @@ const Messaging = () => {
 
       // Test real-time functionality
       setTimeout(() => {
-        console.log("🧪 Testing real-time message reception...");
         newSocket.emit("testMessage", {
           message: "Test message from client",
           timestamp: new Date().toISOString(),
@@ -160,18 +145,10 @@ const Messaging = () => {
     });
 
     newSocket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
       setIsConnected(false);
     });
 
     newSocket.on("receiveMessage", (messageData) => {
-      console.log("📨 Received real-time message:", messageData);
-      console.log("Sender name:", messageData.sender?.name);
-      console.log("Sender email:", messageData.sender?.email);
-      console.log("Message content:", messageData.message);
-      console.log("Message ID:", messageData._id);
-      console.log("Message timestamp:", messageData.createdAt);
-
       // Update real-time status
       setRealTimeStatus("active");
       setLastMessageTime(new Date());
@@ -204,17 +181,9 @@ const Messaging = () => {
             new Date().toISOString(),
         };
 
-        console.log("✅ Adding new message to state:", newMessage);
-        console.log("Current messages count:", messages.length);
-        console.log("New messages count will be:", messages.length + 1);
-
         // Update messages state with the new message
         setMessages((prevMessages) => {
           const updatedMessages = [...prevMessages, newMessage];
-          console.log(
-            "✅ Messages state updated. New count:",
-            updatedMessages.length
-          );
           return updatedMessages;
         });
 
@@ -222,20 +191,15 @@ const Messaging = () => {
         setTimeout(() => {
           setRealTimeStatus("idle");
         }, 3000);
-      } else {
-        console.log("Message already exists, skipping duplicate");
       }
     });
 
     newSocket.on("roomJoined", (data) => {
-      console.log("🏠 Successfully joined room:", data.message);
       setError(null);
     });
 
     newSocket.on("roomStatus", (data) => {
-      console.log("🔍 Room status received:", data);
-      console.log("Your rooms:", data.socketRooms);
-      console.log("All system rooms:", data.allRooms);
+      // Room status received - no logging needed
     });
 
     newSocket.on("connect_error", (error) => {
@@ -262,10 +226,6 @@ const Messaging = () => {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    console.log("🔄 Messages state changed. New count:", messages.length);
-    console.log("Latest message:", messages[messages.length - 1]);
-    console.log("All messages in state:", messages);
-
     // Scroll to bottom immediately when new messages arrive
     if (messages.length > 0) {
       setTimeout(() => {
@@ -303,8 +263,6 @@ const Messaging = () => {
       const response = await sendMessageViaAPI(messageText);
 
       if (response && response._id) {
-        console.log("✅ Message sent successfully via API:", response);
-
         // The message should be received via socket.io real-time
         // If for some reason it's not, we can add it manually as a fallback
         setTimeout(() => {
@@ -317,9 +275,6 @@ const Messaging = () => {
           );
 
           if (!messageReceived) {
-            console.log(
-              "⚠️ Message not received via socket, adding manually as fallback"
-            );
             const fallbackMessage = {
               _id: `fallback_${Date.now()}`,
               sender: {
@@ -350,9 +305,7 @@ const Messaging = () => {
 
   // Format date
   const formatDate = (timestamp) => {
-    console.log("Formatting date for timestamp:", timestamp);
     const date = new Date(timestamp);
-    console.log("Parsed date:", date);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -368,7 +321,6 @@ const Messaging = () => {
 
   // Group messages by date
   const groupMessagesByDate = (messages) => {
-    console.log("Grouping messages:", messages);
     const groups = {};
     messages.forEach((message) => {
       const date = formatDate(message.createdAt);
@@ -377,7 +329,6 @@ const Messaging = () => {
       }
       groups[date].push(message);
     });
-    console.log("Grouped messages:", groups);
     return groups;
   };
 
@@ -394,9 +345,6 @@ const Messaging = () => {
 
   // Calculate message groups inside render function
   const messageGroups = groupMessagesByDate(messages);
-  console.log("🎯 Final messageGroups for rendering:", messageGroups);
-  console.log("🎯 Object.keys(messageGroups):", Object.keys(messageGroups));
-  console.log("🎯 First group entries:", Object.entries(messageGroups));
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -415,7 +363,7 @@ const Messaging = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                 />
               </svg>
             </div>
@@ -485,7 +433,6 @@ const Messaging = () => {
                       message: "Manual test message",
                       timestamp: new Date().toISOString(),
                     });
-                    console.log("Sent manual test message");
                   }
                 }}
                 className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
@@ -499,10 +446,6 @@ const Messaging = () => {
               <button
                 onClick={() => {
                   if (socket) {
-                    console.log("🔍 Checking socket room status...");
-                    console.log("Socket ID:", socket.id);
-                    console.log("Socket connected:", socket.connected);
-
                     // Emit a room status check
                     socket.emit("checkRoomStatus", {
                       timestamp: new Date().toISOString(),
@@ -520,8 +463,6 @@ const Messaging = () => {
               <button
                 onClick={() => {
                   if (socket) {
-                    console.log("🧪 Simulating real message flow...");
-
                     // Simulate the exact message format that the server sends
                     const simulatedMessage = {
                       _id: `sim_${Date.now()}`,
@@ -536,7 +477,6 @@ const Messaging = () => {
 
                     // Emit it as if it came from the server
                     socket.emit("receiveMessage", simulatedMessage);
-                    console.log("Sent simulated message:", simulatedMessage);
                   }
                 }}
                 className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200 transition-colors"
@@ -550,8 +490,6 @@ const Messaging = () => {
               <button
                 onClick={() => {
                   if (socket) {
-                    console.log("🌐 Testing company room broadcasting...");
-
                     // Get the company name
                     const companyName =
                       currentUser?.companyName ||
@@ -565,14 +503,6 @@ const Messaging = () => {
                         message: "Test message to company room",
                         timestamp: new Date().toISOString(),
                       });
-                      console.log(
-                        "Sent test message to company room:",
-                        companyName
-                      );
-                    } else {
-                      console.error(
-                        "No company name found for broadcasting test"
-                      );
                     }
                   }
                 }}
@@ -615,10 +545,6 @@ const Messaging = () => {
                     socket.emit("joinCompanyRoom", {
                       companyName: companyName,
                     });
-                    console.log(
-                      "Manual retry to join company room:",
-                      companyName
-                    );
                   }
                 }}
                 className="ml-4 px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 transition-colors"
@@ -645,12 +571,6 @@ const Messaging = () => {
           </div>
         )}
 
-        {console.log(
-          "Rendering messages. Count:",
-          messages.length,
-          "Messages:",
-          messages
-        )}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
@@ -677,12 +597,7 @@ const Messaging = () => {
           </div>
         ) : (
           <div>
-            {console.log("🎨 Starting to render messages...")}
-            {console.log("🎨 messageGroups:", messageGroups)}
             {Object.entries(messageGroups).map(([date, dateMessages]) => {
-              console.log(
-                `🎨 Rendering date group: ${date} with ${dateMessages.length} messages`
-              );
               return (
                 <div key={date} className="mb-8">
                   {/* Date Separator */}
@@ -697,7 +612,6 @@ const Messaging = () => {
                   {/* Messages for this date */}
                   <div className="space-y-4">
                     {dateMessages.map((message, index) => {
-                      console.log(`🎨 Rendering message ${index}:`, message);
                       const isOwnMessage =
                         currentUser &&
                         message.sender &&

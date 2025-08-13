@@ -75,13 +75,12 @@ app.use("/api/chat", chatRoutes); // NEW
 
 // Auto-permanent delete job: runs every day at 2am
 cron.schedule("0 2 * * *", async () => {
-  console.log("[CRON] Running auto-permanent delete for projects...");
   const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
   const projectsToDelete = await Project.find({
     project_status: "deleted",
     deletedAt: { $lte: fiveDaysAgo },
   });
-  console.log(`[CRON] Found ${projectsToDelete.length} projects to delete.`);
+
   for (const project of projectsToDelete) {
     try {
       const imageUrls = [];
@@ -108,9 +107,6 @@ cron.schedule("0 2 * * *", async () => {
         performedBy: "system-cron",
         companyName: project.companyName,
       });
-      console.log(
-        `[CRON] Permanently deleted project: ${project.project_name}`
-      );
     } catch (err) {
       console.error(
         "[CRON] Error auto-deleting project:",
@@ -133,10 +129,8 @@ io.use(chatAuthMiddleware);
 io.on("connection", async (socket) => {
   try {
     const userId = socket.user?.id;
-    console.log("Socket user id from token:", userId);
 
     if (!userId) {
-      console.log("No user ID found, disconnecting");
       return socket.disconnect(true);
     }
 
@@ -151,23 +145,14 @@ io.on("connection", async (socket) => {
       user = await Employee.findById(userId).select("name email companyName");
       if (user) {
         isEmployee = true;
-        console.log("Employee found in DB for id:", userId);
       } else {
-        console.log("User/Employee not found in DB for id:", userId);
         return socket.disconnect(true);
       }
-    } else {
-      console.log("User found in DB for id:", userId);
     }
 
     const fullName = isEmployee
       ? user.name
       : `${user.firstName} ${user.lastName}`;
-    console.log(
-      "New user connected:",
-      fullName,
-      isEmployee ? "(Employee)" : "(User)"
-    );
 
     socket.userDetails = user;
     socket.isEmployee = isEmployee;
@@ -183,12 +168,10 @@ io.on("connection", async (socket) => {
     }
 
     if (!companyName) {
-      console.log("Missing companyName on user; defaulting to globalRoom");
       socket.join("globalRoom");
     } else {
       const companyRoom = `companyRoom:${companyName}`;
       socket.join(companyRoom);
-      console.log(`Joined company room: ${companyRoom}`);
     }
 
     // Send welcome message only to this user
@@ -204,8 +187,6 @@ io.on("connection", async (socket) => {
 
     // Listen for incoming chat messages
     socket.on("sendMessage", (messageData) => {
-      console.log("Server received sendMessage:", messageData);
-
       // Broadcast to company-scoped room if available, else global
       const companyName = socket.isEmployee
         ? socket.userDetails.companyName
@@ -228,7 +209,6 @@ io.on("connection", async (socket) => {
       };
 
       io.to(targetRoom).emit("receiveMessage", broadcastMessage);
-      console.log(`✅ Socket message broadcasted to room: ${targetRoom}`);
     });
 
     // Handle explicit company room joining
@@ -241,15 +221,11 @@ io.on("connection", async (socket) => {
         currentRooms.forEach((room) => {
           if (room.startsWith("companyRoom:")) {
             socket.leave(room);
-            console.log(`Left room: ${room}`);
           }
         });
 
         // Join the new company room
         socket.join(companyRoom);
-        console.log(
-          `User ${fullName} explicitly joined company room: ${companyRoom}`
-        );
 
         // Send confirmation
         socket.emit("roomJoined", {
@@ -259,18 +235,21 @@ io.on("connection", async (socket) => {
 
         // Debug: List all rooms this socket is in
         const socketRooms = Array.from(socket.rooms);
-        console.log(`User ${fullName} is now in rooms:`, socketRooms);
 
         // Debug: List all rooms in the system
         const allRooms = Array.from(io.sockets.adapter.rooms.keys());
-        console.log("All system rooms:", allRooms);
+
+        // Send room status back to client
+        socket.emit("roomStatus", {
+          socketRooms,
+          allRooms,
+          message: `You are in ${socketRooms.length} room(s)`,
+        });
       }
     });
 
     // Handle test messages for debugging
     socket.on("testMessage", (data) => {
-      console.log("Received test message from client:", data);
-
       // Echo back the test message to confirm real-time communication
       socket.emit("receiveMessage", {
         _id: `test_${Date.now()}`,
@@ -286,15 +265,11 @@ io.on("connection", async (socket) => {
 
     // Handle room status check for debugging
     socket.on("checkRoomStatus", (data) => {
-      console.log(`🔍 Room status check from ${fullName}:`, data);
-
       // Get all rooms this socket is in
       const socketRooms = Array.from(socket.rooms);
-      console.log(`User ${fullName} is in rooms:`, socketRooms);
 
       // Get all system rooms
       const allRooms = Array.from(io.sockets.adapter.rooms.keys());
-      console.log("All system rooms:", allRooms);
 
       // Send room status back to client
       socket.emit("roomStatus", {
@@ -306,11 +281,8 @@ io.on("connection", async (socket) => {
 
     // Handle company room broadcasting test
     socket.on("testCompanyRoom", (data) => {
-      console.log(`🌐 Company room test from ${fullName}:`, data);
-
       if (data.companyName) {
         const companyRoom = `companyRoom:${data.companyName}`;
-        console.log(`Broadcasting test message to room: ${companyRoom}`);
 
         // Broadcast the test message to the company room
         io.to(companyRoom).emit("receiveMessage", {
@@ -323,13 +295,11 @@ io.on("connection", async (socket) => {
           message: `Broadcast Test: ${data.message}`,
           createdAt: new Date(),
         });
-
-        console.log(`✅ Test message broadcasted to ${companyRoom}`);
       }
     });
 
     socket.on("disconnect", () => {
-      console.log("User disconnected:", fullName);
+      // User disconnected - no logging needed
     });
   } catch (err) {
     console.error("Socket connection error:", err);

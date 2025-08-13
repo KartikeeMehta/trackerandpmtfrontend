@@ -9,9 +9,6 @@ exports.sendMessage = async (req, res) => {
       return res.status(400).json({ message: "Message cannot be empty" });
     }
 
-    console.log("SendMessage - req.user:", req.user);
-    console.log("SendMessage - req.user._id:", req.user._id);
-
     // Derive companyName from authenticated principal
     const companyName =
       req.user.companyName || req.user.company_name || req.user.company || null;
@@ -25,19 +22,13 @@ exports.sendMessage = async (req, res) => {
     const user = await User.findById(req.user._id);
     const employee = await Employee.findById(req.user._id);
 
-    console.log("SendMessage - Found user:", user);
-    console.log("SendMessage - Found employee:", employee);
-
     let senderName;
 
     if (user) {
       senderName = `${user.firstName} ${user.lastName}`;
-      console.log("SendMessage - Using user name:", senderName);
     } else if (employee) {
       senderName = employee.name;
-      console.log("SendMessage - Using employee name:", senderName);
     } else {
-      console.log("SendMessage - No user or employee found");
       return res.status(404).json({ message: "Sender not found" });
     }
 
@@ -46,11 +37,6 @@ exports.sendMessage = async (req, res) => {
     if (employee) {
       senderModel = "Employee";
     }
-
-    console.log(
-      "SendMessage - Appending message with senderModel to CompanyChat:",
-      senderModel
-    );
 
     // Append to per-company daily bucket only
     const now = new Date();
@@ -91,31 +77,12 @@ exports.sendMessage = async (req, res) => {
       timestamp: now, // Add timestamp for compatibility
     };
 
-    console.log("SendMessage - Broadcasting message data:", messageData);
-    console.log("SendMessage - Company name for broadcasting:", companyName);
-    console.log("SendMessage - Target room:", `companyRoom:${companyName}`);
-
     // Get all connected sockets in the company room
     const companyRoom = `companyRoom:${companyName}`;
     const roomSockets = io.sockets.adapter.rooms.get(companyRoom);
-    console.log(
-      "SendMessage - Sockets in room:",
-      roomSockets ? roomSockets.size : 0
-    );
 
     // Broadcast to company room - this is the key fix for real-time updates
     io.to(companyRoom).emit("receiveMessage", messageData);
-
-    // Also log all connected rooms for debugging
-    console.log(
-      "SendMessage - All connected rooms:",
-      Array.from(io.sockets.adapter.rooms.keys())
-    );
-
-    // Log the broadcast for debugging
-    console.log(`✅ Message broadcasted to room: ${companyRoom}`);
-    console.log(`✅ Message ID: ${messageId}`);
-    console.log(`✅ Sender: ${senderName}`);
 
     res.status(201).json(messageData);
   } catch (error) {
@@ -126,7 +93,6 @@ exports.sendMessage = async (req, res) => {
 
 exports.getMessages = async (req, res) => {
   try {
-    console.log("GetMessages - Starting to fetch messages");
     const companyName =
       req.user.companyName || req.user.company_name || req.user.company || null;
     if (!companyName) {
@@ -193,11 +159,6 @@ exports.getMessages = async (req, res) => {
       };
     });
 
-    console.log(
-      "GetMessages - Returning",
-      transformedMessages.length,
-      "messages"
-    );
     res.status(200).json(transformedMessages);
   } catch (error) {
     console.error("GetMessages - Error:", error);

@@ -5,11 +5,11 @@ const SERVER_URL = "http://localhost:8000";
 const TEST_TOKEN = "your_test_token_here"; // Replace with actual token
 const TEST_COMPANY = "TestCompany";
 
-console.log("🧪 Starting Real-time Chat System Test...\n");
+console.log("Starting Real-time Chat System Test...\n");
 
 // Test 1: Socket Connection
 async function testSocketConnection() {
-  console.log("1️⃣ Testing Socket Connection...");
+  console.log("1. Testing Socket Connection...");
 
   try {
     const socket = io(SERVER_URL, {
@@ -24,26 +24,26 @@ async function testSocketConnection() {
 
       socket.on("connect", () => {
         clearTimeout(timeout);
-        console.log("✅ Socket connected successfully");
-        console.log(`   Socket ID: ${socket.id}`);
+        console.log("Socket connected successfully");
+        console.log(`Socket ID: ${socket.id}`);
         resolve(socket);
       });
 
       socket.on("connect_error", (error) => {
         clearTimeout(timeout);
-        console.log("❌ Socket connection failed:", error.message);
+        console.log("Socket connection failed:", error.message);
         reject(error);
       });
     });
   } catch (error) {
-    console.log("❌ Socket creation failed:", error.message);
+    console.log("Socket creation failed:", error.message);
     throw error;
   }
 }
 
 // Test 2: Company Room Joining
 async function testCompanyRoomJoining(socket) {
-  console.log("\n2️⃣ Testing Company Room Joining...");
+  console.log("\n2. Testing Company Room Joining...");
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -54,22 +54,22 @@ async function testCompanyRoomJoining(socket) {
 
     socket.on("roomJoined", (data) => {
       clearTimeout(timeout);
-      console.log("✅ Successfully joined company room");
-      console.log(`   Company: ${data.companyName}`);
-      console.log(`   Message: ${data.message}`);
+      console.log("Successfully joined company room");
+      console.log(`Company: ${data.companyName}`);
+      console.log(`Message: ${data.message}`);
       resolve();
     });
 
     socket.on("roomStatus", (data) => {
-      console.log("   Room status received:", data.message);
-      console.log(`   Your rooms: ${data.socketRooms.join(", ")}`);
+      console.log(`Room status: ${data.message}`);
+      console.log(`Your rooms: ${data.socketRooms.join(", ")}`);
     });
   });
 }
 
 // Test 3: Real-time Message Reception
 async function testRealTimeMessaging(socket) {
-  console.log("\n3️⃣ Testing Real-time Message Reception...");
+  console.log("\n3. Testing Real-time Message Reception...");
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -82,11 +82,11 @@ async function testRealTimeMessaging(socket) {
       if (!messageReceived) {
         clearTimeout(timeout);
         messageReceived = true;
-        console.log("✅ Real-time message received successfully");
-        console.log(`   Message: ${messageData.message}`);
-        console.log(`   Sender: ${messageData.sender?.name}`);
-        console.log(`   Message ID: ${messageData._id}`);
-        console.log(`   Timestamp: ${messageData.createdAt}`);
+        console.log("Real-time message received successfully");
+        console.log(`Message: ${messageData.message}`);
+        console.log(`Sender: ${messageData.sender?.name}`);
+        console.log(`Message ID: ${messageData._id}`);
+        console.log(`Timestamp: ${messageData.createdAt}`);
         resolve();
       }
     });
@@ -101,7 +101,7 @@ async function testRealTimeMessaging(socket) {
 
 // Test 4: Company Room Broadcasting
 async function testCompanyRoomBroadcasting(socket) {
-  console.log("\n4️⃣ Testing Company Room Broadcasting...");
+  console.log("\n4. Testing Company Room Broadcasting...");
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -118,9 +118,9 @@ async function testCompanyRoomBroadcasting(socket) {
       ) {
         clearTimeout(timeout);
         broadcastReceived = true;
-        console.log("✅ Company room broadcast received successfully");
-        console.log(`   Broadcast message: ${messageData.message}`);
-        console.log(`   Sender: ${messageData.sender?.name}`);
+        console.log("Company room broadcast received successfully");
+        console.log(`Broadcast message: ${messageData.message}`);
+        console.log(`Sender: ${messageData.sender?.name}`);
         resolve();
       }
     });
@@ -136,7 +136,7 @@ async function testCompanyRoomBroadcasting(socket) {
 
 // Test 5: Message Deduplication
 async function testMessageDeduplication(socket) {
-  console.log("\n5️⃣ Testing Message Deduplication...");
+  console.log("\n5. Testing Message Deduplication...");
 
   return new Promise((resolve) => {
     let messageCount = 0;
@@ -146,12 +146,12 @@ async function testMessageDeduplication(socket) {
       if (messageData.message === testMessage) {
         messageCount++;
         console.log(
-          `   Message received ${messageCount} time(s): ${messageData.message}`
+          `Message received ${messageCount} time(s): ${messageData.message}`
         );
 
         if (messageCount >= 3) {
-          console.log("✅ Message deduplication test completed");
-          console.log(`   Total messages received: ${messageCount}`);
+          console.log("Message deduplication test completed");
+          console.log(`Total messages received: ${messageCount}`);
           resolve();
         }
       }
@@ -172,7 +172,7 @@ async function testMessageDeduplication(socket) {
 // Main test runner
 async function runAllTests() {
   try {
-    console.log("🚀 Starting comprehensive real-time messaging tests...\n");
+    console.log("Starting comprehensive real-time messaging tests...\n");
 
     // Run all tests sequentially
     const socket = await testSocketConnection();
@@ -181,24 +181,24 @@ async function runAllTests() {
     await testCompanyRoomBroadcasting(socket);
     await testMessageDeduplication(socket);
 
-    console.log("\n🎉 All tests completed successfully!");
-    console.log("\n📋 Test Summary:");
-    console.log("   ✅ Socket connection working");
-    console.log("   ✅ Company room joining working");
-    console.log("   ✅ Real-time message reception working");
-    console.log("   ✅ Company room broadcasting working");
-    console.log("   ✅ Message deduplication working");
+    console.log("\nAll tests completed successfully!");
+    console.log("\nTest Summary:");
+    console.log("  Socket connection working");
+    console.log("  Company room joining working");
+    console.log("  Real-time message reception working");
+    console.log("  Company room broadcasting working");
+    console.log("  Message deduplication working");
 
     // Cleanup
     socket.disconnect();
-    console.log("\n🧹 Test completed, socket disconnected");
+    console.log("\nTest completed, socket disconnected");
   } catch (error) {
-    console.log("\n💥 Test failed:", error.message);
-    console.log("\n🔍 Troubleshooting tips:");
-    console.log("   1. Ensure server is running on port 8000");
-    console.log("   2. Check if JWT token is valid");
-    console.log("   3. Verify company name exists in database");
-    console.log("   4. Check server console for errors");
+    console.log("\nTest failed:", error.message);
+    console.log("\nTroubleshooting tips:");
+    console.log("  1. Ensure server is running on port 8000");
+    console.log("  2. Check if JWT token is valid");
+    console.log("  3. Verify company name exists in database");
+    console.log("  4. Check server console for errors");
   }
 }
 
