@@ -286,6 +286,30 @@ io.on("connection", async (socket) => {
       });
     });
 
+    // Handle company room broadcasting test
+    socket.on("testCompanyRoom", (data) => {
+      console.log(`🌐 Company room test from ${fullName}:`, data);
+
+      if (data.companyName) {
+        const companyRoom = `companyRoom:${data.companyName}`;
+        console.log(`Broadcasting test message to room: ${companyRoom}`);
+
+        // Broadcast the test message to the company room
+        io.to(companyRoom).emit("receiveMessage", {
+          _id: `test_${Date.now()}`,
+          sender: {
+            _id: user._id,
+            name: fullName,
+            email: user.email,
+          },
+          message: `Broadcast Test: ${data.message}`,
+          createdAt: new Date(),
+        });
+
+        console.log(`✅ Test message broadcasted to ${companyRoom}`);
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log("User disconnected:", fullName);
     });

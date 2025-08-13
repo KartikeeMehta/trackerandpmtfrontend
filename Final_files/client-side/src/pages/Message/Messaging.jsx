@@ -156,6 +156,8 @@ const Messaging = () => {
       console.log("Sender name:", messageData.sender?.name);
       console.log("Sender email:", messageData.sender?.email);
       console.log("Message content:", messageData.message);
+      console.log("Message ID:", messageData._id);
+      console.log("Message timestamp:", messageData.createdAt);
 
       // Check if this message is already in our list to avoid duplicates
       const messageExists = messages.some(
@@ -185,7 +187,17 @@ const Messaging = () => {
         };
 
         console.log("✅ Adding new message to state:", newMessage);
-        setMessages((prev) => [...prev, newMessage]);
+        console.log("Current messages count:", messages.length);
+        console.log("New messages count will be:", messages.length + 1);
+
+        setMessages((prev) => {
+          const updatedMessages = [...prev, newMessage];
+          console.log(
+            "✅ Messages state updated. New count:",
+            updatedMessages.length
+          );
+          return updatedMessages;
+        });
       } else {
         console.log("⚠️ Message already exists, skipping duplicate");
       }
@@ -226,6 +238,8 @@ const Messaging = () => {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
+    console.log("🔄 Messages state changed. New count:", messages.length);
+    console.log("Latest message:", messages[messages.length - 1]);
     scrollToBottom();
   }, [messages]);
 
@@ -434,6 +448,43 @@ const Messaging = () => {
                 className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200 transition-colors"
               >
                 Simulate Message
+              </button>
+            )}
+
+            {/* Test Company Room Broadcasting */}
+            {isConnected && (
+              <button
+                onClick={() => {
+                  if (socket) {
+                    console.log("🌐 Testing company room broadcasting...");
+
+                    // Get the company name
+                    const companyName =
+                      currentUser?.companyName ||
+                      currentUser?.company_name ||
+                      currentUser?.company;
+
+                    if (companyName) {
+                      // Emit a test message to the company room
+                      socket.emit("testCompanyRoom", {
+                        companyName: companyName,
+                        message: "Test message to company room",
+                        timestamp: new Date().toISOString(),
+                      });
+                      console.log(
+                        "Sent test message to company room:",
+                        companyName
+                      );
+                    } else {
+                      console.error(
+                        "No company name found for broadcasting test"
+                      );
+                    }
+                  }
+                }}
+                className="px-3 py-1 bg-purple-100 text-purple-700 rounded-md text-sm hover:bg-purple-200 transition-colors"
+              >
+                Test Broadcast
               </button>
             )}
           </div>
