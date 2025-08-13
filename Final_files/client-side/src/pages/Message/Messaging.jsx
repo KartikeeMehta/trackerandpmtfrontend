@@ -11,6 +11,8 @@ const Messaging = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState(null);
+  const [lastMessageTime, setLastMessageTime] = useState(null);
+  const [realTimeStatus, setRealTimeStatus] = useState("idle");
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -118,6 +120,17 @@ const Messaging = () => {
       if (companyName) {
         newSocket.emit("joinCompanyRoom", { companyName: companyName });
         console.log("Joining company room:", companyName);
+
+        // Set a timeout to check if room joining was successful
+        setTimeout(() => {
+          if (newSocket.connected) {
+            console.log("✅ Socket connected, checking room status...");
+            newSocket.emit("checkRoomStatus", {
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }, 1000);
+
         return true;
       } else {
         console.warn("No companyName found in user data:", user);
@@ -159,16 +172,20 @@ const Messaging = () => {
       console.log("Message ID:", messageData._id);
       console.log("Message timestamp:", messageData.createdAt);
 
+      // Update real-time status
+      setRealTimeStatus("active");
+      setLastMessageTime(new Date());
+
       // Check if this message is already in our list to avoid duplicates
       const messageExists = messages.some(
         (msg) =>
-          msg._id === messageData._id || // Check by ID first
+          msg._id === messageData._id || // Check by ID first (most reliable)
           (msg.message === messageData.message &&
             msg.sender?.name === messageData.sender?.name &&
             Math.abs(
               new Date(msg.createdAt) -
                 new Date(messageData.createdAt || messageData.timestamp)
-            ) < 5000) // Within 5 seconds
+            ) < 3000) // Within 3 seconds for better deduplication
       );
 
       if (!messageExists) {
@@ -191,9 +208,9 @@ const Messaging = () => {
         console.log("Current messages count:", messages.length);
         console.log("New messages count will be:", messages.length + 1);
 
-        // Immediately update messages state
-        setMessages((prev) => {
-          const updatedMessages = [...prev, newMessage];
+        // Update messages state with the new message
+        setMessages((prevMessages) => {
+          const updatedMessages = [...prevMessages, newMessage];
           console.log(
             "✅ Messages state updated. New count:",
             updatedMessages.length
@@ -201,8 +218,10 @@ const Messaging = () => {
           return updatedMessages;
         });
 
-        // Force a re-render by updating a timestamp
-        setNewMessage((prev) => prev); // This triggers a re-render
+        // Reset real-time status after a delay
+        setTimeout(() => {
+          setRealTimeStatus("idle");
+        }, 3000);
       } else {
         console.log("Message already exists, skipping duplicate");
       }
@@ -280,9 +299,46 @@ const Messaging = () => {
     setNewMessage("");
 
     try {
-      await sendMessageViaAPI(messageText);
+      // Send message via API
+      const response = await sendMessageViaAPI(messageText);
+
+      if (response && response._id) {
+        console.log("✅ Message sent successfully via API:", response);
+
+        // The message should be received via socket.io real-time
+        // If for some reason it's not, we can add it manually as a fallback
+        setTimeout(() => {
+          // Check if the message was received via socket
+          const messageReceived = messages.some(
+            (msg) =>
+              msg.message === messageText &&
+              msg.sender?.name ===
+                currentUser?.firstName + " " + currentUser?.lastName
+          );
+
+          if (!messageReceived) {
+            console.log(
+              "⚠️ Message not received via socket, adding manually as fallback"
+            );
+            const fallbackMessage = {
+              _id: `fallback_${Date.now()}`,
+              sender: {
+                _id: currentUser?._id,
+                name: currentUser?.firstName + " " + currentUser?.lastName,
+                email: currentUser?.email,
+              },
+              message: messageText,
+              createdAt: new Date().toISOString(),
+            };
+
+            setMessages((prev) => [...prev, fallbackMessage]);
+          }
+        }, 2000); // Wait 2 seconds before fallback
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
+      // Restore the message if sending failed
+      setNewMessage(messageText);
     }
   };
 
@@ -382,6 +438,21 @@ const Messaging = () => {
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                   {messages.length} messages
                 </span>
+                {/* Real-time Status */}
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    realTimeStatus === "active"
+                      ? "text-green-600 bg-green-50 animate-pulse"
+                      : "text-gray-600 bg-gray-100"
+                  }`}
+                >
+                  Real-time: {realTimeStatus === "active" ? "Active" : "Ready"}
+                </span>
+                {lastMessageTime && (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                    Last: {formatTime(lastMessageTime)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -561,6 +632,19 @@ const Messaging = () => {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        {/* Real-time Message Indicator */}
+        {realTimeStatus === "active" && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-green-700 font-medium">
+              New message received in real-time!
+            </span>
+            <span className="text-xs text-green-600">
+              {lastMessageTime && formatTime(lastMessageTime)}
+            </span>
+          </div>
+        )}
+
         {console.log(
           "Rendering messages. Count:",
           messages.length,

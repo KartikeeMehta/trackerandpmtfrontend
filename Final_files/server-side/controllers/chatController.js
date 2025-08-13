@@ -55,23 +55,32 @@ exports.sendMessage = async (req, res) => {
     // Append to per-company daily bucket only
     const now = new Date();
     const bucket = now.toISOString().slice(0, 10); // YYYY-MM-DD
-    await CompanyChat.findOneAndUpdate(
+
+    // Create the message object first
+    const messageObj = {
+      sender: req.user._id,
+      senderModel,
+      message,
+      createdAt: now,
+    };
+
+    const updatedChat = await CompanyChat.findOneAndUpdate(
       { companyName, bucket },
       {
         $push: {
-          messages: {
-            sender: req.user._id,
-            senderModel,
-            message,
-            createdAt: now,
-          },
+          messages: messageObj,
         },
       },
       { upsert: true, new: true }
     );
 
+    // Get the actual message ID from the database
+    const savedMessage = updatedChat.messages[updatedChat.messages.length - 1];
+    const messageId = savedMessage._id;
+
     const io = req.app.get("io");
     const messageData = {
+      _id: messageId, // Use the actual database ID
       sender: {
         _id: req.user._id,
         name: senderName,
@@ -79,6 +88,7 @@ exports.sendMessage = async (req, res) => {
       },
       message,
       createdAt: now,
+      timestamp: now, // Add timestamp for compatibility
     };
 
     console.log("SendMessage - Broadcasting message data:", messageData);
@@ -93,20 +103,19 @@ exports.sendMessage = async (req, res) => {
       roomSockets ? roomSockets.size : 0
     );
 
-    // Broadcast to company room
-    io.to(companyRoom).emit("receiveMessage", {
-      _id: messageData._id, // Include the actual message ID from database
-      sender: messageData.sender,
-      message: messageData.message,
-      createdAt: messageData.createdAt,
-      timestamp: messageData.createdAt, // Add timestamp for compatibility
-    });
+    // Broadcast to company room - this is the key fix for real-time updates
+    io.to(companyRoom).emit("receiveMessage", messageData);
 
     // Also log all connected rooms for debugging
     console.log(
       "SendMessage - All connected rooms:",
       Array.from(io.sockets.adapter.rooms.keys())
     );
+
+    // Log the broadcast for debugging
+    console.log(`✅ Message broadcasted to room: ${companyRoom}`);
+    console.log(`✅ Message ID: ${messageId}`);
+    console.log(`✅ Sender: ${senderName}`);
 
     res.status(201).json(messageData);
   } catch (error) {

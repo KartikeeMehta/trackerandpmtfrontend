@@ -213,21 +213,39 @@ io.on("connection", async (socket) => {
       const targetRoom = companyName
         ? `companyRoom:${companyName}`
         : "globalRoom";
-      io.to(targetRoom).emit("receiveMessage", {
+
+      // Create a proper message object with ID
+      const broadcastMessage = {
+        _id: `socket_${Date.now()}_${Math.random()}`, // Generate unique ID for socket messages
         sender: {
           _id: user._id,
           name: fullName,
           email: user.email,
         },
         message: messageData.message,
+        createdAt: new Date(),
         timestamp: new Date(),
-      });
+      };
+
+      io.to(targetRoom).emit("receiveMessage", broadcastMessage);
+      console.log(`✅ Socket message broadcasted to room: ${targetRoom}`);
     });
 
     // Handle explicit company room joining
     socket.on("joinCompanyRoom", (data) => {
       if (data.companyName) {
         const companyRoom = `companyRoom:${data.companyName}`;
+
+        // Leave any existing company rooms first
+        const currentRooms = Array.from(socket.rooms);
+        currentRooms.forEach((room) => {
+          if (room.startsWith("companyRoom:")) {
+            socket.leave(room);
+            console.log(`Left room: ${room}`);
+          }
+        });
+
+        // Join the new company room
         socket.join(companyRoom);
         console.log(
           `User ${fullName} explicitly joined company room: ${companyRoom}`
