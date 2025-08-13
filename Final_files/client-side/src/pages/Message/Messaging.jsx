@@ -315,8 +315,6 @@ const Messaging = () => {
     return groups;
   };
 
-  const messageGroups = groupMessagesByDate(messages);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center bg-gray-50">
@@ -327,6 +325,12 @@ const Messaging = () => {
       </div>
     );
   }
+
+  // Calculate message groups inside render function
+  const messageGroups = groupMessagesByDate(messages);
+  console.log("🎯 Final messageGroups for rendering:", messageGroups);
+  console.log("🎯 Object.keys(messageGroups):", Object.keys(messageGroups));
+  console.log("🎯 First group entries:", Object.entries(messageGroups));
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -575,107 +579,124 @@ const Messaging = () => {
             </p>
           </div>
         ) : (
-          Object.entries(messageGroups).map(([date, dateMessages]) => (
-            <div key={date} className="mb-8">
-              {/* Date Separator */}
-              <div className="flex items-center justify-center mb-6">
-                <div className="bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
-                  <span className="text-sm font-medium text-gray-600">
-                    {date}
-                  </span>
-                </div>
-              </div>
+          (() => {
+            console.log("🎨 Starting to render messages...");
+            console.log("🎨 messageGroups:", messageGroups);
+            console.log(
+              "🎨 Object.entries(messageGroups):",
+              Object.entries(messageGroups)
+            );
 
-              {/* Messages for this date */}
-              <div className="space-y-4">
-                {dateMessages.map((message, index) => {
-                  const isOwnMessage =
-                    currentUser &&
-                    message.sender &&
-                    (message.sender._id === currentUser._id ||
-                      message.sender.email === currentUser.email ||
-                      (currentUser.firstName &&
-                        currentUser.lastName &&
-                        message.sender.name ===
-                          `${currentUser.firstName} ${currentUser.lastName}`) ||
-                      (currentUser.name &&
-                        message.sender.name === currentUser.name));
+            return Object.entries(messageGroups).map(([date, dateMessages]) => {
+              console.log(
+                `🎨 Rendering date group: ${date} with ${dateMessages.length} messages`
+              );
+              return (
+                <div key={date} className="mb-8">
+                  {/* Date Separator */}
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+                      <span className="text-sm font-medium text-gray-600">
+                        {date}
+                      </span>
+                    </div>
+                  </div>
 
-                  return (
-                    <div
-                      key={message._id || index}
-                      className={`flex ${
-                        isOwnMessage ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md ${
-                          isOwnMessage ? "order-2" : "order-1"
-                        }`}
-                      >
-                        {/* Sender Info */}
+                  {/* Messages for this date */}
+                  <div className="space-y-4">
+                    {dateMessages.map((message, index) => {
+                      console.log(`🎨 Rendering message ${index}:`, message);
+                      const isOwnMessage =
+                        currentUser &&
+                        message.sender &&
+                        (message.sender._id === currentUser._id ||
+                          message.sender.email === currentUser.email ||
+                          (currentUser.firstName &&
+                            currentUser.lastName &&
+                            message.sender.name ===
+                              `${currentUser.firstName} ${currentUser.lastName}`) ||
+                          (currentUser.name &&
+                            message.sender.name === currentUser.name));
+
+                      return (
                         <div
-                          className={`flex items-center space-x-2 mb-2 ${
+                          key={message._id || index}
+                          className={`flex ${
                             isOwnMessage ? "justify-end" : "justify-start"
                           }`}
                         >
-                          {!isOwnMessage && (
-                            <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
-                              <span className="text-white text-sm font-medium">
-                                {message.sender?.name
-                                  ?.charAt(0)
-                                  ?.toUpperCase() || "U"}
-                              </span>
-                            </div>
-                          )}
-
                           <div
-                            className={`text-sm ${
-                              isOwnMessage ? "text-right" : "text-left"
+                            className={`max-w-xs lg:max-w-md ${
+                              isOwnMessage ? "order-2" : "order-1"
                             }`}
                           >
-                            <span
-                              className={`font-medium ${
-                                isOwnMessage ? "text-blue-600" : "text-gray-700"
+                            {/* Sender Info */}
+                            <div
+                              className={`flex items-center space-x-2 mb-2 ${
+                                isOwnMessage ? "justify-end" : "justify-start"
                               }`}
                             >
-                              {message.sender?.name || "Unknown User"}
-                            </span>
-                            <span className="text-gray-400 ml-2">
-                              {formatTime(message.createdAt)}
-                            </span>
-                          </div>
+                              {!isOwnMessage && (
+                                <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    {message.sender?.name
+                                      ?.charAt(0)
+                                      ?.toUpperCase() || "U"}
+                                  </span>
+                                </div>
+                              )}
 
-                          {isOwnMessage && (
-                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white text-sm font-medium">
-                                {message.sender?.name
-                                  ?.charAt(0)
-                                  ?.toUpperCase() || "U"}
-                              </span>
+                              <div
+                                className={`text-sm ${
+                                  isOwnMessage ? "text-right" : "text-left"
+                                }`}
+                              >
+                                <span
+                                  className={`font-medium ${
+                                    isOwnMessage
+                                      ? "text-blue-600"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  {message.sender?.name || "Unknown User"}
+                                </span>
+                                <span className="text-gray-400 ml-2">
+                                  {formatTime(message.createdAt)}
+                                </span>
+                              </div>
+
+                              {isOwnMessage && (
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    {message.sender?.name
+                                      ?.charAt(0)
+                                      ?.toUpperCase() || "U"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        {/* Message Bubble */}
-                        <div
-                          className={`px-4 py-3 rounded-lg shadow-sm ${
-                            isOwnMessage
-                              ? "bg-blue-600 text-white"
-                              : "bg-white text-gray-900 border border-gray-200"
-                          }`}
-                        >
-                          <p className="text-sm leading-relaxed">
-                            {message.message}
-                          </p>
+                            {/* Message Bubble */}
+                            <div
+                              className={`px-4 py-3 rounded-lg shadow-sm ${
+                                isOwnMessage
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-white text-gray-900 border border-gray-200"
+                              }`}
+                            >
+                              <p className="text-sm leading-relaxed">
+                                {message.message}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()
         )}
 
         <div ref={messagesEndRef} />
