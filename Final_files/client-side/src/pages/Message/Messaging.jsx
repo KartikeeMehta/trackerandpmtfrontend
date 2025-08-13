@@ -162,12 +162,13 @@ const Messaging = () => {
       // Check if this message is already in our list to avoid duplicates
       const messageExists = messages.some(
         (msg) =>
-          msg.message === messageData.message &&
-          msg.sender?.name === messageData.sender?.name &&
-          Math.abs(
-            new Date(msg.createdAt) -
-              new Date(messageData.createdAt || messageData.timestamp)
-          ) < 5000 // Within 5 seconds
+          msg._id === messageData._id || // Check by ID first
+          (msg.message === messageData.message &&
+            msg.sender?.name === messageData.sender?.name &&
+            Math.abs(
+              new Date(msg.createdAt) -
+                new Date(messageData.createdAt || messageData.timestamp)
+            ) < 5000) // Within 5 seconds
       );
 
       if (!messageExists) {
@@ -240,6 +241,7 @@ const Messaging = () => {
   useEffect(() => {
     console.log("🔄 Messages state changed. New count:", messages.length);
     console.log("Latest message:", messages[messages.length - 1]);
+    console.log("All messages in state:", messages);
     scrollToBottom();
   }, [messages]);
 
@@ -282,7 +284,9 @@ const Messaging = () => {
 
   // Format date
   const formatDate = (timestamp) => {
+    console.log("Formatting date for timestamp:", timestamp);
     const date = new Date(timestamp);
+    console.log("Parsed date:", date);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -298,6 +302,7 @@ const Messaging = () => {
 
   // Group messages by date
   const groupMessagesByDate = (messages) => {
+    console.log("Grouping messages:", messages);
     const groups = {};
     messages.forEach((message) => {
       const date = formatDate(message.createdAt);
@@ -306,6 +311,7 @@ const Messaging = () => {
       }
       groups[date].push(message);
     });
+    console.log("Grouped messages:", groups);
     return groups;
   };
 
@@ -538,6 +544,12 @@ const Messaging = () => {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        {console.log(
+          "Rendering messages. Count:",
+          messages.length,
+          "Messages:",
+          messages
+        )}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">

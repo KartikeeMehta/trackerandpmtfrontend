@@ -94,7 +94,12 @@ exports.sendMessage = async (req, res) => {
     );
 
     // Broadcast to company room
-    io.to(companyRoom).emit("receiveMessage", messageData);
+    io.to(companyRoom).emit("receiveMessage", {
+      _id: messageData._id, // Include the message ID
+      sender: messageData.sender,
+      message: messageData.message,
+      createdAt: messageData.createdAt,
+    });
 
     // Also log all connected rooms for debugging
     console.log(
