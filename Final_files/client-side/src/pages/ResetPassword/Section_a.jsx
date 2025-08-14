@@ -112,18 +112,7 @@ const Section_a = () => {
 
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              id="show-password"
-              type="checkbox"
-              checked={showPassword}
-              onChange={() => setShowPassword(!showPassword)}
-              className="h-4 w-4 text-blue-600"
-            />
-            <label htmlFor="show-password" className="text-sm text-gray-600">
-              Show password
-            </label>
-          </div>
+       
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 

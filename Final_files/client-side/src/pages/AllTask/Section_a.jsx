@@ -21,8 +21,6 @@ const Section_a = () => {
   const [error, setError] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [tasks, setTasks] = useState([]);
-  console.log(tasks, "tasks------>");
-
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTaskHistory, setShowTaskHistory] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -44,6 +42,7 @@ const Section_a = () => {
   const [deleteTaskLoading, setDeleteTaskLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [roles, setRoles] = useState([]);
+  console.log(selectedRole, "selectedRole---->");
 
   const [deleteTaskError, setDeleteTaskError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
@@ -51,7 +50,6 @@ const Section_a = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectsLoading, setProjectsLoading] = useState(false);
-  console.log(projects, "projects---------->");
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -64,6 +62,8 @@ const Section_a = () => {
           api_url.getAllEmployees,
           token
         );
+        console.log(response, "response------->");
+
 
         if (Array.isArray(response)) {
           setMembers(response);
@@ -79,11 +79,21 @@ const Section_a = () => {
     fetchMembers();
   }, []);
 
+  const dropArrayItem = [
+    { id: 1, label: "Admin", value: "admin" },
+    { id: 2, label: "Manager", value: "manager" },
+    { id: 3, label: "Team Lead", value: "teamLead" },
+    { id: 3, label: "Team Member", value: "teamMember" },
+
+  ];
+
   useEffect(() => {
     const fetchRoles = async () => {
       const token = localStorage.getItem("token");
       try {
         const response = await apiHandler.GetApi(api_url.getAllRoles, token);
+        console.log(response, "allrole---------------->");
+
         if (response && response.success && Array.isArray(response.roles)) {
           setRoles(response.roles);
         } else {
@@ -349,16 +359,25 @@ const Section_a = () => {
     label: role.label,
   }));
   const handleRoleSelect = (item) => {
-    setSelectedRole(item.label);
+    console.log(item,"item----------->");
+    
+    setSelectedRole(item?.value);
   };
 
-  const filteredMembers = members.filter(
-    (member) => member.role === selectedRole
-  );
+
+
+
+  const filteredMembers = members.filter((member) => {
+    console.log(member.role, "----------hhhhhhh>"); // debug
+    return member.role === selectedRole; // filter condition
+  });
+
 
   const filteredMembersBySearch = filteredMembers.filter((member) =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
 
   // Function to get project name by project ID
   const getProjectNameById = (projectId) => {
@@ -385,7 +404,7 @@ const Section_a = () => {
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <CustomDropdown
                 title="Select Team Role"
-                items={teamMembers}
+                items={dropArrayItem}
                 itemKey="id"
                 itemLabel="label"
                 onClick={handleRoleSelect}
@@ -426,18 +445,16 @@ const Section_a = () => {
                           setSelectedMember(member);
                           setShowTaskHistory(false);
                         }}
-                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
-                          selectedMember?._id === member._id
+                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${selectedMember?._id === member._id
                             ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
                             : "bg-gray-50 hover:bg-gray-100 text-gray-700"
-                        }`}
+                          }`}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            selectedMember?._id === member._id
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${selectedMember?._id === member._id
                               ? "bg-white/20 text-white"
                               : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
-                          }`}
+                            }`}
                         >
                           {member.name.charAt(0).toUpperCase()}
                         </div>
@@ -485,7 +502,7 @@ const Section_a = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Tasks for {formatName(selectedMember.name)}
+                    Tasks for {formatName(selectedMember?.name)}
                   </h1>
                   <p className="text-gray-600">
                     Manage and track task progress
@@ -596,11 +613,10 @@ const Section_a = () => {
                       {tasks.map((task) => (
                         <div key={task._id}>
                           <div
-                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                              selectedTask?._id === task._id
+                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${selectedTask?._id === task._id
                                 ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
                                 : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                            }`}
+                              }`}
                             onClick={() =>
                               setSelectedTask(
                                 selectedTask?._id === task._id ? null : task
@@ -612,13 +628,12 @@ const Section_a = () => {
                                 {task.title}
                               </h4>
                               <span
-                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
-                                  task.status === "completed"
+                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${task.status === "completed"
                                     ? "bg-green-100 text-green-700"
                                     : task.status === "in-progress"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
                               >
                                 {task.status}
                               </span>
@@ -685,14 +700,13 @@ const Section_a = () => {
                                       Status:
                                     </span>
                                     <span
-                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                        selectedTask.status === "completed"
+                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${selectedTask.status === "completed"
                                           ? "bg-green-100 text-green-700"
                                           : selectedTask.status ===
                                             "in-progress"
-                                          ? "bg-blue-100 text-blue-700"
-                                          : "bg-gray-100 text-gray-700"
-                                      }`}
+                                            ? "bg-blue-100 text-blue-700"
+                                            : "bg-gray-100 text-gray-700"
+                                        }`}
                                     >
                                       {selectedTask.status}
                                     </span>
@@ -752,9 +766,8 @@ const Section_a = () => {
                     {taskHistory.map((task) => (
                       <li
                         key={task._id}
-                        className={`p-4 hover:bg-blue-50 cursor-pointer ${
-                          selectedTask?._id === task._id ? "bg-blue-100" : ""
-                        }`}
+                        className={`p-4 hover:bg-blue-50 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
+                          }`}
                         onClick={() => setSelectedTask(task)}
                       >
                         <div className="flex justify-between items-center">

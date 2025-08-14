@@ -54,6 +54,8 @@ export const api_url = {
   // --- Added for Chat ---
   sendMessage: BASE_URL + "/chat/send",
   getMessages: BASE_URL + "/chat",
+  change_Password: BASE_URL + "/change-password",
+
 };
 
 export const Methods = {

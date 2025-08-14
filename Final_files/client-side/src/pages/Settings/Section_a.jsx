@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
+import { useNavigate } from "react-router-dom";
 
 const Section_a = () => {
   const [loading, setLoading] = useState(false);
+  const navigate =useNavigate()
   const [message, setMessage] = useState({ type: "", text: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -47,7 +49,7 @@ const Section_a = () => {
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setMessage({ type: "error", text: "New passwords do not match" });
+      setMessage({ type: "error", text: "New password and confirm password do not match" });
       setLoading(false);
       return;
     }
@@ -70,61 +72,23 @@ const Section_a = () => {
       setLoading(false);
       return;
     }
+    const obj = {
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmNewPassword: passwordForm?.confirmPassword
+
+    }
+
 
     try {
-      // Try the main password change endpoint first
-      let response = await apiHandler.PutApi(
-        api_url.changePassword ||
-          "http://localhost:8000/api/profile/change-password",
-        {
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        },
-        token
-      );
-
-      // If the main endpoint doesn't work, try alternative endpoints
-      if (!response || response.error) {
-        // Try alternative endpoint for user profile
-        response = await apiHandler.PutApi(
-          "http://localhost:8000/api/user/change-password",
-          {
-            currentPassword: passwordForm.currentPassword,
-            newPassword: passwordForm.newPassword,
-          },
-          token
-        );
+      let response = await apiHandler.postApiWithToken(api_url.change_Password, obj, token);
+      if (response && (response.message === "Password changed successfully" || response.success)) {
+        setMessage(response?.message)
+         localStorage.removeItem("token");
+        navigate("/Login")
       }
 
-      // If still no success, try employee endpoint
-      if (!response || response.error) {
-        response = await apiHandler.PutApi(
-          "http://localhost:8000/api/employee/change-password",
-          {
-            currentPassword: passwordForm.currentPassword,
-            newPassword: passwordForm.newPassword,
-          },
-          token
-        );
-      }
-
-      if (
-        response &&
-        (response.message === "Password changed successfully" ||
-          response.success)
-      ) {
-        setMessage({ type: "success", text: "Password changed successfully!" });
-        setPasswordForm({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-
-        // Clear the form
-        setShowPassword(false);
-        setShowNewPassword(false);
-        setShowConfirmPassword(false);
-      } else {
+      else {
         setMessage({
           type: "error",
           text:
@@ -165,6 +129,15 @@ const Section_a = () => {
     }
   };
 
+
+
+
+
+
+
+
+
+
   return (
     <div className="p-4 sm:p-6 md:p-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {/* Header */}
@@ -178,11 +151,10 @@ const Section_a = () => {
       {/* Message Display */}
       {message.text && (
         <div
-          className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
-            message.type === "success"
-              ? "bg-green-50 border border-green-200 text-green-800"
-              : "bg-red-50 border border-red-200 text-red-800"
-          }`}
+          className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${message.type === "success"
+            ? "bg-green-50 border border-green-200 text-green-800"
+            : "bg-red-50 border border-red-200 text-red-800"
+            }`}
         >
           {message.type === "success" ? (
             <Check className="w-5 h-5 text-green-600" />

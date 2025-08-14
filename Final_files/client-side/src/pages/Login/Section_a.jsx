@@ -46,9 +46,7 @@ const Section_a = () => {
     setLoading(true);
     setErrors({});
 
-    console.log("=== LOGIN PROCESS START ===");
-    console.log("Email:", email);
-    console.log("Password length:", password.length);
+   
 
     // Check for device token first
     const deviceToken = localStorage.getItem("deviceToken");
@@ -82,7 +80,6 @@ const Section_a = () => {
     }
 
     try {
-      console.log("Making login API call...");
       const response = await apiHandler.PostApi(api_url.login, {
         email,
         password,
@@ -91,7 +88,6 @@ const Section_a = () => {
       console.log("Login response:", response);
 
       if (response?.success || response?.message === "Login successful") {
-        console.log("Login successful, checking 2FA status...");
         console.log("User data:", response.user);
         console.log("Employee data:", response.employee);
         console.log(
@@ -167,7 +163,7 @@ const Section_a = () => {
         deviceName: rememberDevice ? deviceName : undefined,
       };
 
-      console.log("2FA verification payload:", payload);
+      // console.log("2FA verification payload:", payload);
       console.log("Making API call to:", api_url.verifyTwoFactorToken);
 
       const response = await apiHandler.PostApi(

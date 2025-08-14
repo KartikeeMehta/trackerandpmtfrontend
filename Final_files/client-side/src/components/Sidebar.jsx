@@ -9,44 +9,48 @@ import {
   ChevronLeft,
   MessageCircle,
 } from "lucide-react";
-const navLinks = [
-  {
-    label: "PRODUCTIVITY",
-    items: [
-      {
-        to: "/Dashboard",
-        label: "Overview",
-        icon: <LayoutDashboard size={18} />,
-      },
-      { to: "/MyTeam", label: "My Team", icon: <Users size={18} /> },
-      {
-        to: "/TeamMember",
-        label: "Team Members",
-        icon: <UserPlus size={18} />,
-      },
-    ],
-  },
-  {
-    label: "TASKS & PROJECTS",
-    items: [
-      { to: "/AllTask", label: "All Task", icon: <ListChecks size={18} /> },
-      { to: "/AllProject", label: "My Projects", icon: <BookCopy size={18} /> },
-      {
-        to: "/WorkHistory",
-        label: "Work History",
-        icon: <History size={18} />,
-      },
-    ],
-  },
-  {
-    label: "COMMUNICATION",
-    items: [
-      { to: "/messaging", label: "Messaging", icon: <MessageCircle size={18} /> },
-    ],
-  },
-];
+
 const Sidebar = () => {
   const location = useLocation();
+
+  const userType = localStorage.getItem("userType");
+  console.log(userType, "----------->"); // "employee"
+  const navLinks = [
+    {
+      label: "PRODUCTIVITY",
+      items: [
+        {
+          to: "/Dashboard",
+          label: userType === "employee" ? "My Overview" : "Overview",
+          icon: <LayoutDashboard size={18} />,
+        },
+        { to: "/MyTeam", label: "My Team", icon: <Users size={18} /> },
+        {
+          to: "/TeamMember",
+          label: "Team Members",
+          icon: <UserPlus size={18} />,
+        },
+      ],
+    },
+    {
+      label: "TASKS & PROJECTS",
+      items: [
+        { to: "/AllTask", label: "All Task", icon: <ListChecks size={18} /> },
+        { to: "/AllProject", label: "My Projects", icon: <BookCopy size={18} /> },
+        {
+          to: "/WorkHistory",
+          label: "Work History",
+          icon: <History size={18} />,
+        },
+      ],
+    },
+    {
+      label: "COMMUNICATION",
+      items: [
+        { to: "/messaging", label: "Messaging", icon: <MessageCircle size={18} /> },
+      ],
+    },
+  ];
   return (
     <aside className="w-64 bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20">
       <div className="flex items-center justify-between p-4 shadow-sm mt-3">
@@ -84,11 +88,10 @@ const Sidebar = () => {
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className={`flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
-                      location.pathname === item.to
+                    className={`flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${location.pathname === item.to
                         ? "bg-blue-50 text-blue-700 border-blue-700 rounded"
                         : "text-gray-700 hover:bg-gray-100 border-transparent"
-                    }`}
+                      }`}
                   >
                     {item.icon}
                     <span>{item.label}</span>
