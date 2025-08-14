@@ -20,8 +20,31 @@ const Section_a = () => {
   const [deletingProject, setDeletingProject] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem("user");
+    const storedEmployee = localStorage.getItem("employee");
+    
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserRole(user.role || "owner");
+      } catch {
+        setUserRole("owner");
+      }
+    } else if (storedEmployee) {
+      try {
+        const employee = JSON.parse(storedEmployee);
+        setUserRole(employee.role || "teamMember");
+      } catch {
+        setUserRole("teamMember");
+      }
+    } else {
+      setUserRole("owner");
+    }
+
     const fetchProjects = async () => {
       setLoading(true);
       setError("");
@@ -46,6 +69,11 @@ const Section_a = () => {
     };
     fetchProjects();
   }, []);
+
+  // Simple check if user can see edit/delete icons
+  const canSeeEditDelete = () => {
+    return userRole === "owner" || userRole === "admin" || userRole === "manager";
+  };
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -340,27 +368,29 @@ const Section_a = () => {
               >
 
 
-                {/* Action Buttons */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                  <button
-                    onClick={(e) => handleEditClick(e, project)}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                  >
-                    <Pencil
-                      size={16}
-                      className="text-gray-600 hover:text-blue-600"
-                    />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, project)}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                  >
-                    <Trash2
-                      size={16}
-                      className="text-red-500 hover:text-red-700"
-                    />
-                  </button>
-                </div>
+                {/* Action Buttons - Only for Owner, Admin, Manager */}
+                {canSeeEditDelete() && (
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                    <button
+                      onClick={(e) => handleEditClick(e, project)}
+                      className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                    >
+                      <Pencil
+                        size={16}
+                        className="text-gray-600 hover:text-blue-600"
+                      />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, project)}
+                      className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                    >
+                      <Trash2
+                        size={16}
+                        className="text-red-500 hover:text-red-700"
+                      />
+                    </button>
+                  </div>
+                )}
 
                 {/* Card Content */}
                 <div className="p-6 pt-16">

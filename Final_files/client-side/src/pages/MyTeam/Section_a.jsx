@@ -61,11 +61,39 @@ const Section_a = () => {
   const [modalType, setModalType] = useState("projects");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
+    // Get user role from localStorage
+    const storedUser = localStorage.getItem("user");
+    const storedEmployee = localStorage.getItem("employee");
+    
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserRole(user.role || "owner");
+      } catch {
+        setUserRole("owner");
+      }
+    } else if (storedEmployee) {
+      try {
+        const employee = JSON.parse(storedEmployee);
+        setUserRole(employee.role || "teamMember");
+      } catch {
+        setUserRole("teamMember");
+      }
+    } else {
+      setUserRole("owner");
+    }
+    
     fetchAll()
   }, [])
 
+
+  // Simple check if user can see edit/delete icons
+  const canSeeEditDelete = () => {
+    return userRole === "owner" || userRole === "admin" || userRole === "manager";
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -413,42 +441,44 @@ const Section_a = () => {
                       </Button>
                     </div>
 
-                    {/* Action Buttons - Hidden by default, shown on hover */}
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-2">
-                      {/* Edit Button */}
-                      <button
-                        className="w-8 h-8 bg-white hover:bg-gray-50 text-gray-700 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditForm({
-                            teamName: team.teamName,
-                            description: team.description,
-                            teamLead:
-                              team.teamLead?.teamMemberId ||
-                              team.teamLead,
-                            teamMembers: Array.isArray(team.teamMembers)
-                              ? team.teamMembers
-                              : Array.isArray(team.members)
-                                ? team.members.map((m) => m.teamMemberId)
-                                : [],
-                          });
-                          setShowEditDialog(true);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </button>
+                    {/* Action Buttons - Hidden by default, shown on hover - Only for Owner, Admin, Manager */}
+                    {canSeeEditDelete() && (
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-2">
+                        {/* Edit Button */}
+                        <button
+                          className="w-8 h-8 bg-white hover:bg-gray-50 text-gray-700 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditForm({
+                              teamName: team.teamName,
+                              description: team.description,
+                              teamLead:
+                                team.teamLead?.teamMemberId ||
+                                team.teamLead,
+                              teamMembers: Array.isArray(team.teamMembers)
+                                ? team.teamMembers
+                                : Array.isArray(team.members)
+                                  ? team.members.map((m) => m.teamMemberId)
+                                  : [],
+                            });
+                            setShowEditDialog(true);
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
 
-                      {/* Delete Button */}
-                      <button
-                        className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirmDelete(team);
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                        {/* Delete Button */}
+                        <button
+                          className="w-8 h-8 bg-white hover:bg-gray-50 text-red-500 rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDelete(team);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
