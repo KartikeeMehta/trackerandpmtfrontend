@@ -559,14 +559,6 @@ exports.updatePhaseStatus = async (req, res) => {
     console.log("User's company:", companyName);
     console.log("User role:", userRole);
 
-    // Role-based access control
-    if (userRole === "teamMember") {
-      return res.status(403).json({
-        success: false,
-        message: "Team members cannot update phase status",
-      });
-    }
-
     if (projectId) {
       console.log("Trying to find project with project_id:", projectId);
     }
@@ -575,10 +567,18 @@ exports.updatePhaseStatus = async (req, res) => {
     }
 
     // Validate status
-    if (!["Pending", "In Progress", "Completed"].includes(status)) {
+    if (!["Pending", "In Progress", "Completed", "final_checks"].includes(status)) {
       return res.status(400).json({
         success: false,
         message: "Invalid status value",
+      });
+    }
+
+    // Special validation for final_checks status - only owner, admin, manager can set it
+    if (status === "final_checks" && !["owner", "admin", "manager"].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only owner, admin, and manager can set phase status to final_checks",
       });
     }
 
@@ -605,28 +605,7 @@ exports.updatePhaseStatus = async (req, res) => {
       });
     }
 
-    // For team leads, check if they are the project lead
-    if (userRole === "teamLead" && project.project_lead !== userTeamMemberId) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only update phases in projects you lead",
-      });
-    }
-
-    // For managers, check hierarchical access
-    if (userRole === "manager") {
-      const projectCreator = await User.findOne({ 
-        companyName, 
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message: "Managers cannot modify projects created by owners or admins",
-        });
-      }
-    }
+    // All roles can update phase status - no restrictions
 
     // Phase matching logic
     let phase;
