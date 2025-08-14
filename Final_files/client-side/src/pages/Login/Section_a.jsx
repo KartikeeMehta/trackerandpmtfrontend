@@ -4,6 +4,8 @@ import { apiHandler } from "@/api/ApiHandler";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Smartphone, Shield } from "lucide-react";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+import CustomLoader from "@/components/CustomLoader";
+import CustomToast from "@/components/CustomToast";
 
 const Section_a = () => {
   useAuthRedirect();
@@ -46,7 +48,7 @@ const Section_a = () => {
     setLoading(true);
     setErrors({});
 
-   
+
 
     // Check for device token first
     const deviceToken = localStorage.getItem("deviceToken");
@@ -85,7 +87,6 @@ const Section_a = () => {
         password,
       });
 
-      console.log("Login response:", response);
 
       if (response?.success || response?.message === "Login successful") {
         console.log("User data:", response.user);
@@ -109,12 +110,12 @@ const Section_a = () => {
           setShowTwoFactorForm(true);
           // Auto-generate device name
           const deviceName = `${navigator.platform} - ${navigator.userAgent.includes("Chrome")
-              ? "Chrome"
-              : navigator.userAgent.includes("Firefox")
-                ? "Firefox"
-                : navigator.userAgent.includes("Safari")
-                  ? "Safari"
-                  : "Browser"
+            ? "Chrome"
+            : navigator.userAgent.includes("Firefox")
+              ? "Firefox"
+              : navigator.userAgent.includes("Safari")
+                ? "Safari"
+                : "Browser"
             }`;
           setDeviceName(deviceName);
           console.log("Auto-generated device name:", deviceName);
@@ -125,6 +126,7 @@ const Section_a = () => {
         }
       } else {
         console.log("Login failed:", response?.message);
+        CustomToast.error(response?.message);
         setErrors({
           general:
             response?.message || "Login failed. Please check your credentials.",
@@ -207,8 +209,6 @@ const Section_a = () => {
   };
 
   const handleSuccessfulLogin = (response) => {
-    console.log("=== HANDLE SUCCESSFUL LOGIN START ===");
-    console.log("handleSuccessfulLogin called with response:", response);
 
     if (response.token) {
       console.log("Storing token:", response.token.substring(0, 20) + "...");
@@ -217,25 +217,20 @@ const Section_a = () => {
     } else {
       console.log("No token in response");
     }
-
     if (response.user) {
       console.log("Storing user data");
       localStorage.setItem("user", JSON.stringify(response.user));
       localStorage.setItem("userType", "user");
-      console.log("User data stored in localStorage");
-      console.log("Navigating to Dashboard");
+      CustomToast.success("Login successful!");
       navigate("/Dashboard");
     } else if (response.employee) {
-      console.log("Storing employee data");
       localStorage.setItem("user", JSON.stringify(response.employee));
       localStorage.setItem("userType", "employee");
-      console.log("Employee data stored in localStorage");
-      console.log("Navigating to Profile");
+      CustomToast.success("Login successful!");
       navigate("/Profile");
     } else {
       console.log("No user or employee data in response");
     }
-
     console.log("=== HANDLE SUCCESSFUL LOGIN END ===");
   };
 
@@ -310,8 +305,8 @@ const Section_a = () => {
                 value={twoFactorToken}
                 onChange={(e) => setTwoFactorToken(e.target.value)}
                 className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 text-center text-lg tracking-widest ${errors.twoFactor
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-gray-300 focus:ring-blue-400"
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-blue-400"
                   }`}
                 placeholder="000000"
                 maxLength={6}
@@ -444,8 +439,8 @@ const Section_a = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.email
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300 focus:ring-blue-400"
+                ? "border-red-500 focus:ring-red-400"
+                : "border-gray-300 focus:ring-blue-400"
                 }`}
               autoComplete="email"
             />
@@ -467,8 +462,8 @@ const Section_a = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.password
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300 focus:ring-blue-400"
+                ? "border-red-500 focus:ring-red-400"
+                : "border-gray-300 focus:ring-blue-400"
                 } pr-10`}
               autoComplete="current-password"
             />
@@ -485,11 +480,6 @@ const Section_a = () => {
           <h1
             onClick={() => navigate("/ForgetPassword")}
             className="flex justify-end text-blue-600 hover:underline cursor-pointer">Forget Password</h1>
-          {errors.general && (
-            <div className="text-center text-red-600 text-sm mb-2">
-              {errors.general}
-            </div>
-          )}
           <button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold shadow-sm transition flex items-center justify-center gap-2"
@@ -497,8 +487,9 @@ const Section_a = () => {
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Signing In...
+                {/* <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Signing In... */}
+                <CustomLoader />
               </>
             ) : (
               "Sign In"

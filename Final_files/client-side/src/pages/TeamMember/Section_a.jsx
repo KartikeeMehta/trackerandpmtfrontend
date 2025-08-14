@@ -362,9 +362,8 @@ const Section_a = () => {
                 </span>
                 <ChevronDown
                   size={16}
-                  className={`transition-transform duration-200 ${
-                    teamsDropdownOpen ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform duration-200 ${teamsDropdownOpen ? "rotate-180" : ""
+                    }`}
                 />
               </button>
 
@@ -645,13 +644,12 @@ const Section_a = () => {
                 {/* Role Badge */}
                 <div className="absolute top-4 left-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
-                      member.role === "admin"
+                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
                         ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                         : member.role === "teamLead"
-                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                    }`}
+                          ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                          : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                      }`}
                   >
                     {member.role}
                   </span>
@@ -829,13 +827,12 @@ const Section_a = () => {
               {/* Role Badge */}
               <div className="absolute top-4 left-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
-                    member.role === "admin"
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
                       ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                       : member.role === "teamLead"
-                      ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                      : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                  }`}
+                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                    }`}
                 >
                   {member.role}
                 </span>
