@@ -139,20 +139,37 @@ exports.getProjectById = async (req, res) => {
 
 exports.getAllProjects = async (req, res) => {
   try {
-    if (
-      req.user.role !== "owner" &&
-      req.user.role !== "admin" &&
-      req.user.role !== "manager"
-    ) {
+    const userCompany = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
+
+    let projects;
+
+    // Owner, Admin, and Manager can see all projects
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      projects = await Project.find({ companyName: userCompany }).sort({
+        createdAt: -1,
+      });
+    } 
+    // Team Lead and Team Member can only see projects they are part of
+    else if (userRole === "teamLead" || userRole === "teamMember") {
+      projects = await Project.find({
+        companyName: userCompany,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      }).sort({
+        createdAt: -1,
+      });
+    } 
+    // Any other role gets no access
+    else {
       return res
         .status(403)
-        .json({ message: "Only owner, admin, and manager can view projects" });
+        .json({ message: "Access denied. Insufficient permissions to view projects." });
     }
 
-    const userCompany = req.user.companyName;
-    const projects = await Project.find({ companyName: userCompany }).sort({
-      createdAt: -1,
-    });
     res.status(200).json({ projects });
   } catch (err) {
     console.error(err);
