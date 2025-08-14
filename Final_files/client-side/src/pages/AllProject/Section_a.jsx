@@ -338,12 +338,7 @@ const Section_a = () => {
                 onClick={() => handleCardClick(project)}
                 className="group relative  rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
               >
-                {/* TeamLead Badge */}
-                <div className="absolute top-4 left-4 z-10 ">
-                  <span className="px-4 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-purple-400 to-purple-600 shadow-lg">
-                    TeamLead
-                  </span>
-                </div>
+
 
                 {/* Action Buttons */}
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">

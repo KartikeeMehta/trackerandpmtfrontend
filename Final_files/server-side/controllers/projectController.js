@@ -113,22 +113,40 @@ exports.createProject = async (req, res) => {
 
 exports.getProjectById = async (req, res) => {
   try {
-    if (
-      req.user.role !== "owner" &&
-      req.user.role !== "admin" &&
-      req.user.role !== "manager"
-    ) {
+    const userCompany = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
+
+    let project;
+
+    // Owner, Admin, and Manager can view any project
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({
+        project_id: req.params.projectId,
+        companyName: userCompany,
+      });
+    } 
+    // Team Lead and Team Member can only view projects they are part of
+    else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        project_id: req.params.projectId,
+        companyName: userCompany,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      });
+    } 
+    // Any other role gets no access
+    else {
       return res
         .status(403)
-        .json({ message: "Only owner, admin, and manager can view projects" });
+        .json({ message: "Access denied. Insufficient permissions to view this project." });
     }
 
-    const userCompany = req.user.companyName;
-    const project = await Project.findOne({
-      project_id: req.params.projectId,
-      companyName: userCompany,
-    });
-    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
 
     res.status(200).json({ project });
   } catch (err) {
@@ -427,15 +445,19 @@ exports.addProjectPhase = async (req, res) => {
   try {
     const { projectId, projectName, title, description, dueDate } = req.body;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     console.log("Incoming body:", req.body);
     console.log("User's company:", companyName);
+    console.log("User role:", userRole);
 
-    if (projectId) {
-      console.log("Trying to find project with project_id:", projectId);
-    }
-    if (projectName) {
-      console.log("Trying to find project with project_name:", projectName);
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot add project phases",
+      });
     }
 
     let project;
@@ -458,6 +480,30 @@ exports.addProjectPhase = async (req, res) => {
         success: false,
         message: "Project not found",
       });
+    }
+
+    // For team leads, check if they are the project lead
+    if (userRole === "teamLead" && project.project_lead !== userTeamMemberId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only add phases to projects you lead",
+      });
+    }
+
+    // For managers, check hierarchical access (can't modify owner/admin projects)
+    if (userRole === "manager") {
+      // Check if project was created by owner or admin
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot modify projects created by owners or admins",
+        });
+      }
     }
 
     // STEP 1: Get company initials (e.g., Webblaze Softech → WS)
@@ -506,9 +552,20 @@ exports.updatePhaseStatus = async (req, res) => {
   try {
     const { projectId, projectName, phaseTitle, phaseId, status } = req.body;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     console.log("Incoming body:", req.body);
     console.log("User's company:", companyName);
+    console.log("User role:", userRole);
+
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot update phase status",
+      });
+    }
 
     if (projectId) {
       console.log("Trying to find project with project_id:", projectId);
@@ -546,6 +603,29 @@ exports.updatePhaseStatus = async (req, res) => {
         success: false,
         message: "Project not found",
       });
+    }
+
+    // For team leads, check if they are the project lead
+    if (userRole === "teamLead" && project.project_lead !== userTeamMemberId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update phases in projects you lead",
+      });
+    }
+
+    // For managers, check hierarchical access
+    if (userRole === "manager") {
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot modify projects created by owners or admins",
+        });
+      }
     }
 
     // Phase matching logic
@@ -586,18 +666,41 @@ exports.getProjectPhases = async (req, res) => {
   try {
     const { projectId } = req.params;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     console.log(
       "Fetching phases for project:",
       projectId,
       "from company:",
-      companyName
+      companyName,
+      "User role:",
+      userRole
     );
 
-    const project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    });
+    let project;
+
+    // Role-based project access
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+      });
+    } else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
 
     if (!project) {
       return res
@@ -622,6 +725,16 @@ exports.deleteProjectPhase = async (req, res) => {
   try {
     const { projectId, projectName, phase_id, title } = req.body;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
+
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot delete project phases",
+      });
+    }
 
     if (!projectId && !projectName) {
       return res.status(400).json({
@@ -652,6 +765,29 @@ exports.deleteProjectPhase = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Project not found" });
+    }
+
+    // For team leads, check if they are the project lead
+    if (userRole === "teamLead" && project.project_lead !== userTeamMemberId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete phases from projects you lead",
+      });
+    }
+
+    // For managers, check hierarchical access
+    if (userRole === "manager") {
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot delete phases from projects created by owners or admins",
+        });
+      }
     }
 
     const initialLength = project.phases.length;
@@ -688,6 +824,8 @@ exports.updateSubtaskStatus = async (req, res) => {
   try {
     const { subtask_id, status } = req.body;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!subtask_id || !status) {
       return res.status(400).json({
@@ -708,6 +846,64 @@ exports.updateSubtaskStatus = async (req, res) => {
         message: "Subtask not found",
       });
     }
+
+    // Find the specific subtask
+    let targetSubtask = null;
+    for (const phase of project.phases) {
+      const subtask = phase.subtasks.find(s => s.subtask_id === subtask_id);
+      if (subtask) {
+        targetSubtask = subtask;
+        break;
+      }
+    }
+
+    if (!targetSubtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found",
+      });
+    }
+
+    // Role-based access control for subtask status updates
+    if (userRole === "teamMember") {
+      // Team members can only update their own subtasks
+      if (targetSubtask.assigned_member !== userTeamMemberId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only update subtasks assigned to you",
+        });
+      }
+    } else if (userRole === "teamLead") {
+      // Team leads can update subtasks in their projects or subtasks assigned to their team members
+      if (project.project_lead !== userTeamMemberId) {
+        // Check if subtask is assigned to a team member under this team lead
+        const Employee = require("../models/Employee");
+        const assignedEmployee = await Employee.findOne({ 
+          teamMemberId: targetSubtask.assigned_member,
+          teamLead: userTeamMemberId 
+        });
+        if (!assignedEmployee) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only update subtasks in your projects or assigned to your team members",
+          });
+        }
+      }
+    } else if (userRole === "manager") {
+      // Managers can update subtasks but check hierarchical access
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot modify subtasks in projects created by owners or admins",
+        });
+      }
+    }
+    // Owner and admin have full access
 
     // Update the subtask status using array update
     const result = await Project.updateOne(
@@ -755,11 +951,21 @@ exports.editSubtask = async (req, res) => {
     const assigned_member = req.body.assigned_member;
     const existing_images = req.body.existing_images;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!subtask_id) {
       return res.status(400).json({
         success: false,
         message: "Subtask ID is required",
+      });
+    }
+
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot edit subtasks",
       });
     }
 
@@ -792,6 +998,46 @@ exports.editSubtask = async (req, res) => {
         message: "Subtask not found",
       });
     }
+
+    // Role-based access control for editing subtasks
+    if (userRole === "teamLead") {
+      // Team leads can edit subtasks in their projects or assign to their team members
+      if (project.project_lead !== userTeamMemberId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only edit subtasks in projects you lead",
+        });
+      }
+      
+      // If assigning to someone, check if they are a team member
+      if (assigned_member && assigned_member !== currentSubtask.assigned_member) {
+        const Employee = require("../models/Employee");
+        const assignedEmployee = await Employee.findOne({ 
+          teamMemberId: assigned_member,
+          role: "teamMember"
+        });
+        if (!assignedEmployee) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only assign subtasks to team members",
+          });
+        }
+      }
+    } else if (userRole === "manager") {
+      // Managers can edit subtasks but check hierarchical access
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot edit subtasks in projects created by owners or admins",
+        });
+      }
+    }
+    // Owner and admin have full access
 
     // Get current images from the subtask
     const currentImages = currentSubtask.images || [];
@@ -957,11 +1203,21 @@ exports.deleteSubtask = async (req, res) => {
   try {
     const { subtask_id } = req.body;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!subtask_id) {
       return res.status(400).json({
         success: false,
         message: "Subtask ID is required",
+      });
+    }
+
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot delete subtasks",
       });
     }
 
@@ -977,6 +1233,31 @@ exports.deleteSubtask = async (req, res) => {
         message: "Subtask not found",
       });
     }
+
+    // Role-based access control for deleting subtasks
+    if (userRole === "teamLead") {
+      // Team leads can only delete subtasks in their projects
+      if (project.project_lead !== userTeamMemberId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only delete subtasks in projects you lead",
+        });
+      }
+    } else if (userRole === "manager") {
+      // Managers can delete subtasks but check hierarchical access
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot delete subtasks in projects created by owners or admins",
+        });
+      }
+    }
+    // Owner and admin have full access
 
     // Find the subtask to get its images before deletion
     let subtaskImages = [];
@@ -1054,6 +1335,8 @@ exports.getSubtaskActivity = async (req, res) => {
   try {
     const { subtaskId } = req.params;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!subtaskId) {
       return res.status(400).json({
@@ -1062,11 +1345,28 @@ exports.getSubtaskActivity = async (req, res) => {
       });
     }
 
-    // Find the project containing the subtask
-    const project = await Project.findOne({
-      "phases.subtasks.subtask_id": subtaskId,
-      companyName,
-    });
+    // Role-based project access
+    let project;
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({
+        "phases.subtasks.subtask_id": subtaskId,
+        companyName,
+      });
+    } else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        "phases.subtasks.subtask_id": subtaskId,
+        companyName,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
 
     if (!project) {
       return res.status(404).json({
@@ -1150,9 +1450,19 @@ exports.addSubtask = async (req, res) => {
     } = req.body;
 
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!subtask_title || !phase_id || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Role-based access control
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot add subtasks",
+      });
     }
 
     // Find project + phase
@@ -1164,6 +1474,46 @@ exports.addSubtask = async (req, res) => {
 
     const phase = project.phases.find((p) => p.phase_id === phase_id);
     if (!phase) return res.status(404).json({ message: "Phase not found" });
+
+    // Role-based access control for adding subtasks
+    if (userRole === "teamLead") {
+      // Team leads can only add subtasks to their projects
+      if (project.project_lead !== userTeamMemberId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only add subtasks to projects you lead",
+        });
+      }
+      
+      // Team leads can only assign to team members
+      if (assigned_member) {
+        const Employee = require("../models/Employee");
+        const assignedEmployee = await Employee.findOne({ 
+          teamMemberId: assigned_member,
+          role: "teamMember"
+        });
+        if (!assignedEmployee) {
+          return res.status(403).json({
+            success: false,
+            message: "You can only assign subtasks to team members",
+          });
+        }
+      }
+    } else if (userRole === "manager") {
+      // Managers can add subtasks but check hierarchical access
+      const projectCreator = await User.findOne({ 
+        companyName, 
+        role: { $in: ["owner", "admin"] },
+        _id: project.createdBy 
+      });
+      if (projectCreator) {
+        return res.status(403).json({
+          success: false,
+          message: "Managers cannot add subtasks to projects created by owners or admins",
+        });
+      }
+    }
+    // Owner and admin have full access
 
     // Assigned team fallback logic
     let finalAssignedTeam = assigned_team || "Not assigned";
@@ -1275,11 +1625,30 @@ exports.getSubtasksByProjectId = async (req, res) => {
   try {
     const { project_id } = req.params;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
-    console.log("🔍 Getting subtasks for project_id:", project_id);
+    console.log("🔍 Getting subtasks for project_id:", project_id, "User role:", userRole);
 
-    // 1. Find the project under the user's company
-    const project = await Project.findOne({ project_id, companyName });
+    // Role-based project access
+    let project;
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({ project_id, companyName });
+    } else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        project_id,
+        companyName,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
 
     if (!project) {
       return res
@@ -1348,7 +1717,9 @@ exports.addCommentToPhase = async (req, res) => {
     const { projectId, phaseId } = req.params;
     const { text } = req.body;
     const userId = req.user._id;
-    const companyName = req.user.companyName; // ✅ Added
+    const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
     if (!text || text.trim() === "") {
       return res
@@ -1356,11 +1727,28 @@ exports.addCommentToPhase = async (req, res) => {
         .json({ success: false, message: "Comment text is required" });
     }
 
-    // ✅ Added companyName to query
-    const project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    });
+    // Role-based project access
+    let project;
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+      });
+    } else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
 
     if (!project) {
       return res
@@ -1420,12 +1808,31 @@ exports.getPhaseComments = async (req, res) => {
   try {
     const { projectId, phaseId } = req.params;
     const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
 
-    // Populate both firstName and lastName from User model
-    const project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    }).populate("phases.comments.commentedBy", "firstName lastName email");
+    // Role-based project access
+    let project;
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+      }).populate("phases.comments.commentedBy", "firstName lastName email");
+    } else if (userRole === "teamLead" || userRole === "teamMember") {
+      project = await Project.findOne({
+        project_id: projectId,
+        companyName,
+        $or: [
+          { project_lead: userTeamMemberId },
+          { team_members: userTeamMemberId }
+        ]
+      }).populate("phases.comments.commentedBy", "firstName lastName email");
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Insufficient permissions.",
+      });
+    }
 
     if (!project) {
       return res.status(404).json({
