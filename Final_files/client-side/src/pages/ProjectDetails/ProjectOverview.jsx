@@ -4,9 +4,6 @@ import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import OverviewTab from "./OverviewTab";
 import PhasesTab from "./PhasesTab";
-import MessagesTab from "./MessagesTab";
-import FilesTab from "./FilesTab";
-import SettingsTab from "./SettingsTab";
 
 const ProjectOverview = () => {
   const location = useLocation();
@@ -20,9 +17,6 @@ const ProjectOverview = () => {
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "phases", label: "Tasks/Phases", icon: "📋" },
-    { id: "messages", label: "Messages", icon: "💬" },
-    { id: "files", label: "Files", icon: "📁" },
-    { id: "settings", label: "Settings", icon: "⚙️" },
   ];
 
   useEffect(() => {
@@ -63,14 +57,6 @@ const ProjectOverview = () => {
         return <OverviewTab project={project} />;
       case "phases":
         return <PhasesTab project={project} />;
-      case "messages":
-        return <MessagesTab project={project} />;
-      case "files":
-        return <FilesTab project={project} />;
-      case "settings":
-        return <SettingsTab project={project} />;
-      default:
-        return <OverviewTab project={project} />;
     }
   };
 
@@ -145,9 +131,6 @@ const ProjectOverview = () => {
                 {tab.label}
               </button>
             ))}
-            <button className="px-3 py-2 text-gray-500 hover:text-gray-700 transition-colors">
-              ⋯
-            </button>
           </div>
         </div>
       </div>

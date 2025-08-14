@@ -2,7 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-import { Users, User, CalendarDays, Hash, ArrowLeft,Trash2} from "lucide-react";
+import {
+  Users,
+  User,
+  CalendarDays,
+  Hash,
+  ArrowLeft,
+  Trash2,
+} from "lucide-react";
 
 const Section_a = () => {
   const { state } = useLocation();
@@ -118,12 +125,12 @@ const Section_a = () => {
     <div className="min-h-screen w-full flex justify-center items-start px-4 py-10 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="w-full max-w-5xl flex justify-center">
         {/* Project Details */}
-        <div 
+        <div
           className="w-full bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 max-h-[90vh] overflow-y-auto"
-          style={{ 
-            scrollbarWidth: 'none', 
-            msOverflowStyle: 'none',
-            WebkitScrollbar: { display: 'none' }
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            WebkitScrollbar: { display: "none" },
           }}
         >
           {/* Header Section */}
@@ -133,26 +140,33 @@ const Section_a = () => {
                 onClick={() => navigate(-1)}
                 className="text-gray-600 hover:text-blue-600 transition-colors duration-200 p-2 rounded-full hover:bg-blue-50"
               >
-                <ArrowLeft size={24} />          
+                <ArrowLeft size={24} />
               </button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
                   Project Details
                 </h1>
-                <p className="text-gray-500 text-sm mt-1">View project information and team details</p>
+                <p className="text-gray-500 text-sm mt-1">
+                  View project information and team details
+                </p>
               </div>
             </div>
-            
+
             {/* Status Badge */}
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
-                project.project_status === "completed"
-                  ? "bg-green-100 text-green-800 border border-green-200"
-                  : project.project_status === "on hold"
-                  ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                  : "bg-blue-100 text-blue-800 border border-blue-200"
-              }`}>
-                {project.project_status ? project.project_status.charAt(0).toUpperCase() + project.project_status.slice(1) : "Unknown"}
+              <span
+                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
+                  project.project_status === "completed"
+                    ? "bg-green-100 text-green-800 border border-green-200"
+                    : project.project_status === "on hold"
+                    ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                    : "bg-blue-100 text-blue-800 border border-blue-200"
+                }`}
+              >
+                {project.project_status
+                  ? project.project_status.charAt(0).toUpperCase() +
+                    project.project_status.slice(1)
+                  : "Unknown"}
               </span>
             </div>
           </div>
@@ -171,7 +185,9 @@ const Section_a = () => {
                     Project Name
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.project_name || "Not specified"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.project_name || "Not specified"}
+                    </span>
                   </div>
                 </div>
 
@@ -180,7 +196,9 @@ const Section_a = () => {
                     Client Name
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.client_name || "Not specified"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.client_name || "Not specified"}
+                    </span>
                   </div>
                 </div>
 
@@ -189,7 +207,9 @@ const Section_a = () => {
                     Project Description
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm min-h-[80px]">
-                    <span className="text-gray-900 leading-relaxed">{project.project_description || "No description provided"}</span>
+                    <span className="text-gray-900 leading-relaxed">
+                      {project.project_description || "No description provided"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -207,7 +227,9 @@ const Section_a = () => {
                     Start Date
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.start_date || "Not set"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.start_date || "Not set"}
+                    </span>
                   </div>
                 </div>
 
@@ -216,7 +238,9 @@ const Section_a = () => {
                     End Date
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.end_date || "Not set"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.end_date || "Not set"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -238,7 +262,10 @@ const Section_a = () => {
                       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold text-sm">
                         {getInitials(getEmployeeName(project.project_lead))}
                       </span>
-                      <span className="text-gray-900 font-medium">{getEmployeeName(project.project_lead) || "Not assigned"}</span>
+                      <span className="text-gray-900 font-medium">
+                        {getEmployeeName(project.project_lead) ||
+                          "Not assigned"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -248,7 +275,9 @@ const Section_a = () => {
                     Team
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{getTeamName(project.team_id) || "Not assigned"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {getTeamName(project.team_id) || "Not assigned"}
+                    </span>
                   </div>
                 </div>
 
@@ -257,25 +286,35 @@ const Section_a = () => {
                     Team Members ({project.team_members?.length || 0})
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                    {Array.isArray(project.team_members) && project.team_members.length > 0 ? (
+                    {Array.isArray(project.team_members) &&
+                    project.team_members.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {project.team_members.map((memberId) => {
                           const emp = getEmployee(memberId);
                           return (
-                            <div key={memberId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div
+                              key={memberId}
+                              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                            >
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold text-sm">
                                 {getInitials(emp?.name || memberId)}
                               </span>
                               <div>
-                                <span className="text-gray-900 font-medium text-sm">{emp?.name || memberId}</span>
-                                <div className="text-gray-500 text-xs">{memberId}</div>
+                                <span className="text-gray-900 font-medium text-sm">
+                                  {emp?.name || memberId}
+                                </span>
+                                <div className="text-gray-500 text-xs">
+                                  {memberId}
+                                </div>
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="text-gray-500 text-center py-4">No team members assigned</div>
+                      <div className="text-gray-500 text-center py-4">
+                        No team members assigned
+                      </div>
                     )}
                   </div>
                 </div>
@@ -294,7 +333,11 @@ const Section_a = () => {
                     Created At
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.createdAt ? new Date(project.createdAt).toLocaleString() : "Not available"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.createdAt
+                        ? new Date(project.createdAt).toLocaleString()
+                        : "Not available"}
+                    </span>
                   </div>
                 </div>
 
@@ -303,7 +346,11 @@ const Section_a = () => {
                     Updated At
                   </label>
                   <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
-                    <span className="text-gray-900 font-medium">{project.updatedAt ? new Date(project.updatedAt).toLocaleString() : "Not available"}</span>
+                    <span className="text-gray-900 font-medium">
+                      {project.updatedAt
+                        ? new Date(project.updatedAt).toLocaleString()
+                        : "Not available"}
+                    </span>
                   </div>
                 </div>
               </div>
