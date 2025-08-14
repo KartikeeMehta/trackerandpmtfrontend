@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const User = require("./models/User");
 const Employee = require("./models/Employee");
 const Project = require("./models/Project");
-const Task = require("./models/Task");
+
 const Team = require("./models/Team");
 const Activity = require("./models/Activity");
 
@@ -42,26 +42,7 @@ const migrateData = async () => {
       }
     }
 
-    // Update Tasks - assign companyName based on the user who created them
-    const tasks = await Task.find({ companyName: { $exists: false } });
-    console.log(`Found ${tasks.length} tasks without companyName`);
 
-    for (const task of tasks) {
-      // For now, assign to the first user's company (you may need to adjust this logic)
-      if (users.length > 0) {
-        task.companyName = users[0].companyName;
-
-        // Fix invalid status values
-        if (task.status === "in progress") {
-          task.status = "in-progress";
-        }
-
-        await task.save();
-        console.log(
-          `Updated task ${task.task_id} with companyName: ${users[0].companyName}`
-        );
-      }
-    }
 
     // Update Teams - assign companyName based on the user who created them
     const teams = await Team.find({ companyName: { $exists: false } });

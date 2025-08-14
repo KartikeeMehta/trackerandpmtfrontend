@@ -22,7 +22,7 @@ const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const projectRoutes = require("./routes/projectRoutes");
-const taskRoutes = require("./routes/taskRoutes");
+
 const otpRoutes = require("./routes/otpRoutes");
 const chatRoutes = require("./routes/chatRoutes"); // NEW
 const { Project } = require("./models/Project");
@@ -69,7 +69,7 @@ app.use("/api", userRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/tasks", taskRoutes);
+
 app.use("/api/otp", otpRoutes);
 app.use("/api/chat", chatRoutes); // NEW
 

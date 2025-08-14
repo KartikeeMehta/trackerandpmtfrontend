@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const activitySchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["Employee", "Team", "Project", "Task"],
+    enum: ["Employee", "Team", "Project"],
     required: true,
   },
   action: {
