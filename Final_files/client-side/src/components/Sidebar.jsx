@@ -7,6 +7,7 @@ import {
   BookCopy,
   History,
   ChevronLeft,
+  ChevronRight,
   MessageCircle,
 } from "lucide-react";
 
@@ -52,7 +53,9 @@ const Sidebar = () => {
     },
   ];
   return (
-    <aside className="w-64 bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20">
+    <aside className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
+      isCollapsed ? "w-16" : "w-64"
+    }`}>
       <div className="flex items-center justify-between p-4 shadow-sm mt-3">
         <div className="flex items-center gap-2">
           <svg
@@ -71,18 +74,32 @@ const Sidebar = () => {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-blue-700 font-semibold text-xl">
-            Project Flow
-          </span>
+          {!isCollapsed && (
+            <span className="text-blue-700 font-semibold text-xl">
+              Project Flow
+            </span>
+          )}
         </div>
-        <ChevronLeft className="text-gray-700 w-5 h-5" size={18} />
+        <button
+          onClick={onToggle}
+          className="text-gray-700 w-5 h-5 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight size={18} />
+          ) : (
+            <ChevronLeft size={18} />
+          )}
+        </button>
       </div>
-      <nav className="p-4">
+      <nav className={`${isCollapsed ? "px-2" : "px-4"} py-4`}>
         {navLinks.map((section, index) => (
           <div key={index} className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-              {section.label}
-            </h4>
+            {!isCollapsed && (
+              <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
+                {section.label}
+              </h4>
+            )}
             <ul className="space-y-1 mb-4">
               {section.items.map((item) => (
                 <li key={item.to}>
@@ -99,11 +116,12 @@ const Sidebar = () => {
                 </li>
               ))}
             </ul>
-            <hr />
+            {!isCollapsed && <hr />}
           </div>
         ))}
       </nav>
     </aside>
   );
 };
+
 export default Sidebar;

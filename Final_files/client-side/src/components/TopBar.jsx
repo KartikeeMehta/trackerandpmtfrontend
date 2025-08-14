@@ -8,7 +8,7 @@ import { User, Settings, LogOut, Building2 } from "lucide-react";
 
 const sampleLogo = <img src="/vite.svg" alt="Logo" className="h-8 w-8" />;
 
-const TopBar = () => {
+const TopBar = ({ isSidebarCollapsed = false }) => {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState({});
 
@@ -77,7 +77,9 @@ const TopBar = () => {
   };
 
   return (
-    <header className="h-[76px] bg-white shadow flex items-center justify-end gap-2 px-8 fixed left-64 right-0 top-0 z-10">
+    <header className={`h-[76px] bg-white shadow flex items-center justify-end gap-2 px-8 fixed top-0 z-10 transition-all duration-300 ${
+      isSidebarCollapsed ? "left-16 right-0" : "left-64 right-0"
+    }`}>
       <div
         className="flex items-center gap-2 cursor-pointer bg-[#dbdfe9] px-4 py-2 rounded-full"
         onClick={() => navigate("/DashBoard")}
