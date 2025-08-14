@@ -25,6 +25,7 @@ export const api_url = {
   getTeamMember: BASE_URL + "/employees/team-members",
   createTask: BASE_URL + "/tasks/createTask",
   getAllTasks: BASE_URL + "/tasks/all",
+  getMyTasks: BASE_URL + "/tasks/my-tasks",
   getOngoingTasks: BASE_URL + "/tasks/ongoing",
   getTaskHistory: BASE_URL + "/tasks/history/", // append memberId
   updateTask: BASE_URL + "/tasks/update/", // append taskId or memberId

@@ -136,16 +136,23 @@ function Section_a() {
     quickTips[Math.floor(Math.random() * quickTips.length)]
   );
   const [userName, setUserName] = useState("there");
+  const [userRole, setUserRole] = useState("");
+  const [userType, setUserType] = useState("");
 
   // Recent Activity State
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState("");
 
-  // Fetch user name from localStorage (customize key as needed)
+  // Fetch user name and role from localStorage
   useEffect(() => {
     // Try to get the full user object
     const storedUser = localStorage.getItem("user");
+    const storedEmployee = localStorage.getItem("employee");
+    const userType = localStorage.getItem("userType");
+    
+    setUserType(userType || "");
+    
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -162,11 +169,23 @@ function Section_a() {
         } else {
           setUserName("Owner");
         }
+        setUserRole(user.role || "owner");
       } catch {
         setUserName("Owner");
+        setUserRole("owner");
+      }
+    } else if (storedEmployee) {
+      try {
+        const employee = JSON.parse(storedEmployee);
+        setUserName(employee.name || employee.email || "Employee");
+        setUserRole(employee.role || "teamMember");
+      } catch {
+        setUserName("Employee");
+        setUserRole("teamMember");
       }
     } else {
       setUserName("Owner");
+      setUserRole("owner");
     }
   }, []);
 
@@ -243,6 +262,36 @@ function Section_a() {
         console.log("Activity response:", res);
         let activities = Array.isArray(res.activities) ? res.activities : [];
         console.log("Activities found:", activities.length);
+        
+        // Filter activities based on user role
+        if (userRole === "teamLead" || userRole === "teamMember") {
+          // For team leads and members, only show activities related to them
+          const storedEmployee = localStorage.getItem("employee");
+          if (storedEmployee) {
+            try {
+              const employee = JSON.parse(storedEmployee);
+              const employeeName = employee.name || employee.email;
+              
+              activities = activities.filter(activity => {
+                // Check if the employee performed this activity
+                if (activity.performedBy === employeeName) {
+                  return true;
+                }
+                
+                // Check if employee is mentioned in activity description or name
+                if (activity.description?.includes(employeeName) || 
+                    activity.name?.includes(employeeName)) {
+                  return true;
+                }
+                
+                return false;
+              });
+            } catch (error) {
+              console.error("Error parsing employee data:", error);
+            }
+          }
+        }
+        
         setActivity(activities);
       } catch (err) {
         console.error("Activity fetch error:", err);
@@ -256,7 +305,7 @@ function Section_a() {
     setTimeout(() => {
       fetchActivity();
     }, 300);
-  }, []);
+  }, [userRole]);
 
   // Calculate project stats
   const totalProjects = projects.length;
@@ -323,7 +372,12 @@ function Section_a() {
     const fetchTasks = async () => {
       const token = localStorage.getItem("token");
       try {
-        const res = await apiHandler.GetApi(api_url.getAllTasks, token);
+        // Use different API based on user role
+        const apiEndpoint = (userRole === "teamLead" || userRole === "teamMember") 
+          ? api_url.getMyTasks 
+          : api_url.getAllTasks;
+        
+        const res = await apiHandler.GetApi(apiEndpoint, token);
         if (Array.isArray(res)) {
           setTasks(res);
           setTotalTasks(res.length);
@@ -333,7 +387,7 @@ function Section_a() {
       } catch {}
     };
     fetchTasks();
-  }, []);
+  }, [userRole]);
 
   // 4. Add an 'Employee Distribution' pie chart (by role)
   const [employeeRoles, setEmployeeRoles] = useState({});
@@ -360,11 +414,138 @@ function Section_a() {
     ([role, count]) => ({ name: role, value: count })
   );
 
+  // Derived Subtask statistics from projects/phases/subtasks
+  const {
+    totalSubtasks,
+    completedSubtasks,
+    pendingSubtasks,
+  } = useMemo(() => {
+    try {
+      // Determine scope based on role
+      let scopedProjects = projects || [];
+      let teamMemberId = null;
+      if (userRole === "teamLead" || userRole === "teamMember") {
+        try {
+          const storedEmployee = localStorage.getItem("employee");
+          if (storedEmployee) {
+            const employee = JSON.parse(storedEmployee);
+            teamMemberId = employee?.teamMemberId || null;
+          }
+        } catch {}
+        if (teamMemberId) {
+          scopedProjects = scopedProjects.filter(
+            (p) =>
+              p.project_lead === teamMemberId ||
+              (Array.isArray(p.team_members) &&
+                p.team_members.includes(teamMemberId))
+          );
+        } else {
+          scopedProjects = [];
+        }
+      }
+
+      // Flatten subtasks
+      const allSubtasks = [];
+      scopedProjects.forEach((project) => {
+        (project.phases || []).forEach((phase) => {
+          (phase.subtasks || []).forEach((subtask) => {
+            // For employees, only count their own assigned subtasks
+            if (
+              userRole === "teamLead" ||
+              userRole === "teamMember"
+            ) {
+              // Check multiple possible formats for assigned_member
+              const isAssigned = (
+                subtask.assigned_member === teamMemberId ||
+                subtask.assigned_member === teamMemberId?.toString() ||
+                subtask.assigned_member === userName ||
+                subtask.assigned_member === userName?.toLowerCase() ||
+                subtask.assigned_member === userName?.toUpperCase() ||
+                // Also check if assigned_member contains the user's name
+                (subtask.assigned_member && userName && 
+                 subtask.assigned_member.toLowerCase().includes(userName.toLowerCase()))
+              );
+              if (isAssigned) {
+                allSubtasks.push(subtask);
+              }
+            } else {
+              allSubtasks.push(subtask);
+            }
+          });
+        });
+      });
+
+      const total = allSubtasks.length;
+      const completed = allSubtasks.filter(
+        (st) => st.status === "Completed"
+      ).length;
+      const pending = total - completed; // Anything not Completed counts as pending
+
+      // Debug logging for subtask counting
+      if (userRole === "teamLead" || userRole === "teamMember") {
+        console.log("Subtask Debug Info:", {
+          userName,
+          teamMemberId,
+          scopedProjectsCount: scopedProjects.length,
+          totalSubtasks: total,
+          completedSubtasks: completed,
+          pendingSubtasks: pending,
+          allSubtasks: allSubtasks.map(st => ({
+            title: st.subtask_title,
+            assigned_member: st.assigned_member,
+            status: st.status
+          }))
+        });
+        
+        // Additional debug: Log all subtasks from all projects to see what's available
+        console.log("All Available Subtasks:", scopedProjects.map(project => ({
+          projectName: project.project_name,
+          phases: project.phases?.map(phase => ({
+            phaseTitle: phase.title,
+            subtasks: phase.subtasks?.map(st => ({
+              title: st.subtask_title,
+              assigned_member: st.assigned_member,
+              status: st.status
+            })) || []
+          })) || []
+        })));
+      }
+
+      return {
+        totalSubtasks: total,
+        completedSubtasks: completed,
+        pendingSubtasks: pending,
+      };
+    } catch {
+      return { totalSubtasks: 0, completedSubtasks: 0, pendingSubtasks: 0 };
+    }
+  }, [projects, userRole]);
+
   // 5. Add an 'Upcoming Project Deadlines' section
-  const upcomingProjects = projects
-    .filter((p) => p.end_date && dayjs(p.end_date).isAfter(dayjs()))
-    .sort((a, b) => dayjs(a.end_date).diff(dayjs(b.end_date)))
-    .slice(0, 5);
+  const upcomingProjects = useMemo(() => {
+    let filteredProjects = projects.filter((p) => p.end_date && dayjs(p.end_date).isAfter(dayjs()));
+    
+    // For team leads and members, only show projects they are part of
+    if (userRole === "teamLead" || userRole === "teamMember") {
+      const storedEmployee = localStorage.getItem("employee");
+      if (storedEmployee) {
+        try {
+          const employee = JSON.parse(storedEmployee);
+          const teamMemberId = employee.teamMemberId;
+          filteredProjects = filteredProjects.filter(project => 
+            project.project_lead === teamMemberId ||
+            (project.team_members && project.team_members.includes(teamMemberId))
+          );
+        } catch (error) {
+          console.error("Error parsing employee data:", error);
+        }
+      }
+    }
+    
+    return filteredProjects
+      .sort((a, b) => dayjs(a.end_date).diff(dayjs(b.end_date)))
+      .slice(0, 5);
+  }, [projects, userRole]);
 
   // 6. Add a 'Top Performer' card if task data is available
   const topPerformer = useMemo(() => {
@@ -388,7 +569,10 @@ function Section_a() {
             Welcome back, <span className="text-blue-700">{userName}</span>!
           </h2>
           <p className="text-base text-gray-600 mt-1">
-            Here's an overview of your company's performance.
+            {userRole === "teamLead" || userRole === "teamMember" 
+              ? "Here's an overview of your performance."
+              : "Here's an overview of your company's performance."
+            }
           </p>
         </div>
         {/* Motivational Quote Card */}
@@ -417,63 +601,109 @@ function Section_a() {
 
       {/* Project Stats Cards */}
       <div className="flex flex-wrap xl:gap-6 gap-6 2xl:justify-between justify-start">
-        <div className="flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-          <div className="w-full">
-            <p className="font-semibold text-gray-700">Total Team</p>
-            <p className="font-bold text-2xl text-gray-800">{totalTeams}</p>
-            <p className="text-gray-400">{totalEmployees} employees</p>
-          </div>
-          <Users className="h-6 w-6 text-blue-400" />
-        </div>
-        <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-          <div className="w-full">
-            <p className="font-semibold text-gray-700">Total Projects</p>
-            <p className="font-bold text-2xl text-gray-800">{totalProjects}</p>
-            <p className="text-gray-400">All Projects (including completed)</p>
-          </div>
-          <Briefcase className="h-6 w-6 text-green-400" />
-        </div>
-        <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-          <div className="w-full">
-            <p className="font-semibold text-gray-700">Active Projects</p>
-            <p className="font-bold text-2xl text-gray-800">{activeProjects}</p>
-            <p className="text-gray-400">Currently being worked on</p>
-          </div>
-          <Clock className="h-6 w-6 text-yellow-400" />
-        </div>
-        <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-          <div className="w-full">
-            <p className="font-semibold text-gray-700">Completed Projects</p>
-            <p className="font-bold text-2xl text-gray-800">
-              {completedProjects}
-            </p>
-            <p className="text-gray-400">Finished Projects</p>
-          </div>
-          <CheckCircle className="h-6 w-6 text-purple-400" />
-        </div>
-        <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-          <div className="w-full">
-            <p className="font-semibold text-gray-700">Tasks Overview</p>
-            <p className="font-bold text-2xl text-gray-800">{totalTasks}</p>
-            <p className="text-gray-400">
-              {completedTasks} completed, {pendingTasks} pending
-            </p>
-          </div>
-          <CheckCircle className="h-6 w-6 text-pink-400" />
-        </div>
-        {topPerformer && (
-          <div className="flex border rounded bg-gradient-to-br from-indigo-50 to-indigo-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-            <div className="w-full">
-              <p className="font-semibold text-gray-700">Top Performer</p>
-              <p className="font-bold text-2xl text-gray-800">
-                {topPerformer.memberId}
-              </p>
-              <p className="text-gray-400">
-                {topPerformer.count} tasks completed
-              </p>
+        {/* Show different cards based on user role */}
+        {userRole === "teamLead" || userRole === "teamMember" ? (
+          // Employee view - only show relevant cards
+          <>
+            <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">My Projects</p>
+                <p className="font-bold text-2xl text-gray-800">{totalProjects}</p>
+                <p className="text-gray-400">Projects I'm part of</p>
+              </div>
+              <Briefcase className="h-6 w-6 text-green-400" />
             </div>
-            <Users className="h-6 w-6 text-indigo-400" />
-          </div>
+            <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Active Projects</p>
+                <p className="font-bold text-2xl text-gray-800">{activeProjects}</p>
+                <p className="text-gray-400">Currently being worked on</p>
+              </div>
+              <Clock className="h-6 w-6 text-yellow-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Completed Projects</p>
+                <p className="font-bold text-2xl text-gray-800">
+                  {completedProjects}
+                </p>
+                <p className="text-gray-400">Finished Projects</p>
+              </div>
+              <CheckCircle className="h-6 w-6 text-purple-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Subtasks Overview</p>
+                <p className="font-bold text-2xl text-gray-800">{totalSubtasks}</p>
+                <p className="text-gray-400">
+                  {completedSubtasks} completed, {pendingSubtasks} pending
+                </p>
+              </div>
+              <CheckCircle className="h-6 w-6 text-pink-400" />
+            </div>
+          </>
+        ) : (
+          // Admin/Manager/Owner view - show all cards
+          <>
+            <div className="flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Total Team</p>
+                <p className="font-bold text-2xl text-gray-800">{totalTeams}</p>
+                <p className="text-gray-400">{totalEmployees} employees</p>
+              </div>
+              <Users className="h-6 w-6 text-blue-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Total Projects</p>
+                <p className="font-bold text-2xl text-gray-800">{totalProjects}</p>
+                <p className="text-gray-400">All Projects (including completed)</p>
+              </div>
+              <Briefcase className="h-6 w-6 text-green-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Active Projects</p>
+                <p className="font-bold text-2xl text-gray-800">{activeProjects}</p>
+                <p className="text-gray-400">Currently being worked on</p>
+              </div>
+              <Clock className="h-6 w-6 text-yellow-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Completed Projects</p>
+                <p className="font-bold text-2xl text-gray-800">
+                  {completedProjects}
+                </p>
+                <p className="text-gray-400">Finished Projects</p>
+              </div>
+              <CheckCircle className="h-6 w-6 text-purple-400" />
+            </div>
+            <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+              <div className="w-full">
+                <p className="font-semibold text-gray-700">Subtasks Overview</p>
+                <p className="font-bold text-2xl text-gray-800">{totalSubtasks}</p>
+                <p className="text-gray-400">
+                  {completedSubtasks} completed, {pendingSubtasks} pending
+                </p>
+              </div>
+              <CheckCircle className="h-6 w-6 text-pink-400" />
+            </div>
+            {topPerformer && (
+              <div className="flex border rounded bg-gradient-to-br from-indigo-50 to-indigo-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+                <div className="w-full">
+                  <p className="font-semibold text-gray-700">Top Performer</p>
+                  <p className="font-bold text-2xl text-gray-800">
+                    {topPerformer.memberId}
+                  </p>
+                  <p className="text-gray-400">
+                    {topPerformer.count} tasks completed
+                  </p>
+                </div>
+                <Users className="h-6 w-6 text-indigo-400" />
+              </div>
+            )}
+          </>
         )}
       </div>
       {/* Recent Activity Section */}
@@ -533,16 +763,18 @@ function Section_a() {
           )}
         </div>
       </div>
-      {/* Charts Section */}
-      <div className="flex justify-between my-6 flex-wrap gap-4">
-        <ChartBlock
-          title="Project Status Distribution"
-          data={projectStatusData}
-        />
-        <ChartBlock title="Team Performance" data={teamPerformanceData} />
-        <ChartBlock title="Team Sizes" data={teamSizeData} />
-        <ChartBlock title="Employee Distribution" data={employeeRoleData} />
-      </div>
+      {/* Charts Section - Only show for Admin/Manager/Owner */}
+      {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
+        <div className="flex justify-between my-6 flex-wrap gap-4">
+          <ChartBlock
+            title="Project Status Distribution"
+            data={projectStatusData}
+          />
+          <ChartBlock title="Team Performance" data={teamPerformanceData} />
+          <ChartBlock title="Team Sizes" data={teamSizeData} />
+          <ChartBlock title="Employee Distribution" data={employeeRoleData} />
+        </div>
+      )}
       {/* Upcoming Project Deadlines section */}
       <div className="mt-6">
         <div className="bg-white border rounded shadow px-6 py-4">
