@@ -43,7 +43,7 @@ const phaseSchema = new mongoose.Schema(
     dueDate: { type: String, required: true },
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Completed"],
+      enum: ["Pending", "In Progress", "Completed", "final_checks"],
       default: "Pending",
     },
     comments: [commentSchema], // ✅ Embedded comments
