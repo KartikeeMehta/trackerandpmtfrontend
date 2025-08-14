@@ -112,7 +112,7 @@ const OverviewTab = ({ project }) => {
     <div className="max-w-4xl mx-auto">
       {/* Project Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
               {project.project_name?.charAt(0).toUpperCase() || "P"}
@@ -121,9 +121,9 @@ const OverviewTab = ({ project }) => {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {project.project_name}
               </h1>
-              <p className="text-gray-600 text-lg">
+              {/* <p className="text-gray-600 text-lg">
                 {project.project_description}
-              </p>
+              </p> */}
             </div>
           </div>
           <span
@@ -188,38 +188,6 @@ const OverviewTab = ({ project }) => {
               </div>
             </div>
           </div>
-
-          {/* Team Workload */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Users size={20} className="text-purple-600" />
-              Team Workload
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User size={16} className="text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {getProjectLeadName(project.project_lead)}
-                    </p>
-                    <p className="text-xs text-gray-500">Project Lead</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: "75%" }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">75%</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Team Members & Resources */}
@@ -261,38 +229,18 @@ const OverviewTab = ({ project }) => {
             </div>
           </div>
 
-          {/* Resources */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <FileText size={20} className="text-orange-600" />
-                Resources
-              </h3>
-              <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                <Plus size={16} />
-              </button>
-            </div>
-            <div className="text-center py-8 text-gray-500">
-              <FileText size={24} className="mx-auto mb-2 text-gray-400" />
-              <p className="text-sm">No resources added yet</p>
-              <button className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                + Add file or link
-              </button>
+          {/* Project Description */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6 min-h-[150px]">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Project Description
+            </h3>
+            <div className="prose max-w-none">
+              <p className="text-gray-700 leading-relaxed">
+                {project.project_description ||
+                  "No detailed description available for this project."}
+              </p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Project Description */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Project Description
-        </h3>
-        <div className="prose max-w-none">
-          <p className="text-gray-700 leading-relaxed">
-            {project.project_description ||
-              "No detailed description available for this project."}
-          </p>
         </div>
       </div>
     </div>

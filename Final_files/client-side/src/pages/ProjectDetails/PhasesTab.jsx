@@ -10,6 +10,11 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  ChevronDown,
+  Circle,
+  Play,
+  Eye,
+  Shield,
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -24,13 +29,72 @@ const PhasesTab = ({ project }) => {
   const [employees, setEmployees] = useState([]);
   const [newPhase, setNewPhase] = useState({
     title: "",
-    description: "",
     assigned_members: [],
-    status: "pending",
+    status: "Pending",
     due_date: "",
   });
   const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [draggedPhase, setDraggedPhase] = useState(null);
   const dropdownRef = useRef();
+
+  // Get user role for permissions
+  const getUserRole = () => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        return userData.role || "teamMember";
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return "teamMember";
+  };
+
+  const userRole = getUserRole();
+  const canAccessFinalChecks = [
+    "owner",
+    "admin",
+    "manager",
+    "teamLead",
+  ].includes(userRole?.toLowerCase());
+
+  // Fixed four status columns with updated styling including Final Checks
+  const columns = [
+    {
+      id: "Pending",
+      title: "Pending",
+      icon: <Circle size={16} className="text-gray-500" />,
+      color: "text-gray-700",
+      bgColor: "bg-gray-50",
+      borderColor: "border-gray-300",
+    },
+    {
+      id: "In Progress",
+      title: "In Progress",
+      icon: <Play size={16} className="text-orange-500" />,
+      color: "text-orange-700",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-300",
+    },
+    {
+      id: "Completed",
+      title: "Completed",
+      icon: <CheckCircle size={16} className="text-green-500" />,
+      color: "text-green-700",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-300",
+    },
+    {
+      id: "Final Checks",
+      title: "Final Checks",
+      icon: <Shield size={16} className="text-emerald-600" />,
+      color: "text-emerald-800",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-400",
+      requiresAuth: true,
+    },
+  ];
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -88,43 +152,8 @@ const PhasesTab = ({ project }) => {
     fetchData();
   }, [project?.project_id]);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "Completed":
-        return <CheckCircle size={16} className="text-green-600" />;
-      case "In Progress":
-        return <Clock size={16} className="text-blue-600" />;
-      case "Pending":
-        return <AlertCircle size={16} className="text-yellow-600" />;
-      default:
-        return <Clock size={16} className="text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Completed":
-        return "bg-green-100 text-green-800";
-      case "In Progress":
-        return "bg-blue-100 text-blue-800";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case "Completed":
-        return "Completed";
-      case "In Progress":
-        return "In Progress";
-      case "Pending":
-        return "Pending";
-      default:
-        return status;
-    }
+  const getPhasesByStatus = (status) => {
+    return phases.filter((phase) => phase.status === status);
   };
 
   const getAssignedMembers = (memberIds) => {
@@ -132,12 +161,45 @@ const PhasesTab = ({ project }) => {
     return employees.filter((emp) => memberIds.includes(emp.teamMemberId));
   };
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e, phase) => {
+    setDraggedPhase(phase);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e, targetStatus) => {
+    e.preventDefault();
+
+    // Check if target status requires authorization
+    const targetColumn = columns.find((col) => col.id === targetStatus);
+    if (targetColumn?.requiresAuth && !canAccessFinalChecks) {
+      alert(
+        "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
+      );
+      setDraggedPhase(null);
+      return;
+    }
+
+    if (draggedPhase && draggedPhase.status !== targetStatus) {
+      await handleStatusChange(draggedPhase.phase_id, targetStatus);
+    }
+    setDraggedPhase(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPhase(null);
+  };
+
   const handleAddPhase = () => {
     setNewPhase({
       title: "",
-      description: "",
       assigned_members: [],
-      status: "pending",
+      status: "Pending",
       due_date: "",
     });
     setShowAddModal(true);
@@ -185,47 +247,125 @@ const PhasesTab = ({ project }) => {
     });
   };
 
+  const handleStatusChange = async (phaseId, newStatus) => {
+    const token = localStorage.getItem("token");
+
+    // Check if the new status requires authorization
+    if (newStatus === "Final Checks" && !canAccessFinalChecks) {
+      alert(
+        "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
+      );
+      return;
+    }
+
+    try {
+      // Update phase status in backend - use POST, not PUT
+      const response = await apiHandler.PostApi(
+        api_url.updatePhaseStatus,
+        {
+          phaseId: phaseId,
+          status: newStatus,
+          projectId: project?.project_id,
+        },
+        token
+      );
+
+      if (response && response.success) {
+        // Update local state
+        setPhases((prev) =>
+          prev.map((phase) =>
+            phase.phase_id === phaseId ? { ...phase, status: newStatus } : phase
+          )
+        );
+      } else {
+        console.error(
+          "Failed to update phase status:",
+          response?.message || "Unknown error"
+        );
+        // Optionally show error message to user
+      }
+    } catch (error) {
+      console.error("Error updating phase status:", error);
+      // Optionally show error message to user
+    }
+  };
+
   const handleSubmitPhase = async (phaseData, isEdit = false) => {
     const token = localStorage.getItem("token");
     try {
       if (isEdit) {
-        // No API for editing phase details, keep static
-        setPhases((prev) =>
-          prev.map((phase) =>
-            phase.phase_id === editingPhase.phase_id
-              ? { ...phase, ...phaseData }
-              : phase
-          )
-        );
-        setShowEditModal(false);
-        setEditingPhase(null);
+        // For editing, we'll update the phase status via the status update endpoint
+        // and handle other fields locally for now since there's no dedicated edit endpoint
+        if (phaseData.status !== editingPhase.status) {
+          const response = await apiHandler.PostApi(
+            api_url.updatePhaseStatus,
+            {
+              phaseId: editingPhase.phase_id,
+              status: phaseData.status,
+              projectId: project?.project_id,
+            },
+            token
+          );
+
+          if (response && response.success) {
+            setPhases((prev) =>
+              prev.map((phase) =>
+                phase.phase_id === editingPhase.phase_id
+                  ? { ...phase, ...phaseData }
+                  : phase
+              )
+            );
+            setShowEditModal(false);
+            setEditingPhase(null);
+          }
+        } else {
+          // If only title changed, update locally
+          setPhases((prev) =>
+            prev.map((phase) =>
+              phase.phase_id === editingPhase.phase_id
+                ? { ...phase, ...phaseData }
+                : phase
+            )
+          );
+          setShowEditModal(false);
+          setEditingPhase(null);
+        }
       } else {
         // Add phase via API
         const payload = {
           projectId: project?.project_id,
           title: phaseData.title,
-          description: phaseData.description,
           dueDate: phaseData.due_date || "",
+          status: phaseData.status,
         };
-        await apiHandler.PostApi(api_url.addPhase, payload, token);
-        // Re-fetch phases
-        if (project?.project_id) {
-          const phasesResponse = await apiHandler.GetApi(
-            api_url.getPhases + project.project_id,
-            token
-          );
-          if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
-            setPhases(phasesResponse.phases);
+        const response = await apiHandler.PostApi(
+          api_url.addPhase,
+          payload,
+          token
+        );
+
+        if (response && response.success) {
+          // Re-fetch phases
+          if (project?.project_id) {
+            const phasesResponse = await apiHandler.GetApi(
+              api_url.getPhases + project.project_id,
+              token
+            );
+            if (
+              phasesResponse.success &&
+              Array.isArray(phasesResponse.phases)
+            ) {
+              setPhases(phasesResponse.phases);
+            }
           }
+          setShowAddModal(false);
+          setNewPhase({
+            title: "",
+            assigned_members: [],
+            status: "Pending",
+            due_date: "",
+          });
         }
-        setShowAddModal(false);
-        setNewPhase({
-          title: "",
-          description: "",
-          assigned_members: [],
-          status: "pending",
-          due_date: "",
-        });
       }
     } catch (error) {
       console.error("Error saving phase:", error);
@@ -241,14 +381,23 @@ const PhasesTab = ({ project }) => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Project Phases</h2>
           <p className="text-gray-600">
-            Manage and track project phases and tasks
+            Drag and drop phases to change their status
           </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-gray-500">Role: {userRole}</span>
+            {canAccessFinalChecks && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 text-xs rounded-full">
+                <Shield size={10} />
+                Can access Final Checks
+              </span>
+            )}
+          </div>
         </div>
         <button
           onClick={handleAddPhase}
@@ -259,90 +408,177 @@ const PhasesTab = ({ project }) => {
         </button>
       </div>
 
-      {/* Phases Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {phases.map((phase) => (
-          <div
-            key={phase.phase_id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
-          >
-            {/* Phase Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {phase.title}
-                </h3>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                    phase.status
-                  )}`}
-                >
-                  {getStatusText(phase.status)}
-                </span>
-              </div>
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                  onClick={() =>
-                    setOpenDropdownId(
-                      openDropdownId === phase.phase_id ? null : phase.phase_id
-                    )
-                  }
-                >
-                  <MoreVertical size={16} className="text-gray-500" />
-                </button>
-                {openDropdownId === phase.phase_id && (
-                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                    <button
-                      onClick={() => handleEditPhase(phase)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <Edit size={14} />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeletePhase(phase.phase_id)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Phase Description */}
-            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-              {phase.description}
-            </p>
-
-            {/* Phase Stats */}
-            <div className="space-y-3">
-              {/* Due Date */}
-              <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-gray-500" />
-                <span className="text-xs text-gray-600">
-                  Due: {phase.dueDate || "Not set"}
-                </span>
-              </div>
-
-              {/* Status Icon */}
-              <div className="flex items-center gap-2">
-                {getStatusIcon(phase.status)}
-                <span className="text-xs text-gray-600">
-                  {getStatusText(phase.status)}
-                </span>
-              </div>
-            </div>
-
-            {/* Action Button */}
-            <button
-              onClick={() => handlePhaseClick(phase)}
-              className="w-full mt-4 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors"
+      {/* Kanban Board */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {columns.map((column) => (
+          <div key={column.id} className="space-y-4">
+            {/* Column Header */}
+            <div
+              className={`flex items-center gap-2 p-3 rounded-lg ${
+                column.bgColor
+              } border-2 border-dotted ${column.borderColor} ${
+                column.requiresAuth && !canAccessFinalChecks ? "opacity-60" : ""
+              }`}
             >
-              View Details
-            </button>
+              {column.icon}
+              <h3 className={`font-semibold text-sm ${column.color}`}>
+                {column.title}
+              </h3>
+              {column.requiresAuth && !canAccessFinalChecks && (
+                <Shield
+                  size={12}
+                  className="text-emerald-600 ml-auto"
+                  title="Restricted Access"
+                />
+              )}
+              {!column.requiresAuth && (
+                <ChevronDown size={14} className={`${column.color} ml-auto`} />
+              )}
+            </div>
+
+            {/* Column Content */}
+            <div
+              className={`space-y-3 min-h-[400px] p-4 rounded-lg border-2 border-dotted ${
+                column.borderColor
+              } ${column.bgColor} transition-colors ${
+                column.requiresAuth && !canAccessFinalChecks
+                  ? "opacity-60 cursor-not-allowed"
+                  : ""
+              }`}
+              onDragOver={
+                column.requiresAuth && !canAccessFinalChecks
+                  ? undefined
+                  : handleDragOver
+              }
+              onDrop={
+                column.requiresAuth && !canAccessFinalChecks
+                  ? undefined
+                  : (e) => handleDrop(e, column.id)
+              }
+              style={{
+                borderColor:
+                  draggedPhase &&
+                  draggedPhase.status !== column.id &&
+                  !(column.requiresAuth && !canAccessFinalChecks)
+                    ? "#3B82F6"
+                    : "",
+                backgroundColor:
+                  draggedPhase &&
+                  draggedPhase.status !== column.id &&
+                  !(column.requiresAuth && !canAccessFinalChecks)
+                    ? "#EFF6FF"
+                    : "",
+              }}
+            >
+              {getPhasesByStatus(column.id).map((phase) => (
+                <div
+                  key={phase.phase_id}
+                  className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all cursor-pointer ${
+                    draggedPhase?.phase_id === phase.phase_id
+                      ? "opacity-50"
+                      : ""
+                  }`}
+                  draggable={!(column.requiresAuth && !canAccessFinalChecks)}
+                  onDragStart={
+                    column.requiresAuth && !canAccessFinalChecks
+                      ? undefined
+                      : (e) => handleDragStart(e, phase)
+                  }
+                  onDragEnd={handleDragEnd}
+                  onClick={() => handlePhaseClick(phase)}
+                >
+                  {/* Phase Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2">
+                      {phase.title}
+                    </h4>
+                    <div className="relative" ref={dropdownRef}>
+                      <button
+                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdownId(
+                            openDropdownId === phase.phase_id
+                              ? null
+                              : phase.phase_id
+                          );
+                        }}
+                      >
+                        <MoreVertical size={14} className="text-gray-500" />
+                      </button>
+                      {openDropdownId === phase.phase_id && (
+                        <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditPhase(phase);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Edit size={12} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePhase(phase.phase_id);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
+                          >
+                            <Trash2 size={12} />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Phase Meta */}
+                  <div className="space-y-2">
+                    {/* Due Date */}
+                    {phase.dueDate && (
+                      <div className="flex items-center gap-1">
+                        <Calendar size={12} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">
+                          Due: {phase.dueDate}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Assigned Members */}
+                    {phase.assigned_members &&
+                      phase.assigned_members.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Users size={12} className="text-gray-400" />
+                          <span className="text-xs text-gray-500">
+                            {phase.assigned_members.length} assigned
+                          </span>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className="mt-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${column.bgColor} ${column.color}`}
+                    >
+                      {column.title}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Empty State */}
+              {getPhasesByStatus(column.id).length === 0 && (
+                <div className="flex items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg bg-white/50">
+                  <p className="text-sm text-gray-500">
+                    {column.requiresAuth && !canAccessFinalChecks
+                      ? "Restricted Access"
+                      : "Drop phases here"}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -381,20 +617,25 @@ const PhasesTab = ({ project }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
+                      Status
                     </label>
-                    <textarea
-                      value={newPhase.description}
+                    <select
+                      value={newPhase.status}
                       onChange={(e) =>
                         setNewPhase((prev) => ({
                           ...prev,
-                          description: e.target.value,
+                          status: e.target.value,
                         }))
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      required
-                    />
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                      {canAccessFinalChecks && (
+                        <option value="Final Checks">Final Checks</option>
+                      )}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -468,23 +709,6 @@ const PhasesTab = ({ project }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={editingPhase.description}
-                      onChange={(e) =>
-                        setEditingPhase((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Status
                     </label>
                     <select
@@ -500,6 +724,9 @@ const PhasesTab = ({ project }) => {
                       <option value="Pending">Pending</option>
                       <option value="In Progress">In Progress</option>
                       <option value="Completed">Completed</option>
+                      {canAccessFinalChecks && (
+                        <option value="Final Checks">Final Checks</option>
+                      )}
                     </select>
                   </div>
                 </div>

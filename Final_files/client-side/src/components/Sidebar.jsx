@@ -11,51 +11,84 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-
-
 const Sidebar = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
-    const userType = localStorage.getItem("userType");
-const navLinks = [
-  {
-    label: "PRODUCTIVITY",
-    items: [
-      {
-        to: "/Dashboard",
-        label: userType === "employee" ? "My Overview" : "Overview",
-        icon: LayoutDashboard,
-      },
-      { to: "/MyTeam", label: "My Team", icon: Users },
-      {
-        to: "/TeamMember",
-        label: "Team Members",
-        icon: UserPlus,
-      },
-    ],
-  },
-  {
-    label: "TASKS & PROJECTS",
-    items: [
-      { to: "/AllTask", label: "All Task", icon: ListChecks },
-      { to: "/AllProject", label: "My Projects", icon: BookCopy },
-      {
-        to: "/WorkHistory",
-        label: "Work History",
-        icon: History,
-      },
-    ],
-  },
-  {
-    label: "COMMUNICATION",
-    items: [
-      { to: "/messaging", label: "Messaging", icon: MessageCircle },
-    ],
-  },
-];
+  const userType = localStorage.getItem("userType");
+
+  // Get the actual role from user object
+  const getUserRole = () => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        return userData.role || "teamMember";
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+    return "teamMember";
+  };
+
+  const userRole = getUserRole();
+
+  // Define which roles can access Team Members
+  const canAccessTeamMembers = ["owner", "admin", "manager"].includes(
+    userRole?.toLowerCase()
+  );
+
+  // Debug logging
+  console.log("Sidebar Debug:", {
+    userType,
+    userRole,
+    canAccessTeamMembers,
+    user: localStorage.getItem("user"),
+  });
+
+  const navLinks = [
+    {
+      label: "PRODUCTIVITY",
+      items: [
+        {
+          to: "/Dashboard",
+          label: userType === "employee" ? "My Overview" : "Overview",
+          icon: LayoutDashboard,
+        },
+        { to: "/MyTeam", label: "My Team", icon: Users },
+        // Only show Team Members for owner, admin, and manager
+        ...(canAccessTeamMembers
+          ? [
+              {
+                to: "/TeamMember",
+                label: "Team Members",
+                icon: UserPlus,
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      label: "TASKS & PROJECTS",
+      items: [
+        { to: "/AllTask", label: "All Task", icon: ListChecks },
+        { to: "/AllProject", label: "My Projects", icon: BookCopy },
+        {
+          to: "/WorkHistory",
+          label: "Work History",
+          icon: History,
+        },
+      ],
+    },
+    {
+      label: "COMMUNICATION",
+      items: [{ to: "/messaging", label: "Messaging", icon: MessageCircle }],
+    },
+  ];
   return (
-    <aside className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
-      isCollapsed ? "w-16" : "w-64"
-    }`}>
+    <aside
+      className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
+        isCollapsed ? "w-16" : "w-64"
+      }`}
+    >
       <div className="flex items-center justify-between p-4 shadow-sm mt-3">
         <div className="flex items-center gap-2">
           <svg
@@ -85,11 +118,7 @@ const navLinks = [
           className="text-gray-700 w-5 h-5 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? (
-            <ChevronRight size={18} />
-          ) : (
-            <ChevronLeft size={18} />
-          )}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
       <nav className={`${isCollapsed ? "px-2" : "px-4"} py-4`}>
