@@ -21,6 +21,33 @@ const Section_a = () => {
   const [deletingProjectId, setDeletingProjectId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [userTeamMemberId, setUserTeamMemberId] = useState("");
+
+  // Get user role and team member ID
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedEmployee = localStorage.getItem("employee");
+
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserRole(user.role || "owner");
+      } catch {
+        setUserRole("owner");
+      }
+    } else if (storedEmployee) {
+      try {
+        const employee = JSON.parse(storedEmployee);
+        setUserRole(employee.role || "teamMember");
+        setUserTeamMemberId(employee.teamMemberId || "");
+      } catch {
+        setUserRole("teamMember");
+      }
+    } else {
+      setUserRole("owner");
+    }
+  }, []);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -85,6 +112,24 @@ const Section_a = () => {
     } finally {
       setRetrievingProject(null);
     }
+  };
+
+  // Check if user can perform actions on this project
+  const canPerformActions = (project) => {
+    // Owner, Admin, and Manager can perform actions on all projects
+    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+      return true;
+    }
+    
+    // Team Lead and Team Member can only perform actions on projects they are part of
+    if (userRole === "teamLead" || userRole === "teamMember") {
+      return (
+        project.project_lead === userTeamMemberId ||
+        (project.team_members && project.team_members.includes(userTeamMemberId))
+      );
+    }
+    
+    return false;
   };
 
   const handlePermanentDelete = async (project) => {
@@ -215,57 +260,63 @@ const Section_a = () => {
               key={project.project_id}
               className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
             >
-              {/* Action Buttons Overlay - Only for deleted projects */}
-              {project.project_status === "deleted" && (
+              {/* Action Buttons Overlay - Only for deleted projects and authorized users */}
+              {project.project_status === "deleted" && canPerformActions(project) && (
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-10">
                   <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => handleRetrieveProject(project)}
-                      disabled={retrievingProject === project.project_id}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
-                        retrievingProject === project.project_id
-                          ? "bg-gray-500 cursor-not-allowed"
-                          : "bg-green-600 hover:bg-green-700 hover:scale-105"
-                      }`}
-                    >
-                      {retrievingProject === project.project_id ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Retrieving...
-                        </>
-                      ) : (
-                        <>
-                          <RotateCcw size={16} />
-                          Retrieve Project
-                        </>
-                      )}
-                    </button>
+                    {/* Retrieve Project Button - Only for Owner, Admin, Manager */}
+                    {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
+                      <button
+                        onClick={() => handleRetrieveProject(project)}
+                        disabled={retrievingProject === project.project_id}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
+                          retrievingProject === project.project_id
+                            ? "bg-gray-500 cursor-not-allowed"
+                            : "bg-green-600 hover:bg-green-700 hover:scale-105"
+                        }`}
+                      >
+                        {retrievingProject === project.project_id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Retrieving...
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw size={16} />
+                            Retrieve Project
+                          </>
+                        )}
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => {
-                        setDeletingProject(project);
-                        setShowDeleteModal(true);
-                        setDeleteError("");
-                      }}
-                      disabled={deletingProjectId === project.project_id}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
-                        deletingProjectId === project.project_id
-                          ? "bg-gray-500 cursor-not-allowed"
-                          : "bg-red-600 hover:bg-red-700 hover:scale-105"
-                      }`}
-                    >
-                      {deletingProjectId === project.project_id ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle size={16} />
-                          Delete Permanently
-                        </>
-                      )}
-                    </button>
+                    {/* Delete Permanently Button - Only for Owner, Admin, Manager */}
+                    {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
+                      <button
+                        onClick={() => {
+                          setDeletingProject(project);
+                          setShowDeleteModal(true);
+                          setDeleteError("");
+                        }}
+                        disabled={deletingProjectId === project.project_id}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
+                          deletingProjectId === project.project_id
+                            ? "bg-gray-500 cursor-not-allowed"
+                            : "bg-red-600 hover:bg-red-700 hover:scale-105"
+                        }`}
+                      >
+                        {deletingProjectId === project.project_id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle size={16} />
+                            Delete Permanently
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
