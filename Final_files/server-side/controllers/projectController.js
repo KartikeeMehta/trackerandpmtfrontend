@@ -1,5 +1,6 @@
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
+const User = require("../models/User");
 const { Project } = require("../models/Project");
 const { uploadCompressedImage } = require("../utils/cloudinaryUpload");
 const mongoose = require("mongoose");
