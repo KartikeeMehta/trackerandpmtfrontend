@@ -543,8 +543,8 @@ function Section_a() {
     }
     
     return filteredProjects
-      .sort((a, b) => dayjs(a.end_date).diff(dayjs(b.end_date)))
-      .slice(0, 5);
+    .sort((a, b) => dayjs(a.end_date).diff(dayjs(b.end_date)))
+    .slice(0, 5);
   }, [projects, userRole]);
 
   // 6. Add a 'Top Performer' card if task data is available
@@ -645,63 +645,63 @@ function Section_a() {
         ) : (
           // Admin/Manager/Owner view - show all cards
           <>
-            <div className="flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-              <div className="w-full">
-                <p className="font-semibold text-gray-700">Total Team</p>
-                <p className="font-bold text-2xl text-gray-800">{totalTeams}</p>
-                <p className="text-gray-400">{totalEmployees} employees</p>
-              </div>
-              <Users className="h-6 w-6 text-blue-400" />
-            </div>
-            <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-              <div className="w-full">
-                <p className="font-semibold text-gray-700">Total Projects</p>
-                <p className="font-bold text-2xl text-gray-800">{totalProjects}</p>
-                <p className="text-gray-400">All Projects (including completed)</p>
-              </div>
-              <Briefcase className="h-6 w-6 text-green-400" />
-            </div>
-            <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-              <div className="w-full">
-                <p className="font-semibold text-gray-700">Active Projects</p>
-                <p className="font-bold text-2xl text-gray-800">{activeProjects}</p>
-                <p className="text-gray-400">Currently being worked on</p>
-              </div>
-              <Clock className="h-6 w-6 text-yellow-400" />
-            </div>
-            <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-              <div className="w-full">
-                <p className="font-semibold text-gray-700">Completed Projects</p>
-                <p className="font-bold text-2xl text-gray-800">
-                  {completedProjects}
-                </p>
-                <p className="text-gray-400">Finished Projects</p>
-              </div>
-              <CheckCircle className="h-6 w-6 text-purple-400" />
-            </div>
-            <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-              <div className="w-full">
+        <div className="flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+          <div className="w-full">
+            <p className="font-semibold text-gray-700">Total Team</p>
+            <p className="font-bold text-2xl text-gray-800">{totalTeams}</p>
+            <p className="text-gray-400">{totalEmployees} employees</p>
+          </div>
+          <Users className="h-6 w-6 text-blue-400" />
+        </div>
+        <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+          <div className="w-full">
+            <p className="font-semibold text-gray-700">Total Projects</p>
+            <p className="font-bold text-2xl text-gray-800">{totalProjects}</p>
+            <p className="text-gray-400">All Projects (including completed)</p>
+          </div>
+          <Briefcase className="h-6 w-6 text-green-400" />
+        </div>
+        <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+          <div className="w-full">
+            <p className="font-semibold text-gray-700">Active Projects</p>
+            <p className="font-bold text-2xl text-gray-800">{activeProjects}</p>
+            <p className="text-gray-400">Currently being worked on</p>
+          </div>
+          <Clock className="h-6 w-6 text-yellow-400" />
+        </div>
+        <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+          <div className="w-full">
+            <p className="font-semibold text-gray-700">Completed Projects</p>
+            <p className="font-bold text-2xl text-gray-800">
+              {completedProjects}
+            </p>
+            <p className="text-gray-400">Finished Projects</p>
+          </div>
+          <CheckCircle className="h-6 w-6 text-purple-400" />
+        </div>
+        <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+          <div className="w-full">
                 <p className="font-semibold text-gray-700">Subtasks Overview</p>
                 <p className="font-bold text-2xl text-gray-800">{totalSubtasks}</p>
-                <p className="text-gray-400">
+            <p className="text-gray-400">
                   {completedSubtasks} completed, {pendingSubtasks} pending
-                </p>
-              </div>
-              <CheckCircle className="h-6 w-6 text-pink-400" />
+            </p>
+          </div>
+          <CheckCircle className="h-6 w-6 text-pink-400" />
+        </div>
+        {topPerformer && (
+          <div className="flex border rounded bg-gradient-to-br from-indigo-50 to-indigo-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="w-full">
+              <p className="font-semibold text-gray-700">Top Performer</p>
+              <p className="font-bold text-2xl text-gray-800">
+                {topPerformer.memberId}
+              </p>
+              <p className="text-gray-400">
+                {topPerformer.count} tasks completed
+              </p>
             </div>
-            {topPerformer && (
-              <div className="flex border rounded bg-gradient-to-br from-indigo-50 to-indigo-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
-                <div className="w-full">
-                  <p className="font-semibold text-gray-700">Top Performer</p>
-                  <p className="font-bold text-2xl text-gray-800">
-                    {topPerformer.memberId}
-                  </p>
-                  <p className="text-gray-400">
-                    {topPerformer.count} tasks completed
-                  </p>
-                </div>
-                <Users className="h-6 w-6 text-indigo-400" />
-              </div>
+            <Users className="h-6 w-6 text-indigo-400" />
+          </div>
             )}
           </>
         )}
@@ -765,15 +765,15 @@ function Section_a() {
       </div>
       {/* Charts Section - Only show for Admin/Manager/Owner */}
       {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
-        <div className="flex justify-between my-6 flex-wrap gap-4">
-          <ChartBlock
-            title="Project Status Distribution"
-            data={projectStatusData}
-          />
-          <ChartBlock title="Team Performance" data={teamPerformanceData} />
-          <ChartBlock title="Team Sizes" data={teamSizeData} />
-          <ChartBlock title="Employee Distribution" data={employeeRoleData} />
-        </div>
+      <div className="flex justify-between my-6 flex-wrap gap-4">
+        <ChartBlock
+          title="Project Status Distribution"
+          data={projectStatusData}
+        />
+        <ChartBlock title="Team Performance" data={teamPerformanceData} />
+        <ChartBlock title="Team Sizes" data={teamSizeData} />
+        <ChartBlock title="Employee Distribution" data={employeeRoleData} />
+      </div>
       )}
       {/* Upcoming Project Deadlines section */}
       <div className="mt-6">

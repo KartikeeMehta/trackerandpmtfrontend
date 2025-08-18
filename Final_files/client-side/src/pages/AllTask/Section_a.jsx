@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import CustomDropDown from "@/components/CustomDropDown";
 import CustomDropdown from "@/components/CustomDropDown";
 
@@ -49,8 +49,17 @@ const Section_a = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [phases, setPhases] = useState([]);
+  const [phasesLoading, setPhasesLoading] = useState(false);
+  const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  // Pinned filters for History view
+  const [historyProjectId, setHistoryProjectId] = useState(null);
+  const [historyPhaseId, setHistoryPhaseId] = useState("");
+  // Toggle states for sections
+  const [ongoingSubtasksExpanded, setOngoingSubtasksExpanded] = useState(true);
+  const [completedSubtasksExpanded, setCompletedSubtasksExpanded] = useState(true);
 
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   useEffect(() => {
     const fetchMembers = async () => {
       setLoading(true);
@@ -105,59 +114,147 @@ const Section_a = () => {
   useEffect(() => {
     if (!selectedMember) return;
     fetchProjectsByTeamMember(selectedMember.teamMemberId);
-    if (showTaskHistory) {
-      fetchTaskHistory(selectedMember.teamMemberId);
-    } else if (!selectedProject) {
+    if (!selectedProject) {
       fetchOngoingTasks(selectedMember.teamMemberId);
+      fetchTaskHistory(selectedMember.teamMemberId);
     }
-  }, [selectedMember, showTaskHistory]);
+  }, [selectedMember]);
 
   useEffect(() => {
     if (selectedProject && selectedMember) {
+      fetchPhasesForProject(selectedProject.project_id);
       fetchTasksByMemberInProject(
         selectedMember.teamMemberId,
-        selectedProject.project_id
+        selectedProject.project_id,
+        selectedPhaseId
+      );
+      fetchTaskHistory(
+        selectedMember.teamMemberId,
+        selectedProject.project_id,
+        selectedPhaseId
       );
     }
-  }, [selectedProject, selectedMember]);
+  }, [selectedProject, selectedMember, selectedPhaseId]);
+
+  // When only the phase changes, refetch lists (phases already loaded above)
+  // Covered by dependency in the effect above
+
+  // After projects load for a selected member, and no project filter, fetch both lists
+  useEffect(() => {
+    if (!selectedMember) return;
+    if (projects.length === 0) return;
+    if (!selectedProject) {
+      fetchOngoingTasks(selectedMember.teamMemberId);
+      fetchTaskHistory(selectedMember.teamMemberId);
+    }
+  }, [projects, selectedMember, selectedProject]);
+
+  const fetchPhasesForProject = async (projectId) => {
+    setPhasesLoading(true);
+    setPhases([]);
+    const token = localStorage.getItem("token");
+    try {
+      const res = await apiHandler.GetApi(api_url.getPhases + projectId, token);
+      const list = Array.isArray(res?.phases) ? res.phases : [];
+      setPhases(list);
+    } catch (e) {
+      setPhases([]);
+    } finally {
+      setPhasesLoading(false);
+    }
+  };
+
+  const toFrontendStatus = (backendStatus) => {
+    if (!backendStatus) return "pending";
+    const normalized = String(backendStatus).toLowerCase();
+    if (normalized.includes("complete")) return "completed";
+    if (normalized.includes("progress")) return "in-progress";
+    return "pending";
+  };
+
+  const mapSubtask = (s, projectId) => ({
+    _id: s.subtask_id || s._id || s.id,
+    task_id: s.subtask_id || s._id || s.id,
+    title: s.subtask_title || s.title || "",
+    description: s.description || "",
+    status: toFrontendStatus(s.status),
+    project: projectId,
+    assignedTo: s.assigned_member,
+    phase_id: s.phase_id,
+    phase_title: s.phase_title,
+    createdAt: s.createdAt || s.updatedAt,
+  });
+
+  const fetchSubtasksForProject = async (projectId) => {
+    const token = localStorage.getItem("token");
+    const response = await apiHandler.GetApi(
+      api_url.getSubtasks + projectId,
+      token
+    );
+    const subtasks = Array.isArray(response?.subtasks)
+      ? response.subtasks
+      : [];
+    return subtasks.map((s) => mapSubtask(s, projectId));
+  };
+
+  const isAssignedToMember = (taskLike, member) => {
+    if (!taskLike || !member) return false;
+    const assignee = (taskLike.assignedTo || "").toString();
+    const tmId = (member.teamMemberId || "").toString();
+    const name = member.name || "";
+    if (!assignee) return false;
+    if (assignee === tmId) return true;
+    if (assignee === name) return true;
+    if (assignee.toLowerCase && name && assignee.toLowerCase() === name.toLowerCase()) return true;
+    if (assignee.toLowerCase && name && assignee.toLowerCase().includes(name.toLowerCase())) return true;
+    return false;
+  };
 
   const fetchOngoingTasks = async (memberId) => {
     setTasksLoading(true);
     setTasks([]);
     setSelectedTask(null);
-    const token = localStorage.getItem("token");
     try {
-      const response = await apiHandler.GetApi(api_url.getOngoingTasks, token);
-      if (Array.isArray(response.tasks)) {
-        setTasks(response.tasks.filter((t) => t.assignedTo === memberId));
-      } else {
-        setTasks([]);
+      const all = [];
+      for (const p of projects) {
+        // eslint-disable-next-line no-await-in-loop
+        const subs = await fetchSubtasksForProject(p.project_id);
+        all.push(...subs);
       }
-    } catch {
+      const filtered = all.filter((t) => isAssignedToMember(t, selectedMember) && t.status !== "completed");
+      setTasks(filtered);
+    } catch (e) {
       setTasks([]);
     } finally {
       setTasksLoading(false);
     }
   };
 
-  const fetchTaskHistory = async (memberId) => {
+  const fetchTaskHistory = async (memberId, projectIdOverride, phaseIdOverride) => {
     setTaskHistoryLoading(true);
     setTaskHistory([]);
     setSelectedTask(null);
-    const token = localStorage.getItem("token");
-    console.log(token, "0000000");
-
     try {
-      const response = await apiHandler.GetApi(
-        api_url.getTaskHistory + memberId,
-        token
-      );
-      if (Array.isArray(response.tasks)) {
-        setTaskHistory(response.tasks);
+      let pool = [];
+      if (projectIdOverride) {
+        pool = await fetchSubtasksForProject(projectIdOverride);
       } else {
-        setTaskHistory([]);
+        const all = [];
+        for (const p of projects) {
+          // eslint-disable-next-line no-await-in-loop
+          const subs = await fetchSubtasksForProject(p.project_id);
+          all.push(...subs);
+        }
+        pool = all;
       }
-    } catch {
+      const history = pool.filter((t) =>
+        isAssignedToMember(t, selectedMember) &&
+        (!projectIdOverride || t.project === projectIdOverride) &&
+        (!phaseIdOverride || t.phase_id === phaseIdOverride) &&
+        t.status === "completed"
+      );
+      setTaskHistory(history);
+    } catch (e) {
       setTaskHistory([]);
     } finally {
       setTaskHistoryLoading(false);
@@ -204,21 +301,19 @@ const Section_a = () => {
     }
   };
 
-  const fetchTasksByMemberInProject = async (memberId, projectId) => {
+  const fetchTasksByMemberInProject = async (memberId, projectId, phaseIdOverride) => {
     setTasksLoading(true);
     setTasks([]);
     setSelectedTask(null);
-    const token = localStorage.getItem("token");
     try {
-      const response = await apiHandler.GetApi(
-        api_url.getTasksByMemberInProject + memberId + "/project/" + projectId,
-        token
+      const subs = await fetchSubtasksForProject(projectId);
+      const filtered = subs.filter(
+        (t) =>
+          isAssignedToMember(t, selectedMember) &&
+          (!phaseIdOverride || t.phase_id === phaseIdOverride) &&
+          t.status !== "completed"
       );
-      if (Array.isArray(response.tasks)) {
-        setTasks(response.tasks);
-      } else {
-        setTasks([]);
-      }
+      setTasks(filtered);
     } catch (err) {
       console.error("Error fetching tasks:", err);
       setTasks([]);
@@ -233,21 +328,27 @@ const Section_a = () => {
     setAddTaskError("");
     const token = localStorage.getItem("token");
     try {
-      const response = await apiHandler.postApiWithToken(
-        api_url.createTask,
-        {
-          title: newTask.title,
+      if (!selectedProject || !selectedPhaseId) {
+        setAddTaskError("Please select a project and phase.");
+        return;
+      }
+      const payload = {
+        subtask_title: newTask.title,
           description: newTask.description,
-          assignedTo: selectedMember.teamMemberId,
-        },
+        assigned_member: selectedMember.teamMemberId,
+        phase_id: selectedPhaseId,
+      };
+      const response = await apiHandler.postApiWithToken(
+        api_url.addSubtask,
+        payload,
         token
       );
-      if (response?.task) {
+      if (response?.success) {
         setShowAddTaskModal(false);
         setNewTask({ title: "", description: "" });
         fetchOngoingTasks(selectedMember.teamMemberId);
       } else {
-        let errorMsg = "Failed to add task";
+        let errorMsg = "Failed to add subtask";
         if (response?.message) errorMsg = response.message;
         if (response?.error)
           errorMsg +=
@@ -258,9 +359,7 @@ const Section_a = () => {
         setAddTaskError(errorMsg);
       }
     } catch (err) {
-      setAddTaskError(
-        err?.message || "Failed to add task (network or server error)"
-      );
+      setAddTaskError(err?.message || "Failed to add subtask (network or server error)");
     } finally {
       setAddTaskLoading(false);
     }
@@ -282,27 +381,37 @@ const Section_a = () => {
     setEditTaskError("");
     const token = localStorage.getItem("token");
     try {
-      const response = await apiHandler.PutApi(
-        api_url.updateTaskById + selectedTask._id,
+      const statusMapOut = {
+        pending: "Pending",
+        "in progress": "In Progress",
+        "in-progress": "In Progress",
+        completed: "Completed",
+      };
+      if (editTask.status) {
+        await apiHandler.postApiWithToken(
+          api_url.updateSubtaskStatus,
+          { subtask_id: selectedTask.task_id, status: statusMapOut[editTask.status] || editTask.status },
+          token
+        );
+      }
+      const response = await apiHandler.postApiWithToken(
+        api_url.editSubtask,
         {
-          title: editTask.title,
+          subtask_id: selectedTask.task_id,
+          subtask_title: editTask.title,
           description: editTask.description,
-          status: editTask.status,
         },
         token
       );
-      if (
-        response?.message?.toLowerCase().includes("updated") ||
-        response?.task
-      ) {
+      if (response?.success || response?.message?.toLowerCase().includes("updated")) {
         setShowEditTaskModal(false);
         setSelectedTask(null);
         fetchOngoingTasks(selectedMember.teamMemberId);
       } else {
-        setEditTaskError(response?.message || "Failed to update task");
+        setEditTaskError(response?.message || "Failed to update subtask");
       }
     } catch (err) {
-      setEditTaskError(err?.message || "Failed to update task");
+      setEditTaskError(err?.message || "Failed to update subtask");
     } finally {
       setEditTaskLoading(false);
     }
@@ -315,27 +424,22 @@ const Section_a = () => {
 
     try {
       const response = await apiHandler.postApiWithToken(
-        api_url.deleteTaskById + selectedTask.task_id,
-        {
-          reason: deleteReason,
-        },
+        api_url.deleteSubtask,
+        { subtask_id: selectedTask.task_id },
         token
       );
 
-      if (
-        response?.message?.toLowerCase().includes("deleted") ||
-        response?.success
-      ) {
+      if (response?.success || response?.message?.toLowerCase().includes("deleted")) {
         setShowDeleteConfirm(false);
         setSelectedTask(null);
         setDeleteReason("");
         setShowTaskHistory(true);
-        window.location.reload();
+        fetchOngoingTasks(selectedMember.teamMemberId);
       } else {
-        setDeleteTaskError(response?.message || "Failed to delete task");
+        setDeleteTaskError(response?.message || "Failed to delete subtask");
       }
     } catch (err) {
-      setDeleteTaskError(err?.message || "Failed to delete task");
+      setDeleteTaskError(err?.message || "Failed to delete subtask");
     } finally {
       setDeleteTaskLoading(false);
     }
@@ -492,25 +596,24 @@ const Section_a = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Tasks for {formatName(selectedMember?.name)}
+                    Subtasks for {formatName(selectedMember?.name)}
                   </h1>
                   <p className="text-gray-600">
-                    Manage and track task progress
+                    Manage and track subtask progress
                   </p>
                 </div>
-                <button
-                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  onClick={() =>
-                    navigate("/CreateTask", {
-                      state: { selectedMember: selectedMember },
-                    })
-                  }
-                >
-                  <Plus size={18} /> Add Task
-                </button>
+                                 <button
+                   className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                   onClick={() => setShowAddTaskModal(true)}
+                   disabled={!selectedMember}
+                   title={!selectedMember ? "Please select a team member first" : ""}
+                 >
+                   <Plus size={18} /> Add Subtask
+                 </button>
               </div>
 
               {/* Project Selection */}
+              {!showTaskHistory && (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
@@ -528,10 +631,10 @@ const Section_a = () => {
                             selectedProject ? selectedProject.project_id : ""
                           }
                           onChange={(e) => {
-                            const project = projects.find(
-                              (p) => p.project_id === e.target.value
-                            );
-                            setSelectedProject(project);
+                            const project = projects.find((p) => p.project_id === e.target.value);
+                            setSelectedProject(project || null);
+                            setSelectedPhaseId("");
+                            setPhases([]);
                           }}
                           className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
                         >
@@ -549,6 +652,8 @@ const Section_a = () => {
                           <button
                             onClick={() => {
                               setSelectedProject(null);
+                              setSelectedPhaseId("");
+                              setPhases([]);
                               fetchOngoingTasks(selectedMember.teamMemberId);
                             }}
                             className="px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200"
@@ -560,233 +665,367 @@ const Section_a = () => {
                     )}
                   </div>
                 </div>
+                {selectedProject && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Select Phase for adding subtask
+                    </label>
+                    {phasesLoading ? (
+                      <div className="text-gray-500 text-sm">Loading phases...</div>
+                    ) : (
+                      <select
+                        value={selectedPhaseId}
+                        onChange={(e) => setSelectedPhaseId(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
+                      >
+                        <option value="">Select a phase</option>
+                        {(phases || []).map((ph) => (
+                          <option key={ph.phase_id} value={ph.phase_id}>
+                            {ph.title}
+                          </option>
+                        ))}
+                      </select>
+                    )}
               </div>
+                )}
+              </div>
+              )}
             </div>
 
-            {!showTaskHistory ? (
-              <>
+            {
+              // Ongoing Subtasks section
+            }
+            <>
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      {selectedProject
-                        ? `Tasks in ${selectedProject.project_name}`
-                        : "Ongoing Tasks"}
-                    </h3>
-                  </div>
+                                     <div className="flex items-center gap-3 mb-6">
+                     <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                     <button
+                       onClick={() => setOngoingSubtasksExpanded(!ongoingSubtasksExpanded)}
+                       className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors duration-200 cursor-pointer"
+                     >
+                       <span>
+                         {selectedProject
+                           ? `Ongoing Subtasks in ${selectedProject.project_name}`
+                           : "Ongoing Subtasks"}
+                       </span>
+                       <span className="text-lg">
+                         {ongoingSubtasksExpanded ? "▼" : "▶"}
+                       </span>
+                     </button>
+                   </div>
 
-                  {tasksLoading ? (
-                    <div className="text-center py-12">
-                      <div className="inline-flex items-center gap-3 text-gray-500">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                        Loading tasks...
-                      </div>
-                    </div>
-                  ) : tasks.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="bg-gray-50 rounded-2xl p-8 max-w-md mx-auto">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <CalendarDays size={24} className="text-gray-400" />
-                        </div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                          No tasks found
-                        </h4>
-                        <p className="text-gray-500 text-sm">
-                          {selectedProject
-                            ? `No tasks found in ${selectedProject.project_name}`
-                            : "No ongoing tasks for this member."}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {tasks.map((task) => (
-                        <div key={task._id}>
-                          <div
-                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                              selectedTask?._id === task._id
-                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
-                                : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                            }`}
-                            onClick={() =>
-                              setSelectedTask(
-                                selectedTask?._id === task._id ? null : task
-                              )
-                            }
-                          >
-                            <div className="flex justify-between items-start mb-3">
-                              <h4 className="font-bold text-gray-900 capitalize text-lg">
-                                {task.title}
-                              </h4>
-                              <span
-                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
-                                  task.status === "completed"
-                                    ? "bg-green-100 text-green-700"
-                                    : task.status === "in-progress"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {task.status}
-                              </span>
-                            </div>
-                            <p className="text-gray-600 text-sm leading-relaxed">
-                              {task.description}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs font-medium text-gray-500">
-                                Project:
-                              </span>
-                              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                                {getProjectNameById(task.project)}
-                              </span>
-                            </div>
-                          </div>
+                                     {ongoingSubtasksExpanded && (
+                     <>
+                       {tasksLoading ? (
+                         <div className="text-center py-12">
+                           <div className="inline-flex items-center gap-3 text-gray-500">
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                             Loading subtasks...
+                           </div>
+                         </div>
+                       ) : tasks.length === 0 ? (
+                         <div className="text-center py-12">
+                           <div className="bg-gray-50 rounded-2xl p-8 max-w-md mx-auto">
+                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                               <CalendarDays size={24} className="text-gray-400" />
+                             </div>
+                             <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                               No subtasks found
+                             </h4>
+                             <p className="text-gray-500 text-sm">
+                               {selectedProject
+                                 ? `No subtasks found in ${selectedProject.project_name}`
+                                 : "No ongoing subtasks for this member."}
+                             </p>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="space-y-4">
+                           {tasks.map((task) => (
+                             <div key={task._id}>
+                               <div
+                                 className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                   selectedTask?._id === task._id
+                                     ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
+                                     : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                 }`}
+                                 onClick={() =>
+                                   setSelectedTask(
+                                     selectedTask?._id === task._id ? null : task
+                                   )
+                                 }
+                               >
+                                 <div className="flex justify-between items-start mb-3">
+                                   <h4 className="font-bold text-gray-900 capitalize text-lg">
+                                     {task.title}
+                                   </h4>
+                                   <span
+                                     className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                       task.status === "completed"
+                                         ? "bg-green-100 text-green-700"
+                                         : task.status === "in-progress"
+                                         ? "bg-blue-100 text-blue-700"
+                                         : "bg-gray-100 text-gray-700"
+                                     }`}
+                                   >
+                                     {task.status}
+                                   </span>
+                                 </div>
+                                 <p className="text-gray-600 text-sm leading-relaxed">
+                                   {task.description}
+                                 </p>
+                                 <div className="flex items-center gap-2 mt-2">
+                                   <span className="text-xs font-medium text-gray-500">
+                                     Project:
+                                   </span>
+                                   <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                     {getProjectNameById(task.project)}
+                                   </span>
+                                 </div>
+                               </div>
 
-                          {/* Task Details - Appears directly below the selected task */}
-                          {selectedTask?._id === task._id && (
-                            <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
-                              <div className="flex justify-between items-center mb-4">
-                                <h4 className="text-xl font-bold text-gray-800">
-                                  {selectedTask.title}
-                                </h4>
-                                <div className="flex gap-2">
-                                  <button
-                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
-                                    onClick={() => {
-                                      if (selectedMember) {
-                                        navigate("/EditTask", {
-                                          state: {
-                                            taskDetails: selectedTask,
-                                          },
-                                        });
-                                      } else {
-                                        console.warn(
-                                          "No member selected to edit."
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    <Edit size={16} /> Edit
-                                  </button>
-                                  <button
-                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                  >
-                                    <Trash2 size={16} /> Delete
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="space-y-3">
-                                <div className="text-gray-700">
-                                  <span className="font-semibold text-gray-800">
-                                    Description:
-                                  </span>
-                                  <p className="mt-1 text-gray-600 leading-relaxed">
-                                    {selectedTask.description}
-                                  </p>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">
-                                      Status:
-                                    </span>
-                                    <span
-                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                        selectedTask.status === "completed"
-                                          ? "bg-green-100 text-green-700"
-                                          : selectedTask.status ===
-                                            "in-progress"
-                                          ? "bg-blue-100 text-blue-700"
-                                          : "bg-gray-100 text-gray-700"
-                                      }`}
-                                    >
-                                      {selectedTask.status}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">
-                                      Assigned To:
-                                    </span>
-                                    <span className="text-gray-600">
-                                      {selectedTask.assignedTo}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">
-                                      Project:
-                                    </span>
-                                    <span className="text-gray-600">
-                                      {getProjectNameById(selectedTask.project)}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-700">
-                                      Created At:
-                                    </span>
-                                    <span className="text-gray-600">
-                                      {new Date(
-                                        selectedTask.createdAt
-                                      ).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                               {/* Subtask Details - Appears directly below the selected subtask */}
+                               {selectedTask?._id === task._id && (
+                                 <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                   <div className="flex justify-between items-center mb-4">
+                                     <h4 className="text-xl font-bold text-gray-800">
+                                       {selectedTask.title}
+                                     </h4>
+                                     <div className="flex gap-2">
+                                       <button
+                                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                         onClick={handleEditTaskOpen}
+                                       >
+                                         <Edit size={16} /> Edit
+                                       </button>
+                                       <button
+                                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                         onClick={() => setShowDeleteConfirm(true)}
+                                       >
+                                         <Trash2 size={16} /> Delete
+                                       </button>
+                                     </div>
+                                   </div>
+                                   <div className="space-y-3">
+                                     <div className="text-gray-700">
+                                       <span className="font-semibold text-gray-800">
+                                         Description:
+                                       </span>
+                                       <p className="mt-1 text-gray-600 leading-relaxed">
+                                         {selectedTask.description}
+                                       </p>
+                                     </div>
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Status:
+                                         </span>
+                                         <span
+                                           className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                             selectedTask.status === "completed"
+                                               ? "bg-green-100 text-green-700"
+                                               : selectedTask.status ===
+                                                 "in-progress"
+                                               ? "bg-blue-100 text-blue-700"
+                                               : "bg-gray-100 text-gray-700"
+                                           }`}
+                                         >
+                                           {selectedTask.status}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Assigned To:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {selectedTask.assignedTo}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Project:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {getProjectNameById(selectedTask.project)}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Created At:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {new Date(
+                                             selectedTask.createdAt
+                                           ).toLocaleString()}
+                                         </span>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 </div>
+                               )}
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                     </>
+                   )}
                 </div>
+                {/* Completed Subtasks section */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100">
+                                     <div className="flex items-center gap-3 mb-6">
+                     <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                     <button
+                       onClick={() => setCompletedSubtasksExpanded(!completedSubtasksExpanded)}
+                       className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-200 cursor-pointer"
+                     >
+                       <span>
+                         {selectedProject
+                           ? `Completed Subtasks in ${selectedProject.project_name}`
+                           : "Completed Subtasks"}
+                       </span>
+                       <span className="text-lg">
+                         {completedSubtasksExpanded ? "▼" : "▶"}
+                       </span>
+                     </button>
+                   </div>
+                                     {completedSubtasksExpanded && (
+                     <>
+                       {taskHistoryLoading ? (
+                         <div className="text-gray-500">Loading completed subtasks...</div>
+                       ) : taskHistory.length === 0 ? (
+                         <div className="text-gray-500">No completed subtasks.</div>
+                       ) : (
+                         <div className="space-y-4">
+                           {taskHistory.map((task) => (
+                             <div key={task._id}>
+                               <div
+                                 className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                   selectedTask?._id === task._id
+                                     ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg"
+                                     : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                 }`}
+                                 onClick={() =>
+                                   setSelectedTask(
+                                     selectedTask?._id === task._id ? null : task
+                                   )
+                                 }
+                               >
+                                 <div className="flex justify-between items-start mb-3">
+                                   <h4 className="font-bold text-gray-900 capitalize text-lg">
+                                     {task.title}
+                                   </h4>
+                                   <span
+                                     className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                       task.status === "completed"
+                                         ? "bg-green-100 text-green-700"
+                                         : task.status === "in-progress"
+                                         ? "bg-blue-100 text-blue-700"
+                                         : "bg-gray-100 text-gray-700"
+                                     }`}
+                                   >
+                                     {task.status}
+                                   </span>
+                                 </div>
+                                 <p className="text-gray-600 text-sm leading-relaxed">
+                                   {task.description}
+                                 </p>
+                                 <div className="flex items-center gap-2 mt-2">
+                                   <span className="text-xs font-medium text-gray-500">
+                                     Project:
+                                   </span>
+                                   <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                     {getProjectNameById(task.project)}
+                                   </span>
+                                 </div>
+                               </div>
 
-                <button
-                  className="flex items-center gap-3 text-blue-600 hover:text-blue-700 font-semibold transition-all duration-200 hover:scale-105"
-                  onClick={() => setShowTaskHistory(true)}
-                >
-                  <History size={18} /> Task History
-                </button>
+                               {/* Subtask Details - Appears directly below the selected subtask */}
+                               {selectedTask?._id === task._id && (
+                                 <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                   <div className="flex justify-between items-center mb-4">
+                                     <h4 className="text-xl font-bold text-gray-800">
+                                       {selectedTask.title}
+                                     </h4>
+                                     <div className="flex gap-2">
+                                       <button
+                                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                         onClick={handleEditTaskOpen}
+                                       >
+                                         <Edit size={16} /> Edit
+                                       </button>
+                                       <button
+                                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                         onClick={() => setShowDeleteConfirm(true)}
+                                       >
+                                         <Trash2 size={16} /> Delete
+                                       </button>
+                                     </div>
+                                   </div>
+                                   <div className="space-y-3">
+                                     <div className="text-gray-700">
+                                       <span className="font-semibold text-gray-800">
+                                         Description:
+                                       </span>
+                                       <p className="mt-1 text-gray-600 leading-relaxed">
+                                         {selectedTask.description}
+                                       </p>
+                                     </div>
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Status:
+                                         </span>
+                                         <span
+                                           className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                             selectedTask.status === "completed"
+                                               ? "bg-green-100 text-green-700"
+                                               : selectedTask.status ===
+                                                 "in-progress"
+                                               ? "bg-blue-100 text-blue-700"
+                                               : "bg-gray-100 text-gray-700"
+                                           }`}
+                                         >
+                                           {selectedTask.status}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Assigned To:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {selectedTask.assignedTo}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Project:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {getProjectNameById(selectedTask.project)}
+                                         </span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <span className="font-semibold text-gray-700">
+                                           Created At:
+                                         </span>
+                                         <span className="text-gray-600">
+                                           {new Date(
+                                             selectedTask.createdAt
+                                           ).toLocaleString()}
+                                         </span>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 </div>
+                               )}
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                     </>
+                   )}
+                </div>
               </>
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold mb-2">Task History</h3>
-                {taskHistoryLoading ? (
-                  <div className="text-gray-500">Loading task history...</div>
-                ) : taskHistory.length === 0 ? (
-                  <div className="text-gray-500">No task history.</div>
-                ) : (
-                  <ul className="divide-y divide-gray-200 mb-4">
-                    {taskHistory.map((task) => (
-                      <li
-                        key={task._id}
-                        className={`p-4 hover:bg-blue-50 cursor-pointer ${
-                          selectedTask?._id === task._id ? "bg-blue-100" : ""
-                        }`}
-                        onClick={() => setSelectedTask(task)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-gray-800">
-                            {task.title}
-                          </span>
-                          <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
-                            {task.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500 mt-1">
-                          {task.description}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <button
-                  className="flex items-center gap-2 text-blue-600 hover:underline mt-4"
-                  onClick={() => setShowTaskHistory(false)}
-                >
-                  <History size={16} /> Back to Ongoing Tasks
-                </button>
-              </>
-            )}
           </>
         ) : (
           <>
@@ -794,18 +1033,20 @@ const Section_a = () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    All Tasks
+                    All Subtasks
                   </h1>
                   <p className="text-gray-600">
-                    Manage and track task progress across all team members
+                    Manage and track subtask progress across all team members
                   </p>
                 </div>
-                <button
-                  className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  onClick={() => navigate("/CreateTask")}
-                >
-                  <Plus size={18} /> Add Task
-                </button>
+                                 <button
+                   className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                   onClick={() => setShowAddTaskModal(true)}
+                   disabled={!selectedMember}
+                   title={!selectedMember ? "Please select a team member first" : ""}
+                 >
+                   <Plus size={18} /> Add Subtask
+                 </button>
               </div>
             </div>
 
@@ -815,11 +1056,11 @@ const Section_a = () => {
                   <Users size={32} className="text-blue-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                  Welcome to All Tasks
+                  Welcome to All Subtasks
                 </h3>
                 <p className="text-gray-600 text-lg mb-6">
                   Select a team member from the sidebar to view and manage their
-                  tasks.
+                  subtasks.
                 </p>
                 <div className="flex items-center justify-center gap-2 text-gray-500">
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
@@ -843,9 +1084,60 @@ const Section_a = () => {
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold mb-4">
-              Add Task for {formatName(selectedMember.name)}
+              Add Subtask for {formatName(selectedMember.name)}
             </h3>
             <form onSubmit={handleAddTask} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project
+                </label>
+                <select
+                  className="mt-1 block w-full border rounded-md p-2"
+                  value={selectedProject ? selectedProject.project_id : ""}
+                  onChange={(e) => {
+                    const project = projects.find((p) => p.project_id === e.target.value);
+                    setSelectedProject(project || null);
+                    if (project) {
+                      fetchPhasesForProject(project.project_id);
+                    } else {
+                      setPhases([]);
+                      setSelectedPhaseId("");
+                    }
+                  }}
+                  required
+                >
+                  <option value="">Select a project</option>
+                  {projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.project_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedProject && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phase
+                  </label>
+                  {phasesLoading ? (
+                    <div className="text-sm text-gray-500">Loading phases...</div>
+                  ) : (
+                    <select
+                      className="mt-1 block w-full border rounded-md p-2"
+                      value={selectedPhaseId}
+                      onChange={(e) => setSelectedPhaseId(e.target.value)}
+                      required
+                    >
+                      <option value="">Select a phase</option>
+                      {(phases || []).map((ph) => (
+                        <option key={ph.phase_id} value={ph.phase_id}>
+                          {ph.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Title
@@ -890,7 +1182,7 @@ const Section_a = () => {
                   className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
                   disabled={addTaskLoading}
                 >
-                  {addTaskLoading ? "Adding..." : "Add Task"}
+                  {addTaskLoading ? "Adding..." : "Add Subtask"}
                 </button>
               </div>
             </form>
@@ -906,8 +1198,8 @@ const Section_a = () => {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold mb-4">Edit Task ssss</h3>
-            <form className="space-y-4">
+            <h3 className="text-lg font-bold mb-4">Edit Subtask</h3>
+            <form onSubmit={handleEditTask} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Title
@@ -975,7 +1267,7 @@ const Section_a = () => {
           </div>
         </div>
       )}
-      {/* Delete Task Confirmation */}
+      {/* Delete Subtask Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm relative">
@@ -985,17 +1277,16 @@ const Section_a = () => {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold mb-4">Delete Task</h3>
-            <p className="mb-2">Are you sure you want to delete this task?</p>
+            <h3 className="text-lg font-bold mb-4">Delete Subtask</h3>
+            <p className="mb-2">Are you sure you want to delete this subtask?</p>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reason for deletion
+              Reason for deleting this subtask
             </label>
             <textarea
               className="w-full border rounded-md p-2 mb-2"
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}
-              placeholder="Enter reason for deleting this task"
-              required
+              placeholder="Optional: add a reason for deleting this subtask"
             />
             {deleteTaskError && (
               <div className="text-red-600 text-sm mb-2">{deleteTaskError}</div>
@@ -1013,9 +1304,9 @@ const Section_a = () => {
                 type="button"
                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
                 onClick={handleDeleteTask}
-                disabled={deleteTaskLoading || !deleteReason.trim()}
+                disabled={deleteTaskLoading}
               >
-                {deleteTaskLoading ? "Deleting..." : "Delete"}
+                {deleteTaskLoading ? "Deleting..." : "Delete Subtask"}
               </button>
             </div>
           </div>

@@ -370,26 +370,26 @@ const Section_a = () => {
 
                 {/* Action Buttons - Only for Owner, Admin, Manager */}
                 {canSeeEditDelete() && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                    <button
-                      onClick={(e) => handleEditClick(e, project)}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                    >
-                      <Pencil
-                        size={16}
-                        className="text-gray-600 hover:text-blue-600"
-                      />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteClick(e, project)}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                    >
-                      <Trash2
-                        size={16}
-                        className="text-red-500 hover:text-red-700"
-                      />
-                    </button>
-                  </div>
+                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                  <button
+                    onClick={(e) => handleEditClick(e, project)}
+                    className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                  >
+                    <Pencil
+                      size={16}
+                      className="text-gray-600 hover:text-blue-600"
+                    />
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, project)}
+                    className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                  >
+                    <Trash2
+                      size={16}
+                      className="text-red-500 hover:text-red-700"
+                    />
+                  </button>
+                </div>
                 )}
 
                 {/* Card Content */}

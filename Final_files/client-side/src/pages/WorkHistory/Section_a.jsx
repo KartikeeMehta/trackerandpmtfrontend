@@ -266,56 +266,56 @@ const Section_a = () => {
                   <div className="flex flex-col gap-3">
                     {/* Retrieve Project Button - Only for Owner, Admin, Manager */}
                     {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
-                      <button
-                        onClick={() => handleRetrieveProject(project)}
-                        disabled={retrievingProject === project.project_id}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
-                          retrievingProject === project.project_id
-                            ? "bg-gray-500 cursor-not-allowed"
-                            : "bg-green-600 hover:bg-green-700 hover:scale-105"
-                        }`}
-                      >
-                        {retrievingProject === project.project_id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Retrieving...
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw size={16} />
-                            Retrieve Project
-                          </>
-                        )}
-                      </button>
+                    <button
+                      onClick={() => handleRetrieveProject(project)}
+                      disabled={retrievingProject === project.project_id}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
+                        retrievingProject === project.project_id
+                          ? "bg-gray-500 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700 hover:scale-105"
+                      }`}
+                    >
+                      {retrievingProject === project.project_id ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Retrieving...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw size={16} />
+                          Retrieve Project
+                        </>
+                      )}
+                    </button>
                     )}
 
                     {/* Delete Permanently Button - Only for Owner, Admin, Manager */}
                     {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
-                      <button
-                        onClick={() => {
-                          setDeletingProject(project);
-                          setShowDeleteModal(true);
-                          setDeleteError("");
-                        }}
-                        disabled={deletingProjectId === project.project_id}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
-                          deletingProjectId === project.project_id
-                            ? "bg-gray-500 cursor-not-allowed"
-                            : "bg-red-600 hover:bg-red-700 hover:scale-105"
-                        }`}
-                      >
-                        {deletingProjectId === project.project_id ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Deleting...
-                          </>
-                        ) : (
-                          <>
-                            <AlertTriangle size={16} />
-                            Delete Permanently
-                          </>
-                        )}
-                      </button>
+                    <button
+                      onClick={() => {
+                        setDeletingProject(project);
+                        setShowDeleteModal(true);
+                        setDeleteError("");
+                      }}
+                      disabled={deletingProjectId === project.project_id}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-semibold transition-all duration-200 ${
+                        deletingProjectId === project.project_id
+                          ? "bg-gray-500 cursor-not-allowed"
+                          : "bg-red-600 hover:bg-red-700 hover:scale-105"
+                      }`}
+                    >
+                      {deletingProjectId === project.project_id ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle size={16} />
+                          Delete Permanently
+                        </>
+                      )}
+                    </button>
                     )}
                   </div>
                 </div>

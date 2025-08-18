@@ -60,7 +60,6 @@ const PhaseDetails = () => {
     title: "",
     description: "",
     assigned_member: "",
-    status: "Pending",
     images: [],
   });
   const [selectedImages, setSelectedImages] = useState([]);
@@ -68,12 +67,6 @@ const PhaseDetails = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [toast, setToast] = useState({ message: "", type: "success" });
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const [availableStatuses, setAvailableStatuses] = useState([
-    "Pending",
-    "In Progress",
-    "Completed",
-    "final_checks",
-  ]);
   const dropdownRef = useRef();
 
   // Get user role for permissions
@@ -142,14 +135,7 @@ const PhaseDetails = () => {
             (p) => String(p.phase_id) === String(phaseId)
           );
 
-          // Always show all available statuses, not just the ones currently used
-          const allStatuses = [
-            "Pending",
-            "In Progress",
-            "Completed",
-            "final_checks",
-          ];
-          setAvailableStatuses(allStatuses);
+
         }
         setPhase(foundPhase || null);
         // Fetch subtasks for this project
@@ -176,13 +162,7 @@ const PhaseDetails = () => {
         setPhase(null);
         setSubtasks([]);
         setComments([]);
-        // Keep default statuses even if API fails
-        setAvailableStatuses([
-          "Pending",
-          "In Progress",
-          "Completed",
-          "final_checks",
-        ]);
+
       } finally {
         setLoading(false);
       }
@@ -365,7 +345,6 @@ const PhaseDetails = () => {
         title: "",
         description: "",
         assigned_member: "",
-        status: "Pending",
         images: [],
       });
       setSelectedImages([]);
@@ -578,7 +557,7 @@ const PhaseDetails = () => {
                       onChange={(e) => handleStatusChange(e.target.value)}
                       className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {availableStatuses.map((status) => (
+                      {["Pending", "In Progress", "Completed", "final_checks"].map((status) => (
                         <option
                           key={status}
                           value={status}
@@ -905,42 +884,7 @@ const PhaseDetails = () => {
                       </p>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={newSubtask.status}
-                      onChange={(e) =>
-                        setNewSubtask((prev) => ({
-                          ...prev,
-                          status: e.target.value,
-                        }))
-                      }
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {availableStatuses.map((status) => (
-                        <option
-                          key={status}
-                          value={status}
-                          disabled={
-                            status === "final_checks" && !canAccessFinalChecks
-                          }
-                        >
-                          {status === "final_checks" ? "Final Checks" : status}
-                          {status === "final_checks" && !canAccessFinalChecks
-                            ? " (Restricted)"
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-                    {!canAccessFinalChecks && (
-                      <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                        <Shield size={10} />
-                        Final Checks status requires elevated permissions
-                      </p>
-                    )}
-                  </div>
+
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button

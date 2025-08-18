@@ -123,9 +123,9 @@ exports.getProjectById = async (req, res) => {
     // Owner, Admin, and Manager can view any project
     if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
       project = await Project.findOne({
-        project_id: req.params.projectId,
-        companyName: userCompany,
-      });
+      project_id: req.params.projectId,
+      companyName: userCompany,
+    });
     } 
     // Team Lead and Team Member can only view projects they are part of
     else if (userRole === "teamLead" || userRole === "teamMember") {
@@ -663,9 +663,9 @@ exports.getProjectPhases = async (req, res) => {
     // Role-based project access
     if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
       project = await Project.findOne({
-        project_id: projectId,
-        companyName,
-      });
+      project_id: projectId,
+      companyName,
+    });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
@@ -1329,9 +1329,9 @@ exports.getSubtaskActivity = async (req, res) => {
     let project;
     if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
       project = await Project.findOne({
-        "phases.subtasks.subtask_id": subtaskId,
-        companyName,
-      });
+      "phases.subtasks.subtask_id": subtaskId,
+      companyName,
+    });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         "phases.subtasks.subtask_id": subtaskId,
@@ -1711,9 +1711,9 @@ exports.addCommentToPhase = async (req, res) => {
     let project;
     if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
       project = await Project.findOne({
-        project_id: projectId,
-        companyName,
-      });
+      project_id: projectId,
+      companyName,
+    });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
@@ -1795,9 +1795,9 @@ exports.getPhaseComments = async (req, res) => {
     let project;
     if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
       project = await Project.findOne({
-        project_id: projectId,
-        companyName,
-      }).populate("phases.comments.commentedBy", "firstName lastName email");
+      project_id: projectId,
+      companyName,
+    }).populate("phases.comments.commentedBy", "firstName lastName email");
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
