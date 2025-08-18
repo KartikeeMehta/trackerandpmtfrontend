@@ -80,7 +80,6 @@ const Section_a = () => {
     { id: 2, label: "Manager", value: "manager" },
     { id: 3, label: "Team Lead", value: "teamLead" },
     { id: 3, label: "Team Member", value: "teamMember" },
-
   ];
 
   useEffect(() => {
@@ -359,20 +358,14 @@ const Section_a = () => {
     setSelectedRole(item?.value);
   };
 
-
-
-
   const filteredMembers = members.filter((member) => {
     console.log(member.role, "----------hhhhhhh>"); // debug
     return member.role === selectedRole; // filter condition
   });
 
-
   const filteredMembersBySearch = filteredMembers.filter((member) =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-
 
   // Function to get project name by project ID
   const getProjectNameById = (projectId) => {
@@ -440,16 +433,18 @@ const Section_a = () => {
                           setSelectedMember(member);
                           setShowTaskHistory(false);
                         }}
-                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${selectedMember?._id === member._id
-                          ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
-                          : "bg-gray-50 hover:bg-gray-100 text-gray-700"
-                          }`}
+                        className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                          selectedMember?._id === member._id
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                            : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+                        }`}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${selectedMember?._id === member._id
-                            ? "bg-white/20 text-white"
-                            : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
-                            }`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            selectedMember?._id === member._id
+                              ? "bg-white/20 text-white"
+                              : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                          }`}
                         >
                           {member.name.charAt(0).toUpperCase()}
                         </div>
@@ -608,10 +603,11 @@ const Section_a = () => {
                       {tasks.map((task) => (
                         <div key={task._id}>
                           <div
-                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${selectedTask?._id === task._id
-                              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
-                              : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                              }`}
+                            className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                              selectedTask?._id === task._id
+                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
+                                : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                            }`}
                             onClick={() =>
                               setSelectedTask(
                                 selectedTask?._id === task._id ? null : task
@@ -623,12 +619,13 @@ const Section_a = () => {
                                 {task.title}
                               </h4>
                               <span
-                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${task.status === "completed"
-                                  ? "bg-green-100 text-green-700"
-                                  : task.status === "in-progress"
+                                className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                  task.status === "completed"
+                                    ? "bg-green-100 text-green-700"
+                                    : task.status === "in-progress"
                                     ? "bg-blue-100 text-blue-700"
                                     : "bg-gray-100 text-gray-700"
-                                  }`}
+                                }`}
                               >
                                 {task.status}
                               </span>
@@ -695,13 +692,14 @@ const Section_a = () => {
                                       Status:
                                     </span>
                                     <span
-                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${selectedTask.status === "completed"
-                                        ? "bg-green-100 text-green-700"
-                                        : selectedTask.status ===
-                                          "in-progress"
+                                      className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                        selectedTask.status === "completed"
+                                          ? "bg-green-100 text-green-700"
+                                          : selectedTask.status ===
+                                            "in-progress"
                                           ? "bg-blue-100 text-blue-700"
                                           : "bg-gray-100 text-gray-700"
-                                        }`}
+                                      }`}
                                     >
                                       {selectedTask.status}
                                     </span>
@@ -761,8 +759,9 @@ const Section_a = () => {
                     {taskHistory.map((task) => (
                       <li
                         key={task._id}
-                        className={`p-4 hover:bg-blue-50 cursor-pointer ${selectedTask?._id === task._id ? "bg-blue-100" : ""
-                          }`}
+                        className={`p-4 hover:bg-blue-50 cursor-pointer ${
+                          selectedTask?._id === task._id ? "bg-blue-100" : ""
+                        }`}
                         onClick={() => setSelectedTask(task)}
                       >
                         <div className="flex justify-between items-center">

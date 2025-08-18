@@ -67,7 +67,7 @@ const Section_a = () => {
     // Get user role from localStorage
     const storedUser = localStorage.getItem("user");
     const storedEmployee = localStorage.getItem("employee");
-    
+
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -85,14 +85,15 @@ const Section_a = () => {
     } else {
       setUserRole("owner");
     }
-    
-    fetchAll()
-  }, [])
 
+    fetchAll();
+  }, []);
 
   // Simple check if user can see edit/delete icons
   const canSeeEditDelete = () => {
-    return userRole === "owner" || userRole === "admin" || userRole === "manager";
+    return (
+      userRole === "owner" || userRole === "admin" || userRole === "manager"
+    );
   };
 
   const fetchAll = async () => {
@@ -368,7 +369,8 @@ const Section_a = () => {
 
                     {/* Team Description */}
                     <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-                      {team.description || "Team collaboration and project management"}
+                      {team.description ||
+                        "Team collaboration and project management"}
                     </p>
 
                     {/* Information Sections */}
@@ -408,7 +410,9 @@ const Section_a = () => {
                           <p className="text-sm font-semibold text-gray-900">
                             {getTeamProjects(team).length} Projects
                           </p>
-                          <p className="text-xs text-gray-500">Active projects</p>
+                          <p className="text-xs text-gray-500">
+                            Active projects
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -422,7 +426,7 @@ const Section_a = () => {
                         size="sm"
                       >
                         <Activity size={14} className="mr-1" />
-                        View  Details
+                        View Details
                       </Button>
                     </div>
 
@@ -453,13 +457,12 @@ const Section_a = () => {
                               teamName: team.teamName,
                               description: team.description,
                               teamLead:
-                                team.teamLead?.teamMemberId ||
-                                team.teamLead,
+                                team.teamLead?.teamMemberId || team.teamLead,
                               teamMembers: Array.isArray(team.teamMembers)
                                 ? team.teamMembers
                                 : Array.isArray(team.members)
-                                  ? team.members.map((m) => m.teamMemberId)
-                                  : [],
+                                ? team.members.map((m) => m.teamMemberId)
+                                : [],
                             });
                             setShowEditDialog(true);
                           }}
@@ -569,8 +572,8 @@ const Section_a = () => {
                                 teamMembers: e.target.checked
                                   ? [...f.teamMembers, member.teamMemberId]
                                   : f.teamMembers.filter(
-                                    (id) => id !== member.teamMemberId
-                                  ),
+                                      (id) => id !== member.teamMemberId
+                                    ),
                               }));
                             }}
                           />
@@ -613,8 +616,18 @@ const Section_a = () => {
             onClick={() => setSelectedTeam(null)}
             className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-4 transition-colors duration-200 group"
           >
-            <svg className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg
+              className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
             </svg>
             <span className="text-sm font-medium">Back to Teams</span>
           </button>
@@ -625,12 +638,19 @@ const Section_a = () => {
               {selectedTeam.teamName ? selectedTeam.teamName[0] : "T"}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-1">{selectedTeam.teamName}</h1>
+              <h1 className="text-2xl font-bold text-gray-800 mb-1">
+                {selectedTeam.teamName}
+              </h1>
               <p className="text-gray-500 text-sm">
-                Lead: <span className="font-semibold text-blue-600">{formatName(getLeadName(selectedTeam))}</span>
+                Lead:{" "}
+                <span className="font-semibold text-blue-600">
+                  {formatName(getLeadName(selectedTeam))}
+                </span>
               </p>
               {selectedTeam.description && (
-                <p className="text-gray-400 text-xs mt-1">{selectedTeam.description}</p>
+                <p className="text-gray-400 text-xs mt-1">
+                  {selectedTeam.description}
+                </p>
               )}
             </div>
           </div>
@@ -640,39 +660,81 @@ const Section_a = () => {
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-blue-300 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  <svg
+                    className="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-blue-700">{getMemberNames(selectedTeam).length + 1}</p>
-                  <p className="text-blue-600 text-xs font-medium">Total Members</p>
+                  <p className="text-lg font-bold text-blue-700">
+                    {getMemberNames(selectedTeam).length + 1}
+                  </p>
+                  <p className="text-blue-600 text-xs font-medium">
+                    Total Members
+                  </p>
                 </div>
               </div>
             </div>
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-purple-300 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  <svg
+                    className="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-purple-700">{getTeamProjects(selectedTeam).length}</p>
-                  <p className="text-purple-600 text-xs font-medium">Active Projects</p>
+                  <p className="text-lg font-bold text-purple-700">
+                    {getTeamProjects(selectedTeam).length}
+                  </p>
+                  <p className="text-purple-600 text-xs font-medium">
+                    Active Projects
+                  </p>
                 </div>
               </div>
             </div>
             <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-green-300 rounded-lg flex items-center justify-center shadow-sm">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  <svg
+                    className="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-green-700">{getTeamTasks(selectedTeam).length}</p>
-                  <p className="text-green-600 text-xs font-medium">Total Tasks</p>
+                  <p className="text-lg font-bold text-green-700">
+                    {getTeamTasks(selectedTeam).length}
+                  </p>
+                  <p className="text-green-600 text-xs font-medium">
+                    Total Tasks
+                  </p>
                 </div>
               </div>
             </div>
@@ -680,7 +742,9 @@ const Section_a = () => {
 
           {/* Team Members Section */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-3">Team Members</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-3">
+              Team Members
+            </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Team Lead Card */}
               <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg p-4 border border-purple-200 shadow-sm">
@@ -692,20 +756,44 @@ const Section_a = () => {
                       .join("")}
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-800">Team Lead</h3>
-                    <p className="text-purple-600 font-semibold text-sm">{formatName(getLeadName(selectedTeam))}</p>
+                    <h3 className="text-base font-bold text-gray-800">
+                      Team Lead
+                    </h3>
+                    <p className="text-purple-600 font-semibold text-sm">
+                      {formatName(getLeadName(selectedTeam))}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-gray-500">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                     <span className="text-xs font-medium">Lead</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-500">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                     <span className="text-xs font-medium">Active</span>
                   </div>
@@ -716,30 +804,61 @@ const Section_a = () => {
               <div className="bg-gradient-to-br from-green-50 to-white rounded-lg p-4 border border-green-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-green-300 to-green-400 text-white font-bold flex items-center justify-center rounded-lg text-sm shadow-sm">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                      />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-800">Team Members</h3>
-                    <p className="text-green-600 text-xs">{getMemberNames(selectedTeam).length} members</p>
+                    <h3 className="text-base font-bold text-gray-800">
+                      Team Members
+                    </h3>
+                    <p className="text-green-600 text-xs">
+                      {getMemberNames(selectedTeam).length} members
+                    </p>
                   </div>
                 </div>
 
                 {getMemberNames(selectedTeam).length === 0 ? (
                   <div className="text-center py-4">
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                      <svg
+                        className="w-6 h-6 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                        />
                       </svg>
                     </div>
-                    <p className="text-green-500 text-sm font-medium">No members in this team</p>
-                    <p className="text-green-400 text-xs">Add team members to get started</p>
+                    <p className="text-green-500 text-sm font-medium">
+                      No members in this team
+                    </p>
+                    <p className="text-green-400 text-xs">
+                      Add team members to get started
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {getMemberNames(selectedTeam).map((member, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded-md border border-green-100 hover:border-green-200 transition-all duration-200">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-2 bg-white rounded-md border border-green-100 hover:border-green-200 transition-all duration-200"
+                      >
                         <div className="w-8 h-8 bg-gradient-to-br from-blue-300 to-blue-400 text-white font-bold flex items-center justify-center rounded-md text-xs shadow-sm">
                           {(member.name || member)
                             .split(" ")
@@ -747,7 +866,9 @@ const Section_a = () => {
                             .join("")}
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-800 text-sm">{formatName(member.name || member)}</p>
+                          <p className="font-semibold text-gray-800 text-sm">
+                            {formatName(member.name || member)}
+                          </p>
                           <p className="text-gray-500 text-xs">Team Member</p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -787,7 +908,10 @@ const Section_a = () => {
             <div className="space-y-4">
               {/* Team Name Field */}
               <div className="space-y-1">
-                <Label htmlFor="teamName" className="text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="teamName"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Team Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -807,7 +931,10 @@ const Section_a = () => {
 
               {/* Description Field */}
               <div className="space-y-1">
-                <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="description"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Description
                 </Label>
                 <textarea
@@ -828,7 +955,10 @@ const Section_a = () => {
 
               {/* Team Lead Field */}
               <div className="space-y-1">
-                <Label htmlFor="teamLead" className="text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="teamLead"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Team Lead <span className="text-red-500">*</span>
                 </Label>
                 <select
@@ -876,8 +1006,8 @@ const Section_a = () => {
                               teamMembers: e.target.checked
                                 ? [...f.teamMembers, member.teamMemberId]
                                 : f.teamMembers.filter(
-                                  (id) => id !== member.teamMemberId
-                                ),
+                                    (id) => id !== member.teamMemberId
+                                  ),
                             }));
                           }}
                         />
@@ -942,13 +1072,13 @@ const Section_a = () => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold">
-                      {modalType === "projects" ? "Projects" : "Tasks"} for {modalTeam.teamName}
+                      {modalType === "projects" ? "Projects" : "Tasks"} for{" "}
+                      {modalTeam.teamName}
                     </h3>
                     <p className="text-blue-100 text-sm mt-1">
                       {modalType === "projects"
                         ? `${getTeamProjects(modalTeam).length} projects found`
-                        : `${getTeamTasks(modalTeam).length} tasks found`
-                      }
+                        : `${getTeamTasks(modalTeam).length} tasks found`}
                     </p>
                   </div>
                 </div>
@@ -956,8 +1086,18 @@ const Section_a = () => {
                   className="w-10 h-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full flex items-center justify-center transition-all duration-200"
                   onClick={() => setShowModal(false)}
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -968,12 +1108,25 @@ const Section_a = () => {
               {modalType === "projects" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {getTeamProjects(modalTeam).map((p, idx) => (
-                    <div key={p._id || idx} className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300">
+                    <div
+                      key={p._id || idx}
+                      className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300"
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            <svg
+                              className="w-5 h-5 text-blue-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                              />
                             </svg>
                           </div>
                           <div>
@@ -989,10 +1142,17 @@ const Section_a = () => {
                         </div>
                       </div>
                       <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                        {p.project_description || p.description || "No description available"}
+                        {p.project_description ||
+                          p.description ||
+                          "No description available"}
                       </p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>Created: {new Date(p.createdAt || Date.now()).toLocaleDateString()}</span>
+                        <span>
+                          Created:{" "}
+                          {new Date(
+                            p.createdAt || Date.now()
+                          ).toLocaleDateString()}
+                        </span>
                         <span>Team: {modalTeam.teamName}</span>
                       </div>
                     </div>
@@ -1001,12 +1161,25 @@ const Section_a = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {getTeamTasks(modalTeam).map((t, idx) => (
-                    <div key={t._id || idx} className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300">
+                    <div
+                      key={t._id || idx}
+                      className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300"
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            <svg
+                              className="w-5 h-5 text-purple-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                              />
                             </svg>
                           </div>
                           <div>
@@ -1014,11 +1187,16 @@ const Section_a = () => {
                               {t.title}
                             </h4>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${t.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                t.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                {t.status || 'Pending'}
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  t.status === "completed"
+                                    ? "bg-green-100 text-green-800"
+                                    : t.status === "in-progress"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {t.status || "Pending"}
                               </span>
                             </div>
                           </div>
@@ -1028,7 +1206,7 @@ const Section_a = () => {
                         {t.description || "No description available"}
                       </p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>Assigned: {t.assignedTo || 'Unassigned'}</span>
+                        <span>Assigned: {t.assignedTo || "Unassigned"}</span>
                         <span>Team: {modalTeam.teamName}</span>
                       </div>
                     </div>
@@ -1037,22 +1215,36 @@ const Section_a = () => {
               )}
 
               {/* Empty State */}
-              {((modalType === "projects" && getTeamProjects(modalTeam).length === 0) ||
-                (modalType === "tasks" && getTeamTasks(modalTeam).length === 0)) && (
-                  <div className="text-center py-12">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      No {modalType} found
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      This team doesn't have any {modalType} assigned yet. Projects and tasks will appear here once they're created and assigned to this team.
-                    </p>
+              {((modalType === "projects" &&
+                getTeamProjects(modalTeam).length === 0) ||
+                (modalType === "tasks" &&
+                  getTeamTasks(modalTeam).length === 0)) && (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg
+                      className="w-12 h-12 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                      />
+                    </svg>
                   </div>
-                )}
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    No {modalType} found
+                  </h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    This team doesn't have any {modalType} assigned yet.
+                    Projects and tasks will appear here once they're created and
+                    assigned to this team.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1071,18 +1263,33 @@ const Section_a = () => {
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <div className="mb-6">
               <p className="text-gray-700">
-                Do you want to delete <span className="font-semibold text-gray-900">{teamToDelete.teamName}</span>?
+                Do you want to delete{" "}
+                <span className="font-semibold text-gray-900">
+                  {teamToDelete.teamName}
+                </span>
+                ?
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                This action cannot be undone. The team will be permanently removed.
+                This action cannot be undone. The team will be permanently
+                removed.
               </p>
             </div>
 
