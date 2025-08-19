@@ -27,6 +27,7 @@ const subtaskSchema = new mongoose.Schema(
       enum: ["Pending", "In Progress", "Completed"],
       default: "Pending",
     },
+    dueDate: { type: Date },
     images: [{ type: String }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

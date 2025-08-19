@@ -61,6 +61,7 @@ const PhaseDetails = () => {
     description: "",
     assigned_member: "",
     images: [],
+    dueDate: "",
   });
   const [selectedImages, setSelectedImages] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -282,6 +283,7 @@ const PhaseDetails = () => {
       assigned_member: "",
       status: "Pending",
       images: [],
+      dueDate: "",
     });
     setShowAddSubtask(true);
   };
@@ -299,6 +301,7 @@ const PhaseDetails = () => {
       formData.append("assigned_team", ""); // No team selection in UI
       formData.append("assigned_member", newSubtask.assigned_member);
       formData.append("phase_id", phaseId);
+      if (newSubtask.dueDate) formData.append("dueDate", newSubtask.dueDate);
 
       // Add selected images as files
       if (selectedImages.length > 0) {
@@ -346,6 +349,7 @@ const PhaseDetails = () => {
         description: "",
         assigned_member: "",
         images: [],
+        dueDate: "",
       });
       setSelectedImages([]);
       setToast({ message: "Subtask created successfully!", type: "success" });
@@ -819,6 +823,15 @@ const PhaseDetails = () => {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <input
+                      type="date"
+                      value={newSubtask.dueDate}
+                      onChange={(e) => setNewSubtask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Assign To
                     </label>
@@ -835,10 +848,7 @@ const PhaseDetails = () => {
                     >
                       <option value="">Select Member</option>
                       {employees.map((employee) => (
-                        <option
-                          key={employee.teamMemberId}
-                          value={employee.teamMemberId}
-                        >
+                        <option key={employee.teamMemberId} value={employee.teamMemberId}>
                           {employee.name}
                         </option>
                       ))}

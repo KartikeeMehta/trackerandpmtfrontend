@@ -273,6 +273,7 @@ const SubtaskDetails = () => {
       description: subtask.description,
       assigned_member: subtask.assigned_member,
       images: subtask.images || [],
+      dueDate: subtask.dueDate ? subtask.dueDate.substring(0, 10) : "",
     });
     setSelectedImages([]); // Reset selected images
     setShowEditModal(true);
@@ -312,6 +313,7 @@ const SubtaskDetails = () => {
       formData.append("subtask_title", editingSubtask.subtask_title);
       formData.append("description", editingSubtask.description);
       formData.append("assigned_member", editingSubtask.assigned_member);
+      if (editingSubtask.dueDate) formData.append("dueDate", editingSubtask.dueDate);
 
       // Add existing images (if any)
       if (editingSubtask.images && editingSubtask.images.length > 0) {
@@ -946,6 +948,15 @@ const SubtaskDetails = () => {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <input
+                      type="date"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editingSubtask.dueDate || ""}
+                      onChange={(e) => setEditingSubtask(prev => ({ ...prev, dueDate: e.target.value }))}
                     />
                   </div>
                   <div>

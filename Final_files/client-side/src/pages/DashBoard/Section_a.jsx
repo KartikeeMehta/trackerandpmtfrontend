@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Users, Briefcase, CheckCircle, Clock } from "lucide-react";
+import { Users, Briefcase, CheckCircle, Clock, Award, TrendingUp, Target, CalendarDays } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -7,6 +7,15 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
 } from "recharts";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -122,6 +131,107 @@ const ChartBlock = React.memo(({ title, data }) => {
             />
           </PieChart>
         </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+// Simple Bar chart block
+const BarBlock = React.memo(({ title, data, color = "#4285F4" }) => {
+  return (
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
+      <div className="font-bold py-3">
+        <h2>{title}</h2>
+      </div>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-15} textAnchor="end" height={40} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+// Simple Line chart block
+const LineBlock = React.memo(({ title, data, color = "#EA4335" }) => {
+  return (
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
+      <div className="font-bold py-3">
+        <h2>{title}</h2>
+      </div>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+// Sleek Area chart with gradient
+const AreaBlock = React.memo(({ title, data, color = "#34A853", gradientId = "gradArea" }) => {
+  return (
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
+      <div className="font-bold py-3">
+        <h2>{title}</h2>
+      </div>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.6} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Area type="monotone" dataKey="value" stroke={color} fill={`url(#${gradientId})`} strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+// Donut pie with center label
+const DonutBlock = React.memo(({ title, data, colors = ["#34A853", "#FBBC05"], centerText = "" }) => {
+  const total = (data || []).reduce((a, b) => a + (b.value || 0), 0);
+  return (
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 relative">
+      <div className="font-bold py-3">
+        <h2>{title}</h2>
+      </div>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} innerRadius={70} outerRadius={110} dataKey="value" paddingAngle={3} startAngle={90} endAngle={-270}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={colors[i % colors.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(val, name) => [val, name]} />
+            <Legend verticalAlign="bottom" iconType="circle" />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <div className="text-3xl font-extrabold text-gray-800">{total}</div>
+          <div className="text-xs text-gray-500">{centerText || "Total"}</div>
+        </div>
       </div>
     </div>
   );
@@ -248,6 +358,12 @@ function Section_a() {
   // Fetch recent activity from backend
   useEffect(() => {
     const fetchActivity = async () => {
+      // Hide/skip for team lead and team member
+      if (userRole === "teamLead" || userRole === "teamMember") {
+        setActivity([]);
+        setActivityLoading(false);
+        return;
+      }
       const token = localStorage.getItem("token");
       if (!token) {
         console.log("No token found, skipping activity fetch");
@@ -265,25 +381,28 @@ function Section_a() {
         
         // Filter activities based on user role
         if (userRole === "teamLead" || userRole === "teamMember") {
-          // For team leads and members, only show activities related to them
-          const storedEmployee = localStorage.getItem("employee");
-          if (storedEmployee) {
+          const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+          if (stored) {
             try {
-              const employee = JSON.parse(storedEmployee);
-              const employeeName = employee.name || employee.email;
-              
-              activities = activities.filter(activity => {
-                // Check if the employee performed this activity
-                if (activity.performedBy === employeeName) {
-                  return true;
-                }
-                
-                // Check if employee is mentioned in activity description or name
-                if (activity.description?.includes(employeeName) || 
-                    activity.name?.includes(employeeName)) {
-                  return true;
-                }
-                
+              const employee = JSON.parse(stored);
+              const employeeName = employee.name || employee.email || "";
+              const teamMemberId = employee.teamMemberId || "";
+              // Build keywords to match mentions and assignments
+              const keywords = [employeeName, teamMemberId].filter(Boolean).map(k => k.toString().toLowerCase());
+
+              activities = activities.filter((a) => {
+                // 1) Self performed
+                if (a.performedBy && employeeName && a.performedBy === employeeName) return true;
+
+                // 2) Mentions in name/description
+                const hay = `${a.name || ""} ${a.description || ""}`.toLowerCase();
+                if (keywords.some(k => k && hay.includes(k))) return true;
+
+                // 3) Task/Project/Employee actions implicitly involving member/team
+                // Heuristic: if action text includes assigned/added/updated + member name/id
+                const implicit = ["assign", "add", "update", "edit", "create", "status", "phase"].some(k => hay.includes(k));
+                if (implicit && keywords.some(k => k && hay.includes(k))) return true;
+
                 return false;
               });
             } catch (error) {
@@ -419,6 +538,7 @@ function Section_a() {
     totalSubtasks,
     completedSubtasks,
     pendingSubtasks,
+    inProgressSubtasks,
   } = useMemo(() => {
     try {
       // Determine scope based on role
@@ -426,7 +546,7 @@ function Section_a() {
       let teamMemberId = null;
       if (userRole === "teamLead" || userRole === "teamMember") {
         try {
-          const storedEmployee = localStorage.getItem("employee");
+          const storedEmployee = localStorage.getItem("employee") || localStorage.getItem("user");
           if (storedEmployee) {
             const employee = JSON.parse(storedEmployee);
             teamMemberId = employee?.teamMemberId || null;
@@ -449,26 +569,24 @@ function Section_a() {
       scopedProjects.forEach((project) => {
         (project.phases || []).forEach((phase) => {
           (phase.subtasks || []).forEach((subtask) => {
-            // For employees, only count their own assigned subtasks
-            if (
-              userRole === "teamLead" ||
-              userRole === "teamMember"
-            ) {
-              // Check multiple possible formats for assigned_member
+            // Role-based subtask inclusion
+            if (userRole === "teamMember") {
+              // Only subtasks assigned to this team member
+              const rawAssignee = subtask.assigned_member ?? subtask.assignedTo ?? "";
+              const assignee = (typeof rawAssignee === "object" ? (rawAssignee.teamMemberId || rawAssignee.name || "") : rawAssignee).toString();
               const isAssigned = (
-                subtask.assigned_member === teamMemberId ||
-                subtask.assigned_member === teamMemberId?.toString() ||
-                subtask.assigned_member === userName ||
-                subtask.assigned_member === userName?.toLowerCase() ||
-                subtask.assigned_member === userName?.toUpperCase() ||
-                // Also check if assigned_member contains the user's name
-                (subtask.assigned_member && userName && 
-                 subtask.assigned_member.toLowerCase().includes(userName.toLowerCase()))
+                (teamMemberId && assignee === teamMemberId) ||
+                (teamMemberId && assignee === teamMemberId.toString()) ||
+                (userName && assignee === userName) ||
+                (userName && assignee.toLowerCase && assignee.toLowerCase() === userName.toLowerCase()) ||
+                (userName && assignee.toLowerCase && assignee.toLowerCase().includes(userName.toLowerCase()))
               );
-              if (isAssigned) {
-                allSubtasks.push(subtask);
-              }
+              if (isAssigned) allSubtasks.push(subtask);
+            } else if (userRole === "teamLead") {
+              // Count all subtasks from projects the lead is part of (their teams)
+              allSubtasks.push(subtask);
             } else {
+              // owner/admin/manager → total subtasks
               allSubtasks.push(subtask);
             }
           });
@@ -476,10 +594,9 @@ function Section_a() {
       });
 
       const total = allSubtasks.length;
-      const completed = allSubtasks.filter(
-        (st) => st.status === "Completed"
-      ).length;
-      const pending = total - completed; // Anything not Completed counts as pending
+      const completed = allSubtasks.filter((st) => String(st.status || "").toLowerCase().includes("complete")).length;
+      const inProgress = allSubtasks.filter((st) => String(st.status || "").toLowerCase().includes("progress")).length;
+      const pending = Math.max(total - completed - inProgress, 0);
 
       // Debug logging for subtask counting
       if (userRole === "teamLead" || userRole === "teamMember") {
@@ -515,11 +632,191 @@ function Section_a() {
         totalSubtasks: total,
         completedSubtasks: completed,
         pendingSubtasks: pending,
+        inProgressSubtasks: inProgress,
       };
     } catch {
-      return { totalSubtasks: 0, completedSubtasks: 0, pendingSubtasks: 0 };
+      return { totalSubtasks: 0, completedSubtasks: 0, pendingSubtasks: 0, inProgressSubtasks: 0 };
     }
   }, [projects, userRole]);
+
+  // Employee charts datasets
+  const mySubtaskStatusData = useMemo(() => (
+    [
+      { name: "Completed", value: completedSubtasks, color: "#22c55e" },
+      { name: "In Progress", value: inProgressSubtasks, color: "#f59e0b" },
+      { name: "Pending", value: pendingSubtasks, color: "#3b82f6" },
+    ]
+  ), [completedSubtasks, inProgressSubtasks, pendingSubtasks]);
+
+  const scopedEmployeeProjects = useMemo(() => {
+    try {
+      let scoped = projects || [];
+      if (userRole === "teamLead" || userRole === "teamMember") {
+        const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+        if (stored) {
+          const employee = JSON.parse(stored);
+          const tmId = employee?.teamMemberId;
+          if (tmId) {
+            scoped = scoped.filter(
+              (p) => p.project_lead === tmId || (Array.isArray(p.team_members) && p.team_members.includes(tmId))
+            );
+          } else {
+            scoped = [];
+          }
+        }
+      }
+      return scoped;
+    } catch {
+      return [];
+    }
+  }, [projects, userRole]);
+
+  const subtasksPerProjectData = useMemo(() => {
+    const data = [];
+    try {
+      const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+      const employee = stored ? JSON.parse(stored) : {};
+      const tmId = employee?.teamMemberId;
+      const myName = employee?.name || employee?.email || "";
+
+      scopedEmployeeProjects.forEach((p) => {
+        let count = 0;
+        (p.phases || []).forEach((ph) => {
+          (ph.subtasks || []).forEach((st) => {
+            if (userRole === "teamMember") {
+              const raw = st.assigned_member ?? st.assignedTo ?? "";
+              const assignee = (typeof raw === "object" ? (raw.teamMemberId || raw.name || "") : raw).toString();
+              const mine = (tmId && (assignee === tmId || assignee === String(tmId))) ||
+                           (myName && assignee.toLowerCase && assignee.toLowerCase().includes(myName.toLowerCase()));
+              if (mine) count += 1;
+            } else {
+              count += 1;
+            }
+          });
+        });
+        data.push({ name: p.project_name || "Project", value: count });
+      });
+    } catch {}
+    return data;
+  }, [scopedEmployeeProjects, userRole]);
+
+  const teamLeadMemberDistribution = useMemo(() => {
+    if (userRole !== "teamLead") return [];
+    const map = {};
+    scopedEmployeeProjects.forEach((p) => {
+      (p.phases || []).forEach((ph) => {
+        (ph.subtasks || []).forEach((st) => {
+          const keyRaw = st.assigned_member ?? st.assignedTo ?? "Unassigned";
+          const key = typeof keyRaw === "object" ? (keyRaw.name || keyRaw.teamMemberId || "Unassigned") : keyRaw;
+          const k = (key || "Unassigned").toString();
+          map[k] = (map[k] || 0) + 1;
+        });
+      });
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [scopedEmployeeProjects, userRole]);
+
+  // Per-project completed vs pending (stacked)
+  const perProjectStatusData = useMemo(() => {
+    return scopedEmployeeProjects.map((p) => {
+      let completed = 0, pending = 0;
+      (p.phases || []).forEach((ph) => {
+        (ph.subtasks || []).forEach((st) => {
+          const isDone = (st.status || "").toLowerCase().includes("complete");
+          if (userRole === "teamMember") {
+            const raw = st.assigned_member ?? st.assignedTo ?? "";
+            const assignee = (typeof raw === "object" ? (raw.teamMemberId || raw.name || "") : raw).toString();
+            const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+            const emp = stored ? JSON.parse(stored) : {};
+            const tmId = emp?.teamMemberId;
+            const myName = emp?.name || emp?.email || "";
+            const mine = (tmId && (assignee === tmId || assignee === String(tmId))) ||
+                         (myName && assignee.toLowerCase && assignee.toLowerCase().includes(myName.toLowerCase()));
+            if (!mine) return;
+          }
+          if (isDone) completed += 1; else pending += 1;
+        });
+      });
+      return { name: p.project_name || "Project", Completed: completed, Pending: pending };
+    });
+  }, [scopedEmployeeProjects, userRole]);
+
+  // Build richer employee insights
+  const employeeInsights = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+      const employee = stored ? JSON.parse(stored) : {};
+      const tmId = employee?.teamMemberId;
+      const myName = employee?.name || employee?.email || "";
+
+      const mySubtasks = [];
+      const dueSoonList = [];
+      const now = dayjs();
+      const soonLimit = now.add(14, "day");
+      const overdueList = [];
+
+      scopedEmployeeProjects.forEach((p) => {
+        (p.phases || []).forEach((ph) => {
+          (ph.subtasks || []).forEach((st) => {
+            // Determine assignee
+            const raw = st.assigned_member ?? st.assignedTo ?? "";
+            const assignee = (typeof raw === "object" ? (raw.teamMemberId || raw.name || "") : raw).toString();
+            const mine = userRole === "teamMember"
+              ? ((tmId && (assignee === tmId || assignee === String(tmId))) ||
+                 (myName && assignee.toLowerCase && assignee.toLowerCase().includes(myName.toLowerCase())))
+              : true; // teamLead sees all in scoped projects
+
+            if (!mine) return;
+            mySubtasks.push({ ...st, project_name: p.project_name, phase_title: ph.title });
+            const dueRaw = st.due_date || st.dueDate || st.deadline || st.end_date || null;
+            if (dueRaw) {
+              const due = dayjs(dueRaw);
+              if (due.isAfter(now) && due.isBefore(soonLimit)) {
+                dueSoonList.push({ title: st.subtask_title || st.title, due: due.toDate(), project: p.project_name });
+              } else if (due.isBefore(now) && (st.status || "").toLowerCase() !== "completed") {
+                overdueList.push({ title: st.subtask_title || st.title, due: due.toDate(), project: p.project_name });
+              }
+            }
+          });
+        });
+      });
+
+      // Productivity trend (last 6 weeks, completed subtasks)
+      const weeks = [];
+      for (let i = 5; i >= 0; i--) {
+        const start = now.subtract(i, "week").startOf("week");
+        const end = start.endOf("week");
+        const label = start.format("MMM D");
+        const count = mySubtasks.filter((st) => {
+          const done = (st.status || "").toLowerCase().includes("complete");
+          const ts = dayjs(st.updatedAt || st.completedAt || st.createdAt || new Date());
+          return done && ts.isAfter(start) && ts.isBefore(end);
+        }).length;
+        weeks.push({ name: label, value: count });
+      }
+
+      // Project progress
+      const projectProgress = scopedEmployeeProjects.map((p) => {
+        let total = 0; let done = 0;
+        (p.phases || []).forEach((ph) => {
+          (ph.subtasks || []).forEach((st) => {
+            total += 1;
+            if ((st.status || "").toLowerCase().includes("complete")) done += 1;
+          });
+        });
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        return { name: p.project_name || "Project", total, done, pct };
+      });
+
+      // Sort lists
+      dueSoonList.sort((a, b) => a.due - b.due);
+      overdueList.sort((a, b) => b.due - a.due);
+
+      return { mySubtasks, dueSoonList, overdueList, weeks, projectProgress };
+    } catch {
+      return { mySubtasks: [], dueSoonList: [], overdueList: [], weeks: [], projectProgress: [] };
+    }
+  }, [scopedEmployeeProjects, userRole]);
 
   // 5. Add an 'Upcoming Project Deadlines' section
   const upcomingProjects = useMemo(() => {
@@ -605,6 +902,7 @@ function Section_a() {
         {userRole === "teamLead" || userRole === "teamMember" ? (
           // Employee view - only show relevant cards
           <>
+            {/* Removed KPI cards as requested */}
             <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">My Projects</p>
@@ -640,6 +938,78 @@ function Section_a() {
                 </p>
               </div>
               <CheckCircle className="h-6 w-6 text-pink-400" />
+            </div>
+            {/* Employee charts */}
+            <div className="flex justify-between my-6 flex-wrap gap-4 w-full">
+              <DonutBlock title="My Subtasks Status" data={mySubtaskStatusData} colors={mySubtaskStatusData.map(d=>d.color)} centerText="Subtasks" />
+              <BarBlock title="Subtasks per Project" data={subtasksPerProjectData} color="#34A853" />
+              {userRole === "teamLead" && (
+                <BarBlock title="Team Subtasks by Member" data={teamLeadMemberDistribution} color="#9C27B0" />
+              )}
+              <AreaBlock title="Weekly Productivity (6w)" data={employeeInsights.weeks} color="#4285F4" gradientId="prodGrad" />
+            </div>
+
+            {/* Project Progress */}
+            <div className="bg-white border rounded shadow px-6 py-4 w-full">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Project Progress</h3>
+              {employeeInsights.projectProgress.length === 0 ? (
+                <div className="text-gray-500">No projects in scope.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {employeeInsights.projectProgress.map((p, idx) => (
+                    <div key={idx} className="border rounded p-4 bg-gradient-to-br from-gray-50 to-white">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-gray-800 truncate pr-2">{p.name}</span>
+                        <span className="text-sm text-gray-600">{p.pct}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded h-2">
+                        <div className="h-2 rounded bg-blue-500" style={{ width: `${p.pct}%` }}></div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">{p.done} of {p.total} subtasks completed</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming & Recent for me */}
+            <div className="flex flex-col lg:flex-row gap-4 w-full mt-6">
+              <div className="flex-1 bg-white border rounded shadow px-6 py-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Upcoming (14 days)</h3>
+                {employeeInsights.dueSoonList.length === 0 ? (
+                  <div className="text-gray-500">Nothing due soon.</div>
+                ) : (
+                  <ul className="text-sm text-gray-700 space-y-2">
+                    {employeeInsights.dueSoonList.slice(0, 6).map((t, i) => (
+                      <li key={i} className="flex items-center justify-between border-b last:border-b-0 py-2">
+                        <span className="truncate pr-2">{t.title} <span className="text-xs text-gray-400">({t.project})</span></span>
+                        <span className="text-xs text-gray-500">{dayjs(t.due).format("MMM D")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="flex-1 bg-white border rounded shadow px-6 py-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Recently Assigned / Updated</h3>
+                {employeeInsights.mySubtasks.length === 0 ? (
+                  <div className="text-gray-500">No recent items.</div>
+                ) : (
+                  <ul className="text-sm text-gray-700 space-y-2">
+                    {employeeInsights.mySubtasks
+                      .slice()
+                      .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+                      .slice(0, 6)
+                      .map((st, i) => (
+                        <li key={i} className="flex items-center justify-between border-b last:border-b-0 py-2">
+                          <span className="truncate pr-2">{st.subtask_title || st.title} <span className="text-xs text-gray-400">({st.project_name})</span></span>
+                          <span className={`text-xs ${String(st.status||"").toLowerCase().includes("complete") ? "text-emerald-600" : "text-amber-600"}`}>
+                            {st.status || "Pending"}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </>
         ) : (
@@ -706,63 +1076,65 @@ function Section_a() {
           </>
         )}
       </div>
-      {/* Recent Activity Section */}
-      <div className="mt-6">
-        <div className="bg-white border rounded shadow px-6 py-4 overflow-y-scroll max-h-[300px]">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-            Recent Activity
-          </h3>
-          {activityLoading ? (
-            <div className="text-gray-500">Loading activity...</div>
-          ) : activityError ? (
-            <div className="text-red-600">{activityError}</div>
-          ) : activity.length === 0 ? (
-            <div className="text-gray-500">No recent activity found.</div>
-          ) : (
-            <ul className="text-gray-600 text-sm space-y-2">
-              {activity.map((item, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-3 border-b last:border-b-0 py-2"
-                >
-                  <span
-                    className={`font-bold ${
-                      item.type === "Project"
-                        ? "text-blue-600"
-                        : item.type === "Task"
-                        ? "text-green-600"
-                        : item.type === "Employee"
-                        ? "text-purple-600"
-                        : "text-pink-600"
-                    }`}
+      {/* Recent Activity Section (Owners/Admins/Managers only) */}
+      {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
+        <div className="mt-6">
+          <div className="bg-white border rounded shadow px-6 py-4 overflow-y-scroll max-h-[300px]">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              Recent Activity
+            </h3>
+            {activityLoading ? (
+              <div className="text-gray-500">Loading activity...</div>
+            ) : activityError ? (
+              <div className="text-red-600">{activityError}</div>
+            ) : activity.length === 0 ? (
+              <div className="text-gray-500">No recent activity found.</div>
+            ) : (
+              <ul className="text-gray-600 text-sm space-y-2">
+                {activity.map((item, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-3 border-b last:border-b-0 py-2"
                   >
-                    {item.type}
-                  </span>
-                  <div className="flex-1">
-                    <span className="font-medium text-gray-800">
-                      {item.name}
+                    <span
+                      className={`font-bold ${
+                        item.type === "Project"
+                          ? "text-blue-600"
+                          : item.type === "Task"
+                          ? "text-green-600"
+                          : item.type === "Employee"
+                          ? "text-purple-600"
+                          : "text-pink-600"
+                      }`}
+                    >
+                      {item.type}
                     </span>
-                    <span className="ml-2 text-xs text-gray-400">
-                      [{item.action}]
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-800">
+                        {item.name}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-400">
+                        [{item.action}]
+                      </span>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {item.description}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        By: {item.performedBy || "Unknown"}
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      {item.timestamp
+                        ? dayjs(item.timestamp).format("MMM D, YYYY h:mm A")
+                        : ""}
                     </span>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {item.description}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      By: {item.performedBy || "Unknown"}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400 whitespace-nowrap">
-                    {item.timestamp
-                      ? dayjs(item.timestamp).format("MMM D, YYYY h:mm A")
-                      : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {/* Charts Section - Only show for Admin/Manager/Owner */}
       {(userRole === "owner" || userRole === "admin" || userRole === "manager") && (
       <div className="flex justify-between my-6 flex-wrap gap-4">

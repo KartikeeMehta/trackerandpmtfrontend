@@ -1107,6 +1107,9 @@ exports.editSubtask = async (req, res) => {
     if (description) {
       updateFields["phases.$[].subtasks.$[subtask].description"] = description;
     }
+    if (req.body.dueDate !== undefined) {
+      updateFields["phases.$[].subtasks.$[subtask].dueDate"] = req.body.dueDate ? new Date(req.body.dueDate) : null;
+    }
     if (assigned_member) {
       updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
         assigned_member;
@@ -1401,6 +1404,7 @@ exports.addSubtask = async (req, res) => {
       assigned_team,
       assigned_member,
       phase_id,
+      dueDate,
     } = req.body;
 
     const companyName = req.user.companyName;
@@ -1538,6 +1542,7 @@ exports.addSubtask = async (req, res) => {
       images: imageUrls,
       createdAt: new Date(),
       updatedAt: new Date(),
+      dueDate: dueDate ? new Date(dueDate) : undefined,
     };
 
     // Push into embedded subtasks
