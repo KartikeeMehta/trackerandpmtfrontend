@@ -38,11 +38,18 @@ const chatAuthMiddleware = require("./middleware/chatMiddleware");
 
 const app = express();
 const server = http.createServer(app); // Needed for socket.io
+// Base path when app is deployed under a subdirectory (e.g., /backend)
+const BASE_PATH = process.env.BASE_PATH || "/backend";
+// Allow one or more origins via env FRONTEND_ORIGIN (comma separated)
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173", // frontend URL
+    origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   },
 });
 
@@ -51,7 +58,7 @@ app.set("io", io);
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -60,20 +67,32 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Also serve uploads under base path
+app.use(
+  `${BASE_PATH}/uploads`,
+  express.static(path.join(__dirname, "uploads"))
+);
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected Successfully"))
   .catch((err) => console.log("MongoDb Connection error", err));
 
-// ROUTES
+// ROUTES (root)
 app.use("/api", userRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes);
-
 app.use("/api/otp", otpRoutes);
 app.use("/api/chat", chatRoutes); // NEW
+
+// ROUTES (with base path prefix for cPanel Application Manager Base URL)
+app.use(`${BASE_PATH}/api`, userRoutes);
+app.use(`${BASE_PATH}/api/teams`, teamRoutes);
+app.use(`${BASE_PATH}/api/employees`, employeeRoutes);
+app.use(`${BASE_PATH}/api/projects`, projectRoutes);
+app.use(`${BASE_PATH}/api/otp`, otpRoutes);
+app.use(`${BASE_PATH}/api/chat`, chatRoutes);
 
 // Auto-permanent delete job: runs every day at 2am
 cron.schedule("0 2 * * *", async () => {
@@ -146,7 +165,11 @@ cron.schedule("* * * * *", async () => {
         );
       } catch (e) {
         // Do not throw; log and continue to avoid blocking future runs
-        console.error("[CRON] Failed to send temp password email to", emp.email, e.message);
+        console.error(
+          "[CRON] Failed to send temp password email to",
+          emp.email,
+          e.message
+        );
       }
     }
   } catch (err) {
@@ -155,7 +178,16 @@ cron.schedule("* * * * *", async () => {
 });
 
 // Simple test route
+app.get("/", (req, res) => {
+  res.json({ message: "Backend OK", base: "/backend", api: "/backend/api" });
+});
 app.get("/api/test", (req, res) => {
+  res.json({ message: "API is working" });
+});
+app.get(`${BASE_PATH}/`, (req, res) => {
+  res.json({ message: "Backend OK", base: BASE_PATH, api: `${BASE_PATH}/api` });
+});
+app.get(`${BASE_PATH}/api/test`, (req, res) => {
   res.json({ message: "API is working" });
 });
 

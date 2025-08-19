@@ -9,6 +9,8 @@ const commentSchema = new mongoose.Schema(
       ref: "User", // ✅ Updated to match your User model
       required: true,
     },
+    // Store display name at write-time to support employees and legacy users
+    commentedByName: { type: String },
     timestamp: { type: Date, default: Date.now },
   },
   { _id: false }

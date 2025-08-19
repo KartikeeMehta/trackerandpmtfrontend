@@ -122,12 +122,16 @@ exports.getProjectById = async (req, res) => {
     let project;
 
     // Owner, Admin, and Manager can view any project
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({
-      project_id: req.params.projectId,
-      companyName: userCompany,
-    });
-    } 
+        project_id: req.params.projectId,
+        companyName: userCompany,
+      });
+    }
     // Team Lead and Team Member can only view projects they are part of
     else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
@@ -135,15 +139,16 @@ exports.getProjectById = async (req, res) => {
         companyName: userCompany,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       });
-    } 
+    }
     // Any other role gets no access
     else {
-      return res
-        .status(403)
-        .json({ message: "Access denied. Insufficient permissions to view this project." });
+      return res.status(403).json({
+        message:
+          "Access denied. Insufficient permissions to view this project.",
+      });
     }
 
     if (!project) {
@@ -166,28 +171,32 @@ exports.getAllProjects = async (req, res) => {
     let projects;
 
     // Owner, Admin, and Manager can see all projects
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       projects = await Project.find({ companyName: userCompany }).sort({
         createdAt: -1,
       });
-    } 
+    }
     // Team Lead and Team Member can only see projects they are part of
     else if (userRole === "teamLead" || userRole === "teamMember") {
       projects = await Project.find({
         companyName: userCompany,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       }).sort({
         createdAt: -1,
       });
-    } 
+    }
     // Any other role gets no access
     else {
-      return res
-        .status(403)
-        .json({ message: "Access denied. Insufficient permissions to view projects." });
+      return res.status(403).json({
+        message: "Access denied. Insufficient permissions to view projects.",
+      });
     }
 
     res.status(200).json({ projects });
@@ -555,7 +564,9 @@ exports.updatePhaseStatus = async (req, res) => {
     }
 
     // Validate status
-    if (!["Pending", "In Progress", "Completed", "final_checks"].includes(status)) {
+    if (
+      !["Pending", "In Progress", "Completed", "final_checks"].includes(status)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid status value",
@@ -563,10 +574,14 @@ exports.updatePhaseStatus = async (req, res) => {
     }
 
     // Special validation for final_checks status - only owner, admin, manager can set it
-    if (status === "final_checks" && !["owner", "admin", "manager"].includes(userRole)) {
+    if (
+      status === "final_checks" &&
+      !["owner", "admin", "manager"].includes(userRole)
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Only owner, admin, and manager can set phase status to final_checks",
+        message:
+          "Only owner, admin, and manager can set phase status to final_checks",
       });
     }
 
@@ -648,19 +663,23 @@ exports.getProjectPhases = async (req, res) => {
     let project;
 
     // Role-based project access
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    });
+        project_id: projectId,
+        companyName,
+      });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
         companyName,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       });
     } else {
       return res.status(403).json({
@@ -804,7 +823,7 @@ exports.updateSubtaskStatus = async (req, res) => {
     // Find the specific subtask
     let targetSubtask = null;
     for (const phase of project.phases) {
-      const subtask = phase.subtasks.find(s => s.subtask_id === subtask_id);
+      const subtask = phase.subtasks.find((s) => s.subtask_id === subtask_id);
       if (subtask) {
         targetSubtask = subtask;
         break;
@@ -832,28 +851,30 @@ exports.updateSubtaskStatus = async (req, res) => {
       if (project.project_lead !== userTeamMemberId) {
         // Check if subtask is assigned to a team member under this team lead
         const Employee = require("../models/Employee");
-        const assignedEmployee = await Employee.findOne({ 
+        const assignedEmployee = await Employee.findOne({
           teamMemberId: targetSubtask.assigned_member,
-          teamLead: userTeamMemberId 
+          teamLead: userTeamMemberId,
         });
         if (!assignedEmployee) {
           return res.status(403).json({
             success: false,
-            message: "You can only update subtasks in your projects or assigned to your team members",
+            message:
+              "You can only update subtasks in your projects or assigned to your team members",
           });
         }
       }
     } else if (userRole === "manager") {
       // Managers can update subtasks but check hierarchical access
-      const projectCreator = await User.findOne({ 
-        companyName, 
+      const projectCreator = await User.findOne({
+        companyName,
         role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
+        _id: project.createdBy,
       });
       if (projectCreator) {
         return res.status(403).json({
           success: false,
-          message: "Managers cannot modify subtasks in projects created by owners or admins",
+          message:
+            "Managers cannot modify subtasks in projects created by owners or admins",
         });
       }
     }
@@ -962,13 +983,16 @@ exports.editSubtask = async (req, res) => {
           message: "You can only edit subtasks in projects you lead",
         });
       }
-      
+
       // If assigning to someone, check if they are a team member
-      if (assigned_member && assigned_member !== currentSubtask.assigned_member) {
+      if (
+        assigned_member &&
+        assigned_member !== currentSubtask.assigned_member
+      ) {
         const Employee = require("../models/Employee");
-        const assignedEmployee = await Employee.findOne({ 
+        const assignedEmployee = await Employee.findOne({
           teamMemberId: assigned_member,
-          role: "teamMember"
+          role: "teamMember",
         });
         if (!assignedEmployee) {
           return res.status(403).json({
@@ -979,15 +1003,16 @@ exports.editSubtask = async (req, res) => {
       }
     } else if (userRole === "manager") {
       // Managers can edit subtasks but check hierarchical access
-      const projectCreator = await User.findOne({ 
-        companyName, 
+      const projectCreator = await User.findOne({
+        companyName,
         role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
+        _id: project.createdBy,
       });
       if (projectCreator) {
         return res.status(403).json({
           success: false,
-          message: "Managers cannot edit subtasks in projects created by owners or admins",
+          message:
+            "Managers cannot edit subtasks in projects created by owners or admins",
         });
       }
     }
@@ -1108,7 +1133,9 @@ exports.editSubtask = async (req, res) => {
       updateFields["phases.$[].subtasks.$[subtask].description"] = description;
     }
     if (req.body.dueDate !== undefined) {
-      updateFields["phases.$[].subtasks.$[subtask].dueDate"] = req.body.dueDate ? new Date(req.body.dueDate) : null;
+      updateFields["phases.$[].subtasks.$[subtask].dueDate"] = req.body.dueDate
+        ? new Date(req.body.dueDate)
+        : null;
     }
     if (assigned_member) {
       updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
@@ -1202,15 +1229,16 @@ exports.deleteSubtask = async (req, res) => {
       }
     } else if (userRole === "manager") {
       // Managers can delete subtasks but check hierarchical access
-      const projectCreator = await User.findOne({ 
-        companyName, 
+      const projectCreator = await User.findOne({
+        companyName,
         role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
+        _id: project.createdBy,
       });
       if (projectCreator) {
         return res.status(403).json({
           success: false,
-          message: "Managers cannot delete subtasks in projects created by owners or admins",
+          message:
+            "Managers cannot delete subtasks in projects created by owners or admins",
         });
       }
     }
@@ -1304,19 +1332,23 @@ exports.getSubtaskActivity = async (req, res) => {
 
     // Role-based project access
     let project;
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({
-      "phases.subtasks.subtask_id": subtaskId,
-      companyName,
-    });
+        "phases.subtasks.subtask_id": subtaskId,
+        companyName,
+      });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         "phases.subtasks.subtask_id": subtaskId,
         companyName,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       });
     } else {
       return res.status(403).json({
@@ -1442,13 +1474,13 @@ exports.addSubtask = async (req, res) => {
           message: "You can only add subtasks to projects you lead",
         });
       }
-      
+
       // Team leads can only assign to team members
       if (assigned_member) {
         const Employee = require("../models/Employee");
-        const assignedEmployee = await Employee.findOne({ 
+        const assignedEmployee = await Employee.findOne({
           teamMemberId: assigned_member,
-          role: "teamMember"
+          role: "teamMember",
         });
         if (!assignedEmployee) {
           return res.status(403).json({
@@ -1459,15 +1491,16 @@ exports.addSubtask = async (req, res) => {
       }
     } else if (userRole === "manager") {
       // Managers can add subtasks but check hierarchical access
-      const projectCreator = await User.findOne({ 
-        companyName, 
+      const projectCreator = await User.findOne({
+        companyName,
         role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
+        _id: project.createdBy,
       });
       if (projectCreator) {
         return res.status(403).json({
           success: false,
-          message: "Managers cannot add subtasks to projects created by owners or admins",
+          message:
+            "Managers cannot add subtasks to projects created by owners or admins",
         });
       }
     }
@@ -1587,11 +1620,20 @@ exports.getSubtasksByProjectId = async (req, res) => {
     const userRole = req.user.role;
     const userTeamMemberId = req.user.teamMemberId;
 
-    console.log("🔍 Getting subtasks for project_id:", project_id, "User role:", userRole);
+    console.log(
+      "🔍 Getting subtasks for project_id:",
+      project_id,
+      "User role:",
+      userRole
+    );
 
     // Role-based project access
     let project;
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({ project_id, companyName });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
@@ -1599,8 +1641,8 @@ exports.getSubtasksByProjectId = async (req, res) => {
         companyName,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       });
     } else {
       return res.status(403).json({
@@ -1688,19 +1730,23 @@ exports.addCommentToPhase = async (req, res) => {
 
     // Role-based project access
     let project;
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    });
+        project_id: projectId,
+        companyName,
+      });
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
         companyName,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
+          { team_members: userTeamMemberId },
+        ],
       });
     } else {
       return res.status(403).json({
@@ -1722,9 +1768,32 @@ exports.addCommentToPhase = async (req, res) => {
         .json({ success: false, message: "Phase not found" });
     }
 
+    // Build display name and persist it (works for both User and Employee)
+    const baseUser = req.user || {};
+    let displayName =
+      [baseUser.firstName, baseUser.lastName].filter(Boolean).join(" ") ||
+      baseUser.name ||
+      baseUser.email ||
+      "";
+    if (!displayName) {
+      const userDoc = await mongoose
+        .model("User")
+        .findById(userId)
+        .select("firstName lastName name email");
+      if (userDoc) {
+        displayName =
+          [userDoc.firstName, userDoc.lastName].filter(Boolean).join(" ") ||
+          userDoc.name ||
+          userDoc.email ||
+          "";
+      }
+    }
+    if (!displayName) displayName = "Unknown";
+
     const newComment = {
       text,
       commentedBy: new mongoose.Types.ObjectId(userId),
+      commentedByName: displayName,
       timestamp: new Date(),
     };
 
@@ -1736,16 +1805,21 @@ exports.addCommentToPhase = async (req, res) => {
     const populatedUser = await mongoose
       .model("User")
       .findById(lastComment.commentedBy)
-      .select("firstName lastName");
+      .select("firstName lastName name email");
 
     return res.status(200).json({
       success: true,
       message: "Comment added successfully",
       comment: {
         text: lastComment.text,
-        commentedBy: populatedUser
-          ? `${populatedUser.firstName} ${populatedUser.lastName}`
-          : "Unknown",
+        commentedBy:
+          [populatedUser?.firstName, populatedUser?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          populatedUser?.name ||
+          lastComment.commentedByName ||
+          populatedUser?.email ||
+          "Unknown",
         timestamp: lastComment.timestamp.toLocaleString("en-IN", {
           day: "numeric",
           month: "short",
@@ -1772,20 +1846,30 @@ exports.getPhaseComments = async (req, res) => {
 
     // Role-based project access
     let project;
-    if (userRole === "owner" || userRole === "admin" || userRole === "manager") {
+    if (
+      userRole === "owner" ||
+      userRole === "admin" ||
+      userRole === "manager"
+    ) {
       project = await Project.findOne({
-      project_id: projectId,
-      companyName,
-    }).populate("phases.comments.commentedBy", "firstName lastName email");
+        project_id: projectId,
+        companyName,
+      }).populate(
+        "phases.comments.commentedBy",
+        "firstName lastName name email"
+      );
     } else if (userRole === "teamLead" || userRole === "teamMember") {
       project = await Project.findOne({
         project_id: projectId,
         companyName,
         $or: [
           { project_lead: userTeamMemberId },
-          { team_members: userTeamMemberId }
-        ]
-      }).populate("phases.comments.commentedBy", "firstName lastName email");
+          { team_members: userTeamMemberId },
+        ],
+      }).populate(
+        "phases.comments.commentedBy",
+        "firstName lastName name email"
+      );
     } else {
       return res.status(403).json({
         success: false,
@@ -1811,17 +1895,24 @@ exports.getPhaseComments = async (req, res) => {
       });
     }
 
-    const formattedComments = (phase.comments || []).map((c) => ({
-      text: c.text,
-      commentedBy:
-        c.commentedBy?.firstName && c.commentedBy?.lastName
-          ? `${c.commentedBy.firstName} ${c.commentedBy.lastName}`
-          : "Unknown",
-      timestamp: new Date(c.timestamp).toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }),
-    }));
+    const formattedComments = (phase.comments || []).map((c) => {
+      const u = c.commentedBy || {};
+      const displayName =
+        [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+        u.name ||
+        c.commentedByName ||
+        u.email ||
+        (typeof c.commentedBy === "string" ? c.commentedBy : "") ||
+        "Unknown";
+      return {
+        text: c.text,
+        commentedBy: displayName,
+        timestamp: new Date(c.timestamp).toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+      };
+    });
 
     res.status(200).json({
       success: true,

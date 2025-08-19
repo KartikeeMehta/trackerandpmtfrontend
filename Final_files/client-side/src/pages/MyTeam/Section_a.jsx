@@ -333,12 +333,14 @@ const Section_a = () => {
               </option>
             ))}
           </select> */}
-          <Button
-            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white h-fit ml-auto shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-            onClick={() => setShowAddDialog(true)}
-          >
-            + Add Team
-          </Button>
+          {canSeeEditDelete() && (
+            <Button
+              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white h-fit ml-auto shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              onClick={() => setShowAddDialog(true)}
+            >
+              + Add Team
+            </Button>
+          )}
         </div>
       )}
       {/* Team Cards */}

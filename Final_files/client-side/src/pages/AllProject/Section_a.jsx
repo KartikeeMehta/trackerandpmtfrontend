@@ -26,7 +26,7 @@ const Section_a = () => {
     // Get user role from localStorage
     const storedUser = localStorage.getItem("user");
     const storedEmployee = localStorage.getItem("employee");
-    
+
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -72,7 +72,9 @@ const Section_a = () => {
 
   // Simple check if user can see edit/delete icons
   const canSeeEditDelete = () => {
-    return userRole === "owner" || userRole === "admin" || userRole === "manager";
+    return (
+      userRole === "owner" || userRole === "admin" || userRole === "manager"
+    );
   };
 
   useEffect(() => {
@@ -330,12 +332,14 @@ const Section_a = () => {
                 Manage and track your project portfolio
               </p>
             </div>
-            <button
-              onClick={() => navigate("/CreateProject")}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-            >
-              <Plus size={18} /> Add Project
-            </button>
+            {canSeeEditDelete() && (
+              <button
+                onClick={() => navigate("/CreateProject")}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              >
+                <Plus size={18} /> Add Project
+              </button>
+            )}
           </div>
         </div>
 
@@ -358,7 +362,6 @@ const Section_a = () => {
             No Project
           </div>
         ) : (
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {projects.map((project, index) => (
               <div
@@ -366,30 +369,28 @@ const Section_a = () => {
                 onClick={() => handleCardClick(project)}
                 className="group relative  rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
               >
-
-
                 {/* Action Buttons - Only for Owner, Admin, Manager */}
                 {canSeeEditDelete() && (
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                  <button
-                    onClick={(e) => handleEditClick(e, project)}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                  >
-                    <Pencil
-                      size={16}
-                      className="text-gray-600 hover:text-blue-600"
-                    />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteClick(e, project)}
-                    className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                  >
-                    <Trash2
-                      size={16}
-                      className="text-red-500 hover:text-red-700"
-                    />
-                  </button>
-                </div>
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                    <button
+                      onClick={(e) => handleEditClick(e, project)}
+                      className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                    >
+                      <Pencil
+                        size={16}
+                        className="text-gray-600 hover:text-blue-600"
+                      />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, project)}
+                      className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                    >
+                      <Trash2
+                        size={16}
+                        className="text-red-500 hover:text-red-700"
+                      />
+                    </button>
+                  </div>
                 )}
 
                 {/* Card Content */}

@@ -63,9 +63,29 @@ const SubtaskDetails = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [toast, setToast] = useState({ message: "", type: "success" });
+  const [userRole, setUserRole] = useState("");
+  const [currentEmployee, setCurrentEmployee] = useState(null);
   const dropdownRef = useRef();
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const userType = localStorage.getItem("userType");
+    const storedEmployee = localStorage.getItem("employee");
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser);
+        setUserRole(u.role || "owner");
+        if (userType === "employee") setCurrentEmployee(u);
+      } catch {}
+    } else if (storedEmployee) {
+      try {
+        const e = JSON.parse(storedEmployee);
+        setUserRole(e.role || "teamMember");
+        setCurrentEmployee(e);
+      } catch {}
+    } else {
+      setUserRole("owner");
+    }
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpenDropdownId(null);
@@ -231,6 +251,18 @@ const SubtaskDetails = () => {
   };
 
   const handleStatusChange = async (newStatus) => {
+    if (
+      (userRole || "").toLowerCase() === "teammember" &&
+      currentEmployee?.teamMemberId &&
+      subtask?.assigned_member &&
+      currentEmployee.teamMemberId !== subtask.assigned_member
+    ) {
+      setToast({
+        message: "You are not allowed to change the status of other members",
+        type: "error",
+      });
+      return;
+    }
     setSubtask((prev) => ({ ...prev, status: newStatus }));
     const token = localStorage.getItem("token");
     try {
@@ -313,7 +345,8 @@ const SubtaskDetails = () => {
       formData.append("subtask_title", editingSubtask.subtask_title);
       formData.append("description", editingSubtask.description);
       formData.append("assigned_member", editingSubtask.assigned_member);
-      if (editingSubtask.dueDate) formData.append("dueDate", editingSubtask.dueDate);
+      if (editingSubtask.dueDate)
+        formData.append("dueDate", editingSubtask.dueDate);
 
       // Add existing images (if any)
       if (editingSubtask.images && editingSubtask.images.length > 0) {
@@ -951,12 +984,19 @@ const SubtaskDetails = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date
+                    </label>
                     <input
                       type="date"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={editingSubtask.dueDate || ""}
-                      onChange={(e) => setEditingSubtask(prev => ({ ...prev, dueDate: e.target.value }))}
+                      onChange={(e) =>
+                        setEditingSubtask((prev) => ({
+                          ...prev,
+                          dueDate: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                   <div>

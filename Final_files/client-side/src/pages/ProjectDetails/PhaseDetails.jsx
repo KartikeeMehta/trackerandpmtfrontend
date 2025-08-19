@@ -53,6 +53,8 @@ const PhaseDetails = () => {
   const [subtasks, setSubtasks] = useState([]);
   const [comments, setComments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [projectInfo, setProjectInfo] = useState(null);
+  const [eligibleAssignees, setEligibleAssignees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [showAddSubtask, setShowAddSubtask] = useState(false);
@@ -85,6 +87,15 @@ const PhaseDetails = () => {
   };
 
   const userRole = getUserRole();
+  const getCurrentEmployeeId = () => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u.teamMemberId || u._id || "";
+    } catch {
+      return "";
+    }
+  };
+  const currentTeamMemberId = getCurrentEmployeeId();
   const canAccessFinalChecks = [
     "owner",
     "admin",
@@ -135,10 +146,22 @@ const PhaseDetails = () => {
           foundPhase = phasesResponse.phases.find(
             (p) => String(p.phase_id) === String(phaseId)
           );
-
-
         }
         setPhase(foundPhase || null);
+        // Fetch project info (lead + members) for assignment filtering
+        try {
+          const projectRes = await apiHandler.GetApi(
+            `${api_url.BASE_URL}/projects/${projectId}`,
+            token
+          );
+          if (projectRes && projectRes.project) {
+            setProjectInfo(projectRes.project);
+          } else {
+            setProjectInfo(null);
+          }
+        } catch (e) {
+          setProjectInfo(null);
+        }
         // Fetch subtasks for this project
         const subtasksResponse = await apiHandler.GetApi(
           api_url.getSubtasks + projectId,
@@ -163,13 +186,52 @@ const PhaseDetails = () => {
         setPhase(null);
         setSubtasks([]);
         setComments([]);
-
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [phaseId, projectId, navigate]);
+
+  // Compute eligible assignees based on project membership and role rules
+  useEffect(() => {
+    if (!employees || employees.length === 0 || !projectInfo) {
+      setEligibleAssignees([]);
+      return;
+    }
+
+    const projectMemberIds = new Set(
+      [...(projectInfo.team_members || []), projectInfo.project_lead].filter(
+        Boolean
+      )
+    );
+
+    let list = employees.filter((emp) =>
+      projectMemberIds.has(emp.teamMemberId)
+    );
+
+    // Remove assigner themself
+    if (currentTeamMemberId) {
+      list = list.filter((emp) => emp.teamMemberId !== currentTeamMemberId);
+    }
+
+    const role = (userRole || "").toLowerCase();
+    if (role === "admin") {
+      list = list.filter((emp) => (emp.role || "").toLowerCase() !== "owner");
+    } else if (role === "manager") {
+      const disallow = new Set(["owner", "admin"]);
+      list = list.filter(
+        (emp) => !disallow.has((emp.role || "").toLowerCase())
+      );
+    } else if (role === "teamlead" || role === "teamlead") {
+      // Only allow team members for team leads
+      list = list.filter(
+        (emp) => (emp.role || "").toLowerCase() === "teammember"
+      );
+    }
+
+    setEligibleAssignees(list);
+  }, [employees, projectInfo, userRole]);
 
   const fetchComments = async (token) => {
     try {
@@ -449,6 +511,60 @@ const PhaseDetails = () => {
     return date.toLocaleDateString();
   };
 
+  // Resolve commenter name for all roles (owner/admin/manager/teamLead/teamMember)
+  const getCommenterName = (comment) => {
+    if (!comment) return "Unknown User";
+    const str = (v) => (typeof v === "string" ? v.trim() : "");
+    const tryName =
+      str(comment.commentedByName) ||
+      str(comment.user?.name) ||
+      str(comment.employee?.name) ||
+      str(comment.author?.name) ||
+      str(comment.by?.name);
+    if (tryName) return tryName;
+
+    const byField =
+      str(comment.commentedBy) ||
+      str(comment.commented_by) ||
+      str(comment.userId) ||
+      str(comment.user_id) ||
+      str(comment.employeeId) ||
+      str(comment.teamMemberId) ||
+      str(comment.authorId);
+    if (byField) {
+      // If it looks like a real name (not an ObjectId), use it directly
+      const looksLikeObjectId = /^[a-f\d]{24}$/i.test(byField);
+      if (!looksLikeObjectId && !/^\d+$/.test(byField)) {
+        return byField;
+      }
+      const match = employees.find(
+        (e) =>
+          str(e.teamMemberId) === byField ||
+          str(e._id) === byField ||
+          str(e.email) === byField
+      );
+      if (match?.name) return match.name;
+    }
+
+    const candidateIds = [
+      comment.commentedById,
+      comment.userId,
+      comment.employeeId,
+      comment.teamMemberId,
+      comment.authorId,
+      comment.commented_by_id,
+    ].map((x) => (x == null ? "" : String(x)));
+    for (const id of candidateIds) {
+      if (!id) continue;
+      const emp = employees.find(
+        (e) => String(e.teamMemberId) === id || String(e._id) === id
+      );
+      if (emp?.name) return emp.name;
+    }
+
+    return "Unknown User";
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -561,7 +677,12 @@ const PhaseDetails = () => {
                       onChange={(e) => handleStatusChange(e.target.value)}
                       className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {["Pending", "In Progress", "Completed", "final_checks"].map((status) => (
+                      {[
+                        "Pending",
+                        "In Progress",
+                        "Completed",
+                        "final_checks",
+                      ].map((status) => (
                         <option
                           key={status}
                           value={status}
@@ -595,13 +716,15 @@ const PhaseDetails = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     Subtasks
                   </h3>
-                  <button
-                    onClick={handleAddSubtask}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center gap-1 transition-colors"
-                  >
-                    <Plus size={14} />
-                    Add Subtask
-                  </button>
+                  {userRole?.toLowerCase() !== "teammember" && (
+                    <button
+                      onClick={handleAddSubtask}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center gap-1 transition-colors"
+                    >
+                      <Plus size={14} />
+                      Add Subtask
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {subtasks.map((subtask) => (
@@ -699,22 +822,14 @@ const PhaseDetails = () => {
                     placeholder="Leave a comment..."
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     rows={3}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmitComment(e);
+                      }
+                    }}
                   />
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="p-1 text-gray-500 hover:text-gray-700"
-                      >
-                        <Paperclip size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="p-1 text-gray-500 hover:text-gray-700"
-                      >
-                        <Smile size={16} />
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-end mt-2">
                     <button
                       type="submit"
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1 transition-colors"
@@ -732,14 +847,12 @@ const PhaseDetails = () => {
               {comments.map((comment, index) => (
                 <div key={index} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                    {comment.commentedBy
-                      ? comment.commentedBy.charAt(0).toUpperCase()
-                      : "U"}
+                    {(getCommenterName(comment) || "U").charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-medium text-gray-900">
-                        {comment.commentedBy || "Unknown User"}
+                        {getCommenterName(comment)}
                       </span>
                       <span className="text-xs text-gray-500">
                         {formatTimestamp(comment.timestamp)}
@@ -823,11 +936,18 @@ const PhaseDetails = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date
+                    </label>
                     <input
                       type="date"
                       value={newSubtask.dueDate}
-                      onChange={(e) => setNewSubtask((prev) => ({ ...prev, dueDate: e.target.value }))}
+                      onChange={(e) =>
+                        setNewSubtask((prev) => ({
+                          ...prev,
+                          dueDate: e.target.value,
+                        }))
+                      }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -847,8 +967,11 @@ const PhaseDetails = () => {
                       required
                     >
                       <option value="">Select Member</option>
-                      {employees.map((employee) => (
-                        <option key={employee.teamMemberId} value={employee.teamMemberId}>
+                      {eligibleAssignees.map((employee) => (
+                        <option
+                          key={employee.teamMemberId}
+                          value={employee.teamMemberId}
+                        >
                           {employee.name}
                         </option>
                       ))}
@@ -894,7 +1017,6 @@ const PhaseDetails = () => {
                       </p>
                     )}
                   </div>
-
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
                   <button
