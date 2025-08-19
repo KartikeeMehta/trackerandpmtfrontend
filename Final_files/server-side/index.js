@@ -26,6 +26,9 @@ const otpRoutes = require("./routes/otpRoutes");
 const chatRoutes = require("./routes/chatRoutes"); // NEW
 const { Project } = require("./models/Project");
 const Activity = require("./models/Activity");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const sendEmail = require("./utils/sendEmail");
 const {
   deleteMultipleImagesFromCloudinary,
 } = require("./utils/cloudinaryUpload");
@@ -113,6 +116,41 @@ cron.schedule("0 2 * * *", async () => {
         err
       );
     }
+  }
+});
+
+// Resend temporary password if not used within 5 minutes (one-time)
+cron.schedule("* * * * *", async () => {
+  try {
+    const now = new Date();
+    // Find employees whose temp password expired, still must change password, no lastLogin yet, and not resent before
+    const candidates = await Employee.find({
+      mustChangePassword: true,
+      tempPasswordResent: { $ne: true },
+      lastLogin: { $exists: false },
+      passwordExpiresAt: { $lte: now },
+    }).limit(50);
+
+    for (const emp of candidates) {
+      const newTemp = crypto.randomBytes(6).toString("hex");
+      const hashed = await bcrypt.hash(newTemp, 10);
+      emp.password = hashed;
+      emp.passwordExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      emp.tempPasswordResent = true;
+      await emp.save();
+      try {
+        await sendEmail(
+          emp.email,
+          "Your new temporary password",
+          `Hi ${emp.name},\n\nA new temporary password has been generated for your account at ${emp.companyName}.\n\nLogin Email: ${emp.email}\nPassword: ${newTemp}\n\nThis password is valid for 5 minutes. Please login here to set your permanent password:\nhttp://localhost:5173/emp-login\n\nIf you have already set your password, please ignore this email.`
+        );
+      } catch (e) {
+        // Do not throw; log and continue to avoid blocking future runs
+        console.error("[CRON] Failed to send temp password email to", emp.email, e.message);
+      }
+    }
+  } catch (err) {
+    console.error("[CRON] Resend temp password job failed:", err);
   }
 });
 

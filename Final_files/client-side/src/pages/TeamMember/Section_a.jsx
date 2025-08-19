@@ -1030,9 +1030,9 @@ const Section_a = () => {
                       </button>
                       <button
                         onClick={() => {
-                          // Navigate to Create Task page with selected member data
-                          navigate("/CreateTask", {
-                            state: { selectedMember: selectedMember },
+                          // Navigate to AllTask page and open Add Subtask modal prefilled with this member
+                          navigate("/AllTask", {
+                            state: { selectedMember: selectedMember, openAddSubtask: true },
                           });
                         }}
                         className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
@@ -1050,7 +1050,7 @@ const Section_a = () => {
                             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                           />
                         </svg>
-                        Add Task
+                        Add Subtask
                       </button>
                     </div>
                   </div>

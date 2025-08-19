@@ -311,34 +311,36 @@ const Section_a = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-10 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
-      {/* Filter/Search Bar */}
-      <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <input
-          type="text"
-          placeholder="Search teams..."
-          className="border rounded px-3 py-2"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {/* <select
-          value={filterLead}
-          onChange={(e) => setFilterLead(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="">All Leads</option>
-          {teamLeads.map((lead) => (
-            <option key={lead.teamMemberId} value={lead.name}>
-              {lead.name}
-            </option>
-          ))}
-        </select> */}
-        <Button
-          className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white h-fit ml-auto shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-          onClick={() => setShowAddDialog(true)}
-        >
-          + Add Team
-        </Button>
-      </div>
+      {/* Filter/Search Bar: only show on list view, hide on team detail */}
+      {!selectedTeam && (
+        <div className="flex flex-wrap gap-2 mb-6 items-center">
+          <input
+            type="text"
+            placeholder="Search teams..."
+            className="border rounded px-3 py-2"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {/* <select
+            value={filterLead}
+            onChange={(e) => setFilterLead(e.target.value)}
+            className="border rounded px-3 py-2"
+          >
+            <option value="">All Leads</option>
+            {teamLeads.map((lead) => (
+              <option key={lead.teamMemberId} value={lead.name}>
+                {lead.name}
+              </option>
+            ))}
+          </select> */}
+          <Button
+            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white h-fit ml-auto shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            onClick={() => setShowAddDialog(true)}
+          >
+            + Add Team
+          </Button>
+        </div>
+      )}
       {/* Team Cards */}
       {!selectedTeam ? (
         <div className="flex flex-col gap-4">

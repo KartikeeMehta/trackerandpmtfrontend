@@ -50,7 +50,19 @@ const EmpLogin = () => {
         }, 1000)
 
       } else {
-        setError(response?.message || "Login failed");
+        const msg = response?.message || "Login failed";
+        if (
+          msg.toLowerCase().includes("expired") ||
+          msg.toLowerCase().includes("temporary password")
+        ) {
+          setError(
+            "Temporary password expired. A new email with a new temporary password has been sent."
+          );
+        } else if (msg.toLowerCase().includes("incorrect")) {
+          setError("Incorrect temporary password. Please check your email.");
+        } else {
+          setError(msg);
+        }
       }
     } catch (err) {
       setError("Login failed");

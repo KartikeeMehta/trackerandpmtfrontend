@@ -132,7 +132,7 @@ exports.employeeFirstLogin = async (req, res) => {
   if (employee.passwordExpiresAt && new Date() > employee.passwordExpiresAt) {
     return res.status(403).json({
       message:
-        "Your temporary password has expired. Please contact the administrator for a new one.",
+        "Temporary password expired. A new email with a new temporary password has been sent.",
     });
   }
 
@@ -142,8 +142,15 @@ exports.employeeFirstLogin = async (req, res) => {
       .json({ message: "Password already updated, use login instead" });
 
   const isMatch = await bcrypt.compare(oldPassword, employee.password);
-  if (!isMatch)
+  if (!isMatch) {
+    if (employee.tempPasswordResent && employee.mustChangePassword) {
+      return res.status(400).json({
+        message:
+          "Temporary password expired. A new email with a new temporary password has been sent.",
+      });
+    }
     return res.status(400).json({ message: "Old password is incorrect" });
+  }
 
   if (newPassword !== confirmPassword)
     return res.status(400).json({ message: "New passwords do not match" });
@@ -156,6 +163,8 @@ exports.employeeFirstLogin = async (req, res) => {
   employee.password = await bcrypt.hash(newPassword, 10);
   employee.passwordExpiresAt = null;
   employee.mustChangePassword = false;
+  employee.tempPasswordResent = false; // reset resend tracking on successful first login
+  employee.lastLogin = new Date();
 
   await employee.save();
 
