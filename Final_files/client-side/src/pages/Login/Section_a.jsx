@@ -48,8 +48,6 @@ const Section_a = () => {
     setLoading(true);
     setErrors({});
 
-
-
     // Check for device token first
     const deviceToken = localStorage.getItem("deviceToken");
     const deviceId = localStorage.getItem("deviceId");
@@ -87,7 +85,6 @@ const Section_a = () => {
         password,
       });
 
-
       if (response?.success || response?.message === "Login successful") {
         console.log("User data:", response.user);
         console.log("Employee data:", response.employee);
@@ -109,14 +106,15 @@ const Section_a = () => {
           setLoginResponse(response);
           setShowTwoFactorForm(true);
           // Auto-generate device name
-          const deviceName = `${navigator.platform} - ${navigator.userAgent.includes("Chrome")
-            ? "Chrome"
-            : navigator.userAgent.includes("Firefox")
+          const deviceName = `${navigator.platform} - ${
+            navigator.userAgent.includes("Chrome")
+              ? "Chrome"
+              : navigator.userAgent.includes("Firefox")
               ? "Firefox"
               : navigator.userAgent.includes("Safari")
-                ? "Safari"
-                : "Browser"
-            }`;
+              ? "Safari"
+              : "Browser"
+          }`;
           setDeviceName(deviceName);
           console.log("Auto-generated device name:", deviceName);
         } else {
@@ -209,7 +207,6 @@ const Section_a = () => {
   };
 
   const handleSuccessfulLogin = (response) => {
-
     if (response.token) {
       console.log("Storing token:", response.token.substring(0, 20) + "...");
       localStorage.setItem("token", response.token);
@@ -227,7 +224,7 @@ const Section_a = () => {
       localStorage.setItem("user", JSON.stringify(response.employee));
       localStorage.setItem("userType", "employee");
       CustomToast.success("Login successful!");
-      navigate("/Profile");
+      navigate("/Dashboard");
     } else {
       console.log("No user or employee data in response");
     }
@@ -304,10 +301,11 @@ const Section_a = () => {
                 id="twoFactorToken"
                 value={twoFactorToken}
                 onChange={(e) => setTwoFactorToken(e.target.value)}
-                className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 text-center text-lg tracking-widest ${errors.twoFactor
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-gray-300 focus:ring-blue-400"
-                  }`}
+                className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 text-center text-lg tracking-widest ${
+                  errors.twoFactor
+                    ? "border-red-500 focus:ring-red-400"
+                    : "border-gray-300 focus:ring-blue-400"
+                }`}
                 placeholder="000000"
                 maxLength={6}
                 autoComplete="off"
@@ -438,10 +436,11 @@ const Section_a = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.email
-                ? "border-red-500 focus:ring-red-400"
-                : "border-gray-300 focus:ring-blue-400"
-                }`}
+              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${
+                errors.email
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-blue-400"
+              }`}
               autoComplete="email"
             />
             {errors.email && (
@@ -461,10 +460,11 @@ const Section_a = () => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${errors.password
-                ? "border-red-500 focus:ring-red-400"
-                : "border-gray-300 focus:ring-blue-400"
-                } pr-10`}
+              className={`mt-1 block w-full border px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-900 bg-white/80 ${
+                errors.password
+                  ? "border-red-500 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-blue-400"
+              } pr-10`}
               autoComplete="current-password"
             />
             <div
@@ -479,7 +479,10 @@ const Section_a = () => {
           </div>
           <h1
             onClick={() => navigate("/ForgetPassword")}
-            className="flex justify-end text-blue-600 hover:underline cursor-pointer">Forget Password</h1>
+            className="flex justify-end text-blue-600 hover:underline cursor-pointer"
+          >
+            Forget Password
+          </h1>
           <button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-semibold shadow-sm transition flex items-center justify-center gap-2"

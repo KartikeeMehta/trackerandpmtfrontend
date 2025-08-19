@@ -196,6 +196,13 @@ const Section_a = () => {
         setTeamMembers((prev) =>
           prev.filter((emp) => emp.teamMemberId !== teamMemberId)
         );
+        setFilteredMembers((prev) =>
+          Array.isArray(prev)
+            ? prev.filter(
+                (emp) => (emp.teamMemberId || emp._id) !== teamMemberId
+              )
+            : prev
+        );
       } else {
         alert(response?.message || "Failed to delete employee");
       }
@@ -362,8 +369,9 @@ const Section_a = () => {
                 </span>
                 <ChevronDown
                   size={16}
-                  className={`transition-transform duration-200 ${teamsDropdownOpen ? "rotate-180" : ""
-                    }`}
+                  className={`transition-transform duration-200 ${
+                    teamsDropdownOpen ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 
@@ -412,7 +420,12 @@ const Section_a = () => {
               )}
             </div>
 
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+              open={open}
+              onOpenChange={(isOpen) => {
+                if (!loading) setOpen(isOpen);
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-48">
                   <Users size={18} /> Add Member
@@ -422,6 +435,14 @@ const Section_a = () => {
                 <DialogHeader>
                   <DialogTitle>Add Team Member</DialogTitle>
                 </DialogHeader>
+                {loading && (
+                  <div className="absolute inset-0 z-50 bg-white/70 backdrop-blur-[1px] flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+                      <p className="text-sm text-gray-700">Adding member...</p>
+                    </div>
+                  </div>
+                )}
                 <form onSubmit={handleAddMember} className="grid gap-4">
                   {["name", "email", "designation", "phoneNo", "location"].map(
                     (field) => (
@@ -435,6 +456,7 @@ const Section_a = () => {
                           placeholder={`Enter ${field}`}
                           value={addForm[field]}
                           onChange={handleAddFormChange}
+                          disabled={loading}
                         />
                       </div>
                     )
@@ -447,6 +469,7 @@ const Section_a = () => {
                       className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={addForm.role}
                       onChange={handleAddFormChange}
+                      disabled={loading}
                     >
                       <option value="">Select</option>
                       {roles.map((role) => (
@@ -459,7 +482,11 @@ const Section_a = () => {
                   {error && <div className="text-red-600 text-sm">{error}</div>}
                   <DialogFooter>
                     <DialogClose asChild>
-                      <Button variant="outline" type="button">
+                      <Button
+                        variant="outline"
+                        type="button"
+                        disabled={loading}
+                      >
                         Cancel
                       </Button>
                     </DialogClose>
@@ -512,144 +539,18 @@ const Section_a = () => {
                 className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
                 onClick={() => setSelectedMember(member)}
               >
-                {/* Card Header with Actions */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                  <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                    <DialogTrigger asChild>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditForm(member);
-                          setEditOpen(true);
-                        }}
-                        className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                      >
-                        <Pencil
-                          size={16}
-                          className="text-gray-600 hover:text-blue-600"
-                        />
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Edit Team Member</DialogTitle>
-                      </DialogHeader>
-                      {editForm && (
-                        <form
-                          onSubmit={(e) => handleEditMember(e)}
-                          className="grid gap-4"
-                        >
-                          {[
-                            "name",
-                            "email",
-                            "designation",
-                            "phoneNo",
-                            "location",
-                          ].map((field) => (
-                            <div className="grid gap-2" key={field}>
-                              <Label htmlFor={field}>
-                                {field.charAt(0).toUpperCase() + field.slice(1)}
-                              </Label>
-                              <Input
-                                id={field}
-                                name={field}
-                                placeholder={`Enter ${field}`}
-                                value={editForm[field]}
-                                onChange={(e) =>
-                                  setEditForm((prev) => ({
-                                    ...prev,
-                                    [e.target.name]: e.target.value,
-                                  }))
-                                }
-                                readOnly={field === "name" || field === "email"}
-                              />
-                            </div>
-                          ))}
-
-                          <div className="grid gap-2">
-                            <Label htmlFor="role">Role</Label>
-                            <select
-                              id="role"
-                              name="role"
-                              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={editForm.role}
-                              onChange={(e) =>
-                                setEditForm((prev) => ({
-                                  ...prev,
-                                  role: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="">Select</option>
-                              {roles.map((role) => (
-                                <option key={role.value} value={role.value}>
-                                  {role.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button type="button" variant="outline">
-                                Cancel
-                              </Button>
-                            </DialogClose>
-                            <Button type="submit">Save Changes</Button>
-                          </DialogFooter>
-                        </form>
-                      )}
-                    </DialogContent>
-                  </Dialog>
-
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                      >
-                        <Trash2
-                          size={16}
-                          className="text-red-500 hover:text-red-700"
-                        />
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[420px]">
-                      <DialogHeader>
-                        <DialogTitle>Are you absolutely sure?</DialogTitle>
-                        <DialogDescription>
-                          This action cannot be undone. This will permanently
-                          delete this team member.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <div className="flex justify-center items-center gap-4 w-full">
-                          <DialogClose asChild>
-                            <Button className="w-28" variant="outline">
-                              Cancel
-                            </Button>
-                          </DialogClose>
-                          <Button
-                            className="w-28"
-                            variant="destructive"
-                            onClick={() => handleDelete(member.teamMemberId)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                {/* Card Header actions removed; actions are in detail quick actions */}
 
                 {/* Role Badge */}
                 <div className="absolute top-4 left-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
+                    className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
+                      member.role === "admin"
                         ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                         : member.role === "teamLead"
-                          ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                          : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                      }`}
+                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                    }`}
                   >
                     {member.role}
                   </span>
@@ -696,143 +597,18 @@ const Section_a = () => {
               onClick={() => setSelectedMember(member)}
             >
               {/* Card Header with Actions */}
-              <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                  <DialogTrigger asChild>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditForm(member);
-                        setEditOpen(true);
-                      }}
-                      className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                    >
-                      <Pencil
-                        size={16}
-                        className="text-gray-600 hover:text-blue-600"
-                      />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>Edit Team Member</DialogTitle>
-                    </DialogHeader>
-                    {editForm && (
-                      <form
-                        onSubmit={(e) => handleEditMember(e)}
-                        className="grid gap-4"
-                      >
-                        {[
-                          "name",
-                          "email",
-                          "designation",
-                          "phoneNo",
-                          "location",
-                        ].map((field) => (
-                          <div className="grid gap-2" key={field}>
-                            <Label htmlFor={field}>
-                              {field.charAt(0).toUpperCase() + field.slice(1)}
-                            </Label>
-                            <Input
-                              id={field}
-                              name={field}
-                              placeholder={`Enter ${field}`}
-                              value={editForm[field]}
-                              onChange={(e) =>
-                                setEditForm((prev) => ({
-                                  ...prev,
-                                  [e.target.name]: e.target.value,
-                                }))
-                              }
-                              readOnly={field === "name" || field === "email"}
-                            />
-                          </div>
-                        ))}
-
-                        <div className="grid gap-2">
-                          <Label htmlFor="role">Role</Label>
-                          <select
-                            id="role"
-                            name="role"
-                            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={editForm.role}
-                            onChange={(e) =>
-                              setEditForm((prev) => ({
-                                ...prev,
-                                role: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value="">Select</option>
-                            {roles.map((role) => (
-                              <option key={role.value} value={role.value}>
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button type="button" variant="outline">
-                              Cancel
-                            </Button>
-                          </DialogClose>
-                          <Button type="submit">Save Changes</Button>
-                        </DialogFooter>
-                      </form>
-                    )}
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                    >
-                      <Trash2
-                        size={16}
-                        className="text-red-500 hover:text-red-700"
-                      />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[420px]">
-                    <DialogHeader>
-                      <DialogTitle>Are you absolutely sure?</DialogTitle>
-                      <DialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete this team member.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <div className="flex justify-center items-center gap-4 w-full">
-                        <DialogClose asChild>
-                          <Button className="w-28" variant="outline">
-                            Cancel
-                          </Button>
-                        </DialogClose>
-                        <Button
-                          className="w-28"
-                          variant="destructive"
-                          onClick={() => handleDelete(member.teamMemberId)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              {/* Card Header actions removed; actions are in detail quick actions */}
 
               {/* Role Badge */}
               <div className="absolute top-4 left-4">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${member.role === "admin"
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize shadow-lg ${
+                    member.role === "admin"
                       ? "bg-gradient-to-r from-red-400 to-red-600 text-white"
                       : member.role === "teamLead"
-                        ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
-                        : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
-                    }`}
+                      ? "bg-gradient-to-r from-purple-400 to-purple-600 text-white"
+                      : "bg-gradient-to-r from-blue-400 to-indigo-600 text-white"
+                  }`}
                 >
                   {member.role}
                 </span>
@@ -1028,11 +804,49 @@ const Section_a = () => {
                         <Pencil size={16} />
                         Edit Member
                       </button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <button className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2">
+                            <Trash2 size={16} /> Delete Member
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[420px]">
+                          <DialogHeader>
+                            <DialogTitle>Delete member?</DialogTitle>
+                            <DialogDescription>
+                              This action cannot be undone. This will
+                              permanently delete this team member.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <div className="flex justify-center items-center gap-4 w-full">
+                              <DialogClose asChild>
+                                <Button className="w-28" variant="outline">
+                                  Cancel
+                                </Button>
+                              </DialogClose>
+                              <Button
+                                className="w-28"
+                                variant="destructive"
+                                onClick={() => {
+                                  handleDelete(selectedMember.teamMemberId);
+                                  setSelectedMember(null);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                       <button
                         onClick={() => {
                           // Navigate to AllTask page and open Add Subtask modal prefilled with this member
                           navigate("/AllTask", {
-                            state: { selectedMember: selectedMember, openAddSubtask: true },
+                            state: {
+                              selectedMember: selectedMember,
+                              openAddSubtask: true,
+                            },
                           });
                         }}
                         className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-4 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
