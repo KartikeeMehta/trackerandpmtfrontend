@@ -55,7 +55,6 @@ const Profile = () => {
           name: user.name || "",
           email: user.email || "",
           teamMemberId: user.teamMemberId || "",
-          leadMember: user.leadMember || "",
           role: user.role || "employee",
           location: user.location || "",
         }
@@ -78,6 +77,18 @@ const Profile = () => {
     user.companyLogo ? api_url.base + user.companyLogo : null
   );
   const [logoFile, setLogoFile] = useState(null);
+  const objectIdToDateString = (id) => {
+    try {
+      if (!id || typeof id !== "string" || id.length < 8) return null;
+      const ts = parseInt(id.substring(0, 8), 16) * 1000;
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? null : d.toLocaleDateString();
+    } catch {
+      return null;
+    }
+  };
+  const [employeePhotoPreview, setEmployeePhotoPreview] = useState(null);
+  const [employeePhotoFile, setEmployeePhotoFile] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -89,6 +100,24 @@ const Profile = () => {
     if (file) {
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const toBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+
+  const handleEmployeePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEmployeePhotoFile(file);
+      const b64 = await toBase64(file);
+      setEmployeePhotoPreview(b64);
+      setForm((prev) => ({ ...prev, profileLogo: b64 }));
     }
   };
 
@@ -165,11 +194,19 @@ const Profile = () => {
       {userType === "employee" ? (
         <div>
           <div className="flex items-center gap-4 mb-8">
-            <div className="h-16 w-16 rounded-full border bg-gray-200 flex items-center justify-center text-2xl font-bold">
-              {user.name ? user.name[0] : "E"}
-            </div>
+            {employeePhotoPreview ? (
+              <img
+                src={employeePhotoPreview}
+                alt="Employee"
+                className="h-16 w-16 rounded-full border object-cover"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full border bg-gray-200 flex items-center justify-center text-2xl font-bold">
+                {user.name ? user.name[0] : "E"}
+              </div>
+            )}
             <div>
-              <h2 className="text-3xl font-bold">Employee Profile</h2>
+              <h2 className="text-3xl font-bold">User Profile</h2>
             </div>
             <button
               className="ml-auto px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
@@ -178,12 +215,20 @@ const Profile = () => {
               {editMode ? "Cancel" : "Edit Profile"}
             </button>
           </div>
-          <div className="bg-gray-50 rounded-lg p-6 shadow-sm">
+          {/* Owner-like card styling */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
             {editMode ? (
               <form
                 onSubmit={handleUpdate}
                 className="grid grid-cols-1 sm:grid-cols-2 gap-4"
               >
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium">Photo</label>
+                  <input type="file" accept="image/*" onChange={handleEmployeePhotoChange} />
+                  {employeePhotoPreview && (
+                    <img src={employeePhotoPreview} alt="Preview" className="h-16 mt-2 rounded border object-cover" />
+                  )}
+                </div>
                 <div>
                   <label className="block text-sm font-medium">Name</label>
                   <input
@@ -212,24 +257,15 @@ const Profile = () => {
                     readOnly
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium">
-                    Lead Member
-                  </label>
-                  <input
-                    name="leadMember"
-                    value={form.leadMember}
-                    onChange={handleChange}
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
+                
                 <div>
                   <label className="block text-sm font-medium">Role</label>
                   <input
                     name="role"
                     value={form.role}
                     onChange={handleChange}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+                    readOnly
                   />
                 </div>
                 <div>
@@ -240,6 +276,14 @@ const Profile = () => {
                     onChange={handleChange}
                     className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div className="col-span-2">
+                  <button
+                    type="submit"
+                    className="mt-2 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    Save Changes
+                  </button>
                 </div>
               </form>
             ) : (
@@ -257,9 +301,16 @@ const Profile = () => {
                   <div>{user.teamMemberId || "Not specified"}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">Lead Member</div>
-                  <div>{user.leadMember || "Not specified"}</div>
+                  <div className="font-semibold">Join Date</div>
+                  <div>
+                    {user.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString()
+                      : user.joinDate
+                      ? new Date(user.joinDate).toLocaleDateString()
+                      : objectIdToDateString(user._id) || "Not specified"}
+                  </div>
                 </div>
+                
                 <div>
                   <div className="font-semibold">Role</div>
                   <div>{user.role || "Not specified"}</div>
@@ -270,6 +321,43 @@ const Profile = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Account Settings section for employees (owner-like UI) */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border mt-6">
+            <div className=" gap-2 mb-4">
+              <div className="font-bold flex items-center gap-2">
+                <div className="text-blue-500">
+                  <Settings />
+                </div>
+                <h2 className="text-2xl">Account Setting</h2>
+              </div>
+              <div className="text-gray-500 text-sm">
+                Your account preferences and settings
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="text-500">Account Status</div>
+                <div className="text-green-500 font-bold capitalize">Active</div>
+              </div>
+              <div>
+                <div className="text-500">Email Verification</div>
+                <div className={!user.mustChangePassword ? "text-green-500 font-bold" : "text-red-500 font-bold"}>
+                  {!user.mustChangePassword ? "Verified" : "Not Verified"}
+                </div>
+              </div>
+              <div>
+                <div className="text-500d">Last Login</div>
+                <div className="font-bold">
+                  {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Not specified"}
+                </div>
+              </div>
+              <div>
+                <div className="text-500">Account Type</div>
+                <div className="font-bold">Standard</div>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -288,7 +376,7 @@ const Profile = () => {
               className="h-16 w-16 rounded-full border object-cover"
             />
             <div>
-              <h2 className="text-3xl font-bold">Company Profile</h2>
+              <h2 className="text-3xl font-bold">User Profile</h2>
             </div>
             <button
               className="ml-auto px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"

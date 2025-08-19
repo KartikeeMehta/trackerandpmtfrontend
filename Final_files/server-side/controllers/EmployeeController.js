@@ -13,14 +13,10 @@ const getPerformer = (user) =>
 
 // API: Add new Employee
 exports.addEmployee = async (req, res) => {
-  if (
-    req.user.role !== "owner" &&
-    req.user.role !== "admin" &&
-    req.user.role !== "manager"
-  ) {
+  if (req.user.role !== "owner" && req.user.role !== "admin") {
     return res
       .status(403)
-      .json({ message: "Only owners, admins, and managers can add employees" });
+      .json({ message: "Only owners and admins can add employees" });
   }
 
   const { name, email, designation, role, location, phoneNo, profileLogo } =
@@ -40,11 +36,14 @@ exports.addEmployee = async (req, res) => {
         .json({ message: "Email already exists for an employee" });
     }
 
-    const owner = await User.findById(req.user._id);
-    if (!owner) return res.status(404).json({ message: "Owner not found" });
+    // Determine company from current user (works for owner and admin)
+    const companyName = req.user.companyName;
+    if (!companyName) {
+      return res.status(400).json({ message: "Company not found for user" });
+    }
 
     // Generate company initials from company name
-    const companyInitials = owner.companyName
+    const companyInitials = companyName
       .split(' ')
       .map(word => word.charAt(0).toUpperCase())
       .join('');
@@ -52,7 +51,7 @@ exports.addEmployee = async (req, res) => {
     // Find the last employee with the same company initials pattern
     const lastEmployee = await Employee.findOne({
       teamMemberId: { $regex: new RegExp(`^${companyInitials.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`) },
-      companyName: owner.companyName
+      companyName: companyName
     })
       .sort({ teamMemberId: -1 })
       .collation({ locale: "en", numericOrdering: true });
@@ -80,7 +79,7 @@ exports.addEmployee = async (req, res) => {
       password: hashedPassword,
       passwordExpiresAt,
       addedBy: req.user._id,
-      companyName: owner.companyName, // ✅ fetch from owner who added
+      companyName: companyName, // ✅ from current user (owner/admin)
     });
 
     await newEmployee.save();
@@ -98,7 +97,7 @@ exports.addEmployee = async (req, res) => {
       "Welcome to the Team",
       `Hi ${name},
 
-You've been added as an employee in ${owner.companyName}.
+You've been added as an employee in ${companyName}.
 
 Login Email: ${email}
 Password: ${autoPassword}
@@ -165,6 +164,7 @@ exports.employeeFirstLogin = async (req, res) => {
   employee.mustChangePassword = false;
   employee.tempPasswordResent = false; // reset resend tracking on successful first login
   employee.lastLogin = new Date();
+  // Email verification is inferred from mustChangePassword being false
 
   await employee.save();
 
@@ -193,21 +193,32 @@ exports.editEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    if (
-      req.user.role !== "owner" &&
-      req.user.role !== "admin" &&
-      req.user.role !== "manager"
-    ) {
+    // Authorization:
+    // - Owners/Admins/Managers can edit any employee in their company
+    // - Team leads/members can edit ONLY their own profile (matched by teamMemberId)
+    const isElevated =
+      req.user.role === "owner" ||
+      req.user.role === "admin" ||
+      req.user.role === "manager";
+    const isSelfEdit =
+      (req.user.role === "teamLead" || req.user.role === "teamMember") &&
+      req.user.teamMemberId &&
+      req.user.teamMemberId === teamMemberId;
+
+    if (!isElevated && !isSelfEdit) {
       return res.status(403).json({ message: "Unauthorized to edit employee" });
     }
 
     if (name) employee.name = name;
-    if (email) employee.email = email;
     if (designation !== undefined) employee.designation = designation;
-    if (role) employee.role = role;
     if (location) employee.location = location;
     if (phoneNo) employee.phoneNo = phoneNo;
     if (profileLogo) employee.profileLogo = profileLogo;
+    // Restrict sensitive fields for self-edit
+    if (isElevated) {
+      if (email) employee.email = email;
+      if (role) employee.role = role;
+    }
 
     await employee.save();
     await Activity.create({
