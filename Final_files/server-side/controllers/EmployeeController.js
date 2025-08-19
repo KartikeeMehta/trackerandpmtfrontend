@@ -213,7 +213,10 @@ exports.editEmployee = async (req, res) => {
     if (designation !== undefined) employee.designation = designation;
     if (location) employee.location = location;
     if (phoneNo) employee.phoneNo = phoneNo;
-    if (profileLogo) employee.profileLogo = profileLogo;
+    if (profileLogo) {
+      // Accept base64 or a direct URL/path; store as-is
+      employee.profileLogo = profileLogo;
+    }
     // Restrict sensitive fields for self-edit
     if (isElevated) {
       if (email) employee.email = email;

@@ -87,7 +87,15 @@ const Profile = () => {
       return null;
     }
   };
-  const [employeePhotoPreview, setEmployeePhotoPreview] = useState(null);
+  const [employeePhotoPreview, setEmployeePhotoPreview] = useState(
+    user.profileLogo
+      ? (typeof user.profileLogo === "string" && user.profileLogo.startsWith("data:")
+          ? user.profileLogo
+          : user.profileLogo
+          ? image_url + user.profileLogo
+          : null)
+      : null
+  );
   const [employeePhotoFile, setEmployeePhotoFile] = useState(null);
 
   const handleChange = (e) => {
@@ -217,6 +225,15 @@ const Profile = () => {
           </div>
           {/* Owner-like card styling */}
           <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <div className=" gap-2 mb-4">
+              <div className="font-bold flex items-center gap-2">
+                <div className="text-blue-500">
+                  <Users />
+                </div>
+                <h2 className="text-2xl">User Information</h2>
+              </div>
+              <div className="text-gray-500 text-sm">Your personal and professional details</div>
+            </div>
             {editMode ? (
               <form
                 onSubmit={handleUpdate}
@@ -244,7 +261,8 @@ const Profile = () => {
                     name="email"
                     value={form.email}
                     onChange={handleChange}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+                    readOnly
                   />
                 </div>
                 <div>
@@ -264,6 +282,20 @@ const Profile = () => {
                     name="role"
                     value={form.role}
                     onChange={handleChange}
+                    className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Join Date</label>
+                  <input
+                    value={
+                      user.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString()
+                        : user.joinDate
+                        ? new Date(user.joinDate).toLocaleDateString()
+                        : objectIdToDateString(user._id) || "Not specified"
+                    }
                     className="w-full border rounded px-3 py-2 bg-gray-100 cursor-not-allowed"
                     readOnly
                   />
@@ -289,20 +321,20 @@ const Profile = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <div className="font-semibold">Name</div>
-                  <div>{user.name || "Not specified"}</div>
+                  <div className="text-500">Full Name</div>
+                  <div className="font-bold">{user.name || "Not specified"}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">Email</div>
-                  <div>{user.email || "Not specified"}</div>
+                  <div className="text-500">Employee ID</div>
+                  <div className="font-bold">{user.teamMemberId || "Not specified"}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">Team Member ID</div>
-                  <div>{user.teamMemberId || "Not specified"}</div>
+                  <div className="text-500">Email</div>
+                  <div className="font-bold">{user.email || "Not specified"}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">Join Date</div>
-                  <div>
+                  <div className="text-500">Join Date</div>
+                  <div className="font-bold">
                     {user.createdAt
                       ? new Date(user.createdAt).toLocaleDateString()
                       : user.joinDate
@@ -310,14 +342,13 @@ const Profile = () => {
                       : objectIdToDateString(user._id) || "Not specified"}
                   </div>
                 </div>
-                
                 <div>
-                  <div className="font-semibold">Role</div>
-                  <div>{user.role || "Not specified"}</div>
+                  <div className="text-500">Role</div>
+                  <div className="font-bold capitalize">{user.role || "Not specified"}</div>
                 </div>
                 <div>
-                  <div className="font-semibold">Location</div>
-                  <div>{user.location || "Not specified"}</div>
+                  <div className="text-500">Location</div>
+                  <div className="font-bold">{user.location || "Not specified"}</div>
                 </div>
               </div>
             )}
