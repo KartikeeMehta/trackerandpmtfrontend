@@ -92,6 +92,7 @@ exports.createProject = async (req, res) => {
       project_status,
       team_id,
       companyName,
+      createdBy: req.user._id,
     });
 
     await newProject.save();
@@ -491,21 +492,7 @@ exports.addProjectPhase = async (req, res) => {
       });
     }
 
-    // For managers, check hierarchical access (can't modify owner/admin projects)
-    if (userRole === "manager") {
-      // Check if project was created by owner or admin
-      const projectCreator = await User.findOne({ 
-        companyName, 
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message: "Managers cannot modify projects created by owners or admins",
-        });
-      }
-    }
+    // Managers are allowed to add phases for all projects
 
     // STEP 1: Get company initials (e.g., Webblaze Softech → WS)
     const initials = companyName
@@ -755,20 +742,7 @@ exports.deleteProjectPhase = async (req, res) => {
       });
     }
 
-    // For managers, check hierarchical access
-    if (userRole === "manager") {
-      const projectCreator = await User.findOne({ 
-        companyName, 
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy 
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message: "Managers cannot delete phases from projects created by owners or admins",
-        });
-      }
-    }
+    // Managers are allowed to delete phases for all projects
 
     const initialLength = project.phases.length;
 

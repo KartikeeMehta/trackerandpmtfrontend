@@ -80,6 +80,7 @@ const projectSchema = new mongoose.Schema(
     completion_note: { type: String },
     team_id: { type: String },
     companyName: { type: String, required: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     deletedAt: { type: Date, default: null },
   },
   {
