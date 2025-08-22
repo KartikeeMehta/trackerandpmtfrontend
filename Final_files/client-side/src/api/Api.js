@@ -1,7 +1,7 @@
 export const BASE_URL =
   "https://railwayselfpmtdeployed-production.up.railway.app/api";
 export const image_url =
-  "https://railwayselfpmtdeployed-production.up.railway.app/";
+  "https://railwayselfpmtdeployed-production.up.railway.app";
 export const api_url = {
   BASE_URL: BASE_URL,
   login: BASE_URL + "/login",

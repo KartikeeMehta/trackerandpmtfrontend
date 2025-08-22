@@ -43,7 +43,10 @@ const server = http.createServer(app); // Needed for socket.io
 // Base path when app is deployed under a subdirectory (e.g., /backend)
 const BASE_PATH = process.env.BASE_PATH || "/backend";
 // Allow one or more origins via env FRONTEND_ORIGIN (comma separated)
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+const allowedOrigins = (
+  process.env.FRONTEND_ORIGIN ||
+  "http://localhost:5173,https://railwayselfpmtdeployed-production.up.railway.app,https://project-flow.digiwbs.com"
+)
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
@@ -58,10 +61,60 @@ const io = socketIo(server, {
 // Attach io to app so controllers can use it
 app.set("io", io);
 
+// Comprehensive CORS configuration
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Log all requests for debugging
+  console.log(`Request from origin: ${origin}`);
+  console.log(`Allowed origins: ${allowedOrigins}`);
+
+  // Allow requests from any of the allowed origins
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  } else if (!origin) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+
+  // Set all necessary CORS headers
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+  );
+  res.header("Access-Control-Max-Age", "86400"); // 24 hours
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    console.log("Handling preflight request");
+    res.status(200).end();
+    return;
+  }
+
+  next();
+});
+
+// Also use the cors middleware as backup
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+      "Access-Control-Request-Method",
+      "Access-Control-Request-Headers",
+    ],
+    optionsSuccessStatus: 200,
   })
 );
 
@@ -152,7 +205,9 @@ cron.schedule("0 * * * *", async () => {
       if (p.end_date) {
         const end = new Date(p.end_date);
         if (end >= now && end <= in48h) {
-          const recipients = [p.project_lead, ...(p.team_members || [])].filter(Boolean);
+          const recipients = [p.project_lead, ...(p.team_members || [])].filter(
+            Boolean
+          );
           await Notification.updateMany(
             {
               companyName: p.companyName,
@@ -183,7 +238,10 @@ cron.schedule("0 * * * *", async () => {
                 projectId: p.project_id,
                 recipientTeamMemberId: r,
               });
-              io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+              io.to(`userRoom:${p.companyName}:${r}`).emit(
+                "notification:new",
+                doc
+              );
             }
           }
         }
@@ -194,7 +252,10 @@ cron.schedule("0 * * * *", async () => {
         if (ph.dueDate) {
           const phDue = new Date(ph.dueDate);
           if (phDue >= now && phDue <= in48h) {
-            const recipients = [p.project_lead, ...(p.team_members || [])].filter(Boolean);
+            const recipients = [
+              p.project_lead,
+              ...(p.team_members || []),
+            ].filter(Boolean);
             for (const r of recipients) {
               const exists = await Notification.findOne({
                 companyName: p.companyName,
@@ -216,7 +277,10 @@ cron.schedule("0 * * * *", async () => {
                   recipientTeamMemberId: r,
                 });
                 const io = app.get("io");
-                io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+                io.to(`userRoom:${p.companyName}:${r}`).emit(
+                  "notification:new",
+                  doc
+                );
               }
             }
           }
@@ -242,7 +306,11 @@ cron.schedule("0 * * * *", async () => {
                   companyName: p.companyName,
                   type: "subtask_deadline",
                   title: "Subtask deadline approaching",
-                  message: `Subtask '${st.subtask_title}' is due soon (${new Date(st.dueDate).toLocaleDateString()}).`,
+                  message: `Subtask '${
+                    st.subtask_title
+                  }' is due soon (${new Date(
+                    st.dueDate
+                  ).toLocaleDateString()}).`,
                   link: `/projects/${p.project_id}`,
                   projectId: p.project_id,
                   phaseId: ph.phase_id,
@@ -250,7 +318,10 @@ cron.schedule("0 * * * *", async () => {
                   recipientTeamMemberId: r,
                 });
                 const io = app.get("io");
-                io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+                io.to(`userRoom:${p.companyName}:${r}`).emit(
+                  "notification:new",
+                  doc
+                );
               }
             }
           }
@@ -278,14 +349,14 @@ cron.schedule("* * * * *", async () => {
       const newTemp = crypto.randomBytes(6).toString("hex");
       const hashed = await bcrypt.hash(newTemp, 10);
       emp.password = hashed;
-      emp.passwordExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      emp.passwordExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
       emp.tempPasswordResent = true;
       await emp.save();
       try {
         await sendEmail(
           emp.email,
           "Your new temporary password",
-          `Hi ${emp.name},\n\nA new temporary password has been generated for your account at ${emp.companyName}.\n\nLogin Email: ${emp.email}\nPassword: ${newTemp}\n\nThis password is valid for 5 minutes. Please login here to set your permanent password:\nhttp://localhost:5173/emp-login\n\nIf you have already set your password, please ignore this email.`
+          `Hi ${emp.name},\n\nA new temporary password has been generated for your account at ${emp.companyName}.\n\nLogin Email: ${emp.email}\nPassword: ${newTemp}\n\nThis password is valid for 30 minutes. Please login here to set your permanent password:\nhttps://project-flow.digiwbs.com/emp-login\n\nIf you have already set your password, please ignore this email.`
         );
       } catch (e) {
         // Do not throw; log and continue to avoid blocking future runs
@@ -313,6 +384,24 @@ app.get(`${BASE_PATH}/`, (req, res) => {
 });
 app.get(`${BASE_PATH}/api/test`, (req, res) => {
   res.json({ message: "API is working" });
+});
+
+// Debug route to check CORS headers
+app.get("/api/cors-test", (req, res) => {
+  res.json({
+    message: "CORS test successful",
+    origin: req.headers.origin,
+    allowedOrigins: allowedOrigins,
+    timestamp: new Date().toISOString(),
+  });
+});
+app.get(`${BASE_PATH}/api/cors-test`, (req, res) => {
+  res.json({
+    message: "CORS test successful",
+    origin: req.headers.origin,
+    allowedOrigins: allowedOrigins,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ✅ Apply chat middleware for Socket.IO connections

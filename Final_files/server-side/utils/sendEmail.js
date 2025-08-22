@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 const sendEmail = async (to, subject, text) => {
   const mailOptions = {
-    from: `"TeamTrak Soft" <${process.env.EMAIL_USER}>`,
+    from: `"Project Flow" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     text,

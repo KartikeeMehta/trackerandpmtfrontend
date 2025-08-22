@@ -45,14 +45,18 @@ exports.addEmployee = async (req, res) => {
 
     // Generate company initials from company name
     const companyInitials = companyName
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase())
-      .join('');
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("");
 
     // Find the last employee with the same company initials pattern
     const lastEmployee = await Employee.findOne({
-      teamMemberId: { $regex: new RegExp(`^${companyInitials.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`) },
-      companyName: companyName
+      teamMemberId: {
+        $regex: new RegExp(
+          `^${companyInitials.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d+$`
+        ),
+      },
+      companyName: companyName,
     })
       .sort({ teamMemberId: -1 })
       .collation({ locale: "en", numericOrdering: true });
@@ -62,11 +66,13 @@ exports.addEmployee = async (req, res) => {
       const lastNumber = parseInt(lastEmployee.teamMemberId.split("-")[1]);
       newIdNumber = lastNumber + 1;
     }
-    const teamMemberId = `${companyInitials}-${newIdNumber.toString().padStart(3, "0")}`;
+    const teamMemberId = `${companyInitials}-${newIdNumber
+      .toString()
+      .padStart(3, "0")}`;
 
     const autoPassword = crypto.randomBytes(6).toString("hex");
     const hashedPassword = await bcrypt.hash(autoPassword, 10);
-    const passwordExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const passwordExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     const newEmployee = new Employee({
       name,
@@ -103,10 +109,10 @@ You've been added as an employee in ${companyName}.
 Login Email: ${email}
 Password: ${autoPassword}
 
-To set your password and activate your account, please log in here (valid for 5 minutes):
-http://localhost:5173/emp-login
+To set your password and activate your account, please log in here (valid for 30 minutes):
+https://project-flow.digiwbs.com/emp-login
 
-Note: This is an auto-generated password and it will expire in 5 minutes. If you do not set your password in time, your account will be deleted automatically.`
+Note: This is an auto-generated password and it will expire in 30 minutes. If you do not set your password in time, your account will be deleted automatically.`
     );
 
     res
