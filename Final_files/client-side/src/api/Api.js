@@ -1,5 +1,7 @@
-export const BASE_URL = "http://localhost:8000/api";
-export const image_url = "http://localhost:8000";
+export const BASE_URL =
+  "https://railwayselfpmtdeployed-production.up.railway.app/api";
+export const image_url =
+  "https://railwayselfpmtdeployed-production.up.railway.app/";
 export const api_url = {
   BASE_URL: BASE_URL,
   login: BASE_URL + "/login",
@@ -66,7 +68,6 @@ export const api_url = {
   cleanupReadNotifications: BASE_URL + "/notifications/cleanup-read",
   getMyNotifPrefs: BASE_URL + "/notifications/preferences/mine",
   updateMyNotifPrefs: BASE_URL + "/notifications/preferences/mine",
-
 };
 
 export const Methods = {
