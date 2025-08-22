@@ -7,6 +7,7 @@ import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import { useNavigate } from "react-router-dom";
 import CustomToast from "@/components/CustomToast";
+import NotificationSettings from "@/components/NotificationSettings";
 
 const Section_a = () => {
   const [loading, setLoading] = useState(false);
@@ -372,6 +373,15 @@ const Section_a = () => {
               ) : (
                 <div className="text-sm text-gray-500">Loading preferences...</div>
               )}
+
+              {/* Windows Notifications Section */}
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Windows Notifications</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Configure native Windows notifications that work even when the browser is minimized.
+                </p>
+                <NotificationSettings />
+              </div>
             </div>
           )}
 

@@ -24,176 +24,179 @@ import ForgetPassword from "./pages/ForgetPassword";
 import Verification from "./pages/Verification";
 import ResetPassword from "./pages/ResetPassword";
 import Messaging from "./pages/Message/Messaging";
+import NotificationWrapper from "./components/NotificationWrapper";
 
 // Main App component
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/Register" element={<Register />} />
-        <Route path="/Login" element={<Login />} />
-        <Route path="/emp-login" element={<EmpLogin />} />
-        <Route path="/ForgetPassword" element={<ForgetPassword />} />
-        <Route path="/Verification" element={<Verification />} />
-        <Route path="/ResetPassword" element={<ResetPassword />} />
-        <Route
-          path="/TeamMember"
-          element={
-            <ProtectedRoute roles={["owner", "admin", "manager"]}>
-              <MainLayout>
-                <TeamMember />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/MyTeam"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <MyTeam />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/AllTask"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <AllTask />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/CreateTask"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <CreateTask />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/EditTask"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <EditTask />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+    <NotificationWrapper>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/Register" element={<Register />} />
+          <Route path="/Login" element={<Login />} />
+          <Route path="/emp-login" element={<EmpLogin />} />
+          <Route path="/ForgetPassword" element={<ForgetPassword />} />
+          <Route path="/Verification" element={<Verification />} />
+          <Route path="/ResetPassword" element={<ResetPassword />} />
+          <Route
+            path="/TeamMember"
+            element={
+              <ProtectedRoute roles={["owner", "admin", "manager"]}>
+                <MainLayout>
+                  <TeamMember />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/MyTeam"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <MyTeam />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/AllTask"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <AllTask />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/CreateTask"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <CreateTask />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/EditTask"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <EditTask />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/DashBoard"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <DashBoard />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/WorkHistory"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <WorkHistory />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/CreateProject"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <CreateProject />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/messaging"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Messaging />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/AllProject"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <AllProject />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/DashBoard"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <DashBoard />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/WorkHistory"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <WorkHistory />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/CreateProject"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <CreateProject />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messaging"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Messaging />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/AllProject"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <AllProject />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/ProjectDetails"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <ProjectOverview />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/ProjectDetails"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <ProjectOverview />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/PhaseDetails"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <PhaseDetails />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/SubtaskDetails"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <SubtaskDetails />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/PhaseDetails"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <PhaseDetails />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/SubtaskDetails"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <SubtaskDetails />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/Profile"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Profile />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Settings />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+          <Route
+            path="/Profile"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Profile />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Settings />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </NotificationWrapper>
   );
 }
 

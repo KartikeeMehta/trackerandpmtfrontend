@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 import { image_url } from "@/api/Api";
 import CustomToast from "@/components/CustomToast";
+import windowsNotificationService from "./windowsNotificationService.js";
 
 class NotificationManager {
   constructor() {
@@ -8,6 +9,14 @@ class NotificationManager {
     this.isInitialized = false;
     this.listeners = new Map();
     this.notificationCount = 0;
+    this.windowsNotificationsEnabled = false;
+    this.initWindowsNotifications();
+  }
+
+  async initWindowsNotifications() {
+    // Initialize Windows notifications
+    this.windowsNotificationsEnabled = await windowsNotificationService.requestPermission();
+    console.log('Windows notifications enabled:', this.windowsNotificationsEnabled);
   }
 
   initialize(token) {
@@ -34,7 +43,18 @@ class NotificationManager {
       console.log(`NotificationManager: Total notifications received: ${this.notificationCount}`);
       
       const toastMsg = notification.title || notification.message;
+      
+      // Show toast notification (existing functionality)
       CustomToast.info(toastMsg || "New notification");
+      
+      // Show Windows notification if enabled
+      if (this.windowsNotificationsEnabled) {
+        try {
+          windowsNotificationService.show(notification);
+        } catch (error) {
+          console.error('Error showing Windows notification:', error);
+        }
+      }
       
       // Notify all registered listeners
       this.notifyListeners("notification:new", notification);
@@ -88,6 +108,38 @@ class NotificationManager {
 
   getSocket() {
     return this.socket;
+  }
+
+  // Enable/disable Windows notifications
+  async enableWindowsNotifications() {
+    this.windowsNotificationsEnabled = await windowsNotificationService.requestPermission();
+    return this.windowsNotificationsEnabled;
+  }
+
+  disableWindowsNotifications() {
+    this.windowsNotificationsEnabled = false;
+  }
+
+  // Check Windows notification status
+  getWindowsNotificationStatus() {
+    return {
+      enabled: this.windowsNotificationsEnabled,
+      supported: windowsNotificationService.isSupported,
+      permission: windowsNotificationService.getPermissionStatus()
+    };
+  }
+
+  // Show test Windows notification
+  showTestWindowsNotification() {
+    if (this.windowsNotificationsEnabled) {
+      const testNotification = {
+        title: "Test Notification",
+        message: "This is a test Windows notification",
+        type: "test"
+      };
+      return windowsNotificationService.show(testNotification);
+    }
+    return null;
   }
 }
 
