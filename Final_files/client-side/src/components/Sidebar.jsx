@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -10,9 +11,15 @@ import {
   ChevronRight,
   MessageCircle,
 } from "lucide-react";
+import notificationManager from "@/utils/notificationManager";
+import { api_url, image_url } from "@/api/Api";
+import { apiHandler } from "@/api/ApiHandler";
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
+  const [badges, setBadges] = useState({ tasks: 0, projects: 0, team: 0, teamMembers: 0 });
+  const [starred, setStarred] = useState([]); // [{id,name}]
+  const navigate = useNavigate();
   const userType = localStorage.getItem("userType");
 
   // Get the actual role from user object
@@ -53,7 +60,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           label: userType === "employee" ? "My Overview" : "Overview",
           icon: LayoutDashboard,
         },
-        { to: "/MyTeam", label: "My Team", icon: Users },
+        { to: "/MyTeam", label: "My Team", icon: Users, badgeKey: "team" },
         // Only show Team Members for owner, admin, and manager
         ...(canAccessTeamMembers
           ? [
@@ -61,6 +68,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 to: "/TeamMember",
                 label: "Team Members",
                 icon: UserPlus,
+                badgeKey: "teamMembers",
               },
             ]
           : []),
@@ -69,8 +77,8 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TASKS & PROJECTS",
       items: [
-        { to: "/AllTask", label: "All Task", icon: ListChecks },
-        { to: "/AllProject", label: "My Projects", icon: BookCopy },
+        { to: "/AllTask", label: "All Task", icon: ListChecks, badgeKey: "tasks" },
+        { to: "/AllProject", label: "My Projects", icon: BookCopy, badgeKey: "projects" },
         {
           to: "/WorkHistory",
           label: "Work History",
@@ -83,6 +91,129 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
       items: [{ to: "/messaging", label: "Messaging", icon: MessageCircle }],
     },
   ];
+
+  // Load starred projects and listen for updates
+  useEffect(() => {
+    const loadStarred = async () => {
+      // 1) Load any cached list (fast)
+      try {
+        const raw = localStorage.getItem("starredProjects");
+        const ids = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+        const projectsRaw = localStorage.getItem("starredProjectsNames");
+        const nameMap = projectsRaw ? JSON.parse(projectsRaw) : {};
+        const cachedList = ids.map((id) => ({ id, name: nameMap[id] || id }));
+        if (cachedList.length > 0) setStarred(cachedList);
+      } catch {}
+
+      // 2) Fetch fresh from backend for this user (authoritative)
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const res = await apiHandler.GetApi(api_url.getAllProjects, token);
+        const projects = Array.isArray(res.projects) ? res.projects : [];
+        const starredProjects = projects
+          .filter((p) => p.starred === true)
+          .map((p) => ({ id: p.project_id, name: p.project_name }));
+        setStarred(starredProjects);
+        // Persist names map for quick subsequent loads
+        const nameMap = {};
+        starredProjects.forEach((p) => (nameMap[p.id] = p.name));
+        localStorage.setItem(
+          "starredProjectsNames",
+          JSON.stringify(nameMap)
+        );
+        localStorage.setItem(
+          "starredProjects",
+          JSON.stringify(starredProjects.map((p) => p.id))
+        );
+      } catch {}
+    };
+    loadStarred();
+    const handler = (e) => {
+      const detail = e?.detail || {};
+      const arr = Array.isArray(detail.starred) ? detail.starred : [];
+      const list = (detail.projects || []).map((p) => ({ id: p.id, name: p.name || p.id }));
+      // persist names for next loads
+      try {
+        const nameMap = {};
+        list.forEach((p) => (nameMap[p.id] = p.name));
+        localStorage.setItem("starredProjectsNames", JSON.stringify(nameMap));
+      } catch {}
+      setStarred(list.length ? list : arr.map((id) => ({ id, name: id })));
+    };
+    window.addEventListener("starred:updated", handler);
+    return () => window.removeEventListener("starred:updated", handler);
+  }, []);
+
+  // Map notification type to sidebar badge key
+  const categorizeNotification = (type) => {
+    if (["subtask_assigned", "subtask_deadline"].includes(type)) return "tasks";
+    if (["project_created", "project_completed", "project_deadline", "phase_added", "phase_deadline", "project_member_added"].includes(type)) return "projects";
+    if (type === "team_created") return "team";
+    if (type === "team_member_added") return canAccessTeamMembers ? "teamMembers" : "team";
+    return null;
+  };
+
+  // Initial unread badge fetch
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await apiHandler.GetApi(api_url.getMyNotifications, token);
+        const unread = (res?.notifications || []).filter((n) => n && n.read === false);
+        const next = { tasks: 0, projects: 0, team: 0, teamMembers: 0 };
+        unread.forEach((n) => {
+          const k = categorizeNotification(n.type);
+          if (k) next[k] += 1;
+        });
+        setBadges(next);
+      } catch (e) {}
+    })();
+  }, []);
+
+  // Socket updates
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+    if (!token || !userStr) return;
+    
+    notificationManager.initialize(token);
+    
+    const handleNewNotification = (n) => {
+      console.log("Sidebar received notification:", n._id, n.title);
+      const k = categorizeNotification(n?.type);
+      if (!k) return;
+      setBadges((prev) => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
+      // Note: Toast is handled in notificationManager to avoid duplicates
+    };
+    
+    notificationManager.addListener("notification:new", handleNewNotification);
+    
+    return () => {
+      notificationManager.removeListener("notification:new", handleNewNotification);
+    };
+  }, []);
+
+  // Listen for category read events from pages (e.g., AllTask)
+  useEffect(() => {
+    const handler = (e) => {
+      const cat = e?.detail?.category;
+      if (!cat) return;
+      setBadges((prev) => ({ ...prev, [cat]: 0 }));
+    };
+    window.addEventListener("notifications:categoryRead", handler);
+    return () => window.removeEventListener("notifications:categoryRead", handler);
+  }, []);
+
+  // Listen for all read events (from "Mark all read" and "All clear")
+  useEffect(() => {
+    const handler = () => {
+      setBadges({ tasks: 0, projects: 0, team: 0, teamMembers: 0 });
+    };
+    window.addEventListener("notifications:allRead", handler);
+    return () => window.removeEventListener("notifications:allRead", handler);
+  }, []);
   return (
     <aside
       className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
@@ -136,15 +267,70 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                   <li key={item.to}>
                     <Link
                       to={item.to}
-                      className={`flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
+                      className={`relative flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
                         location.pathname === item.to
                           ? "bg-blue-50 text-blue-700 border-blue-700 rounded"
                           : "text-gray-700 hover:bg-gray-100 border-transparent"
                       } ${isCollapsed ? "justify-center px-2" : ""}`}
                       title={isCollapsed ? item.label : ""}
+                      onClick={async () => {
+                        if (item.badgeKey) {
+                          setBadges((prev) => ({ ...prev, [item.badgeKey]: 0 }));
+                          
+                          // Mark all unread notifications of this category as read on the server
+                          const token = localStorage.getItem("token");
+                          if (token) {
+                            try {
+                              // Get all notifications and mark unread ones of this category as read
+                              const res = await apiHandler.GetApi(api_url.getMyNotifications, token);
+                              const notifications = res?.notifications || [];
+                              
+                              // Find unread notifications of this category
+                              const unreadNotifications = notifications.filter(n => {
+                                if (n.read) return false;
+                                
+                                const type = n?.type || "";
+                                let notificationCategory = null;
+                                
+                                if (["subtask_assigned", "subtask_deadline"].includes(type)) {
+                                  notificationCategory = "tasks";
+                                } else if (["project_created", "project_completed", "project_deadline", "phase_added", "phase_deadline", "project_member_added"].includes(type)) {
+                                  notificationCategory = "projects";
+                                } else if (type === "team_created") {
+                                  notificationCategory = "team";
+                                } else if (type === "team_member_added") {
+                                  notificationCategory = canAccessTeamMembers ? "teamMembers" : "team";
+                                }
+                                
+                                return notificationCategory === item.badgeKey;
+                              });
+                              
+                              // Mark each unread notification as read
+                              for (const notification of unreadNotifications) {
+                                if (notification._id) {
+                                  await apiHandler.UpdateApi(api_url.markNotifRead + notification._id + "/read", {}, token);
+                                }
+                              }
+                            } catch (error) {
+                              console.error("Error marking notifications as read:", error);
+                            }
+                          }
+                          
+                          // Also clear the notification icon count for this category
+                          window.dispatchEvent(new CustomEvent("notifications:sidebarClick", { detail: { category: item.badgeKey } }));
+                        }
+                      }}
                     >
                       <Icon size={isCollapsed ? 30 : 18} />
-                      {!isCollapsed && <span>{item.label}</span>}
+                      {!isCollapsed && <span className="flex-1">{item.label}</span>}
+                      {!isCollapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-5 px-1.5 text-xs rounded-full bg-red-600 text-white">
+                          {badges[item.badgeKey]}
+                        </span>
+                      )}
+                      {isCollapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full"></span>
+                      )}
                     </Link>
                   </li>
                 );
@@ -153,6 +339,31 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             {!isCollapsed && <hr />}
           </div>
         ))}
+        {/* Important Projects subsection */}
+        {!isCollapsed && starred.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Important projects</h4>
+            <ul className="space-y-1">
+              {starred.map((p) => (
+                <li key={p.id}>
+                  <button
+                    className={`w-full text-left relative flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
+                      location.pathname === "/ProjectDetails" ? "bg-blue-50 text-blue-700 border-blue-700 rounded" : "text-gray-700 hover:bg-gray-100 border-transparent"
+                    }`}
+                    title={p.name}
+                    onClick={() => {
+                      // Navigate directly to project details
+                      navigate("/ProjectDetails", { state: { project_id: p.id } });
+                    }}
+                  >
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">★</span>
+                    <span className="flex-1 truncate">{p.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </nav>
     </aside>
   );

@@ -80,6 +80,7 @@ const projectSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    starred: { type: Boolean, default: false },
     completion_note: { type: String },
     team_id: { type: String },
     companyName: { type: String, required: true },

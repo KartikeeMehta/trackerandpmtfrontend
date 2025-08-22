@@ -41,7 +41,7 @@ function App() {
         <Route
           path="/TeamMember"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["owner", "admin", "manager"]}>
               <MainLayout>
                 <TeamMember />
               </MainLayout>

@@ -56,6 +56,16 @@ export const api_url = {
   sendMessage: BASE_URL + "/chat/send",
   getMessages: BASE_URL + "/chat",
   change_Password: BASE_URL + "/change-password",
+  // --- Notifications ---
+  getMyNotifications: BASE_URL + "/notifications/mine",
+  getUnreadCount: BASE_URL + "/notifications/unread-count",
+  markNotifRead: BASE_URL + "/notifications/", // append :id/read
+  markAllNotifRead: BASE_URL + "/notifications/read-all",
+  clearAllNotif: BASE_URL + "/notifications/clear-all",
+  deleteNotification: BASE_URL + "/notifications/", // append :id
+  cleanupReadNotifications: BASE_URL + "/notifications/cleanup-read",
+  getMyNotifPrefs: BASE_URL + "/notifications/preferences/mine",
+  updateMyNotifPrefs: BASE_URL + "/notifications/preferences/mine",
 
 };
 

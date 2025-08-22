@@ -24,8 +24,10 @@ const projectRoutes = require("./routes/projectRoutes");
 
 const otpRoutes = require("./routes/otpRoutes");
 const chatRoutes = require("./routes/chatRoutes"); // NEW
+const notificationRoutes = require("./routes/notificationRoutes");
 const { Project } = require("./models/Project");
 const Activity = require("./models/Activity");
+const Notification = require("./models/Notification");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const sendEmail = require("./utils/sendEmail");
@@ -85,6 +87,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/chat", chatRoutes); // NEW
+app.use("/api/notifications", notificationRoutes);
 
 // ROUTES (with base path prefix for cPanel Application Manager Base URL)
 app.use(`${BASE_PATH}/api`, userRoutes);
@@ -93,6 +96,7 @@ app.use(`${BASE_PATH}/api/employees`, employeeRoutes);
 app.use(`${BASE_PATH}/api/projects`, projectRoutes);
 app.use(`${BASE_PATH}/api/otp`, otpRoutes);
 app.use(`${BASE_PATH}/api/chat`, chatRoutes);
+app.use(`${BASE_PATH}/api/notifications`, notificationRoutes);
 
 // Auto-permanent delete job: runs every day at 2am
 cron.schedule("0 2 * * *", async () => {
@@ -135,6 +139,126 @@ cron.schedule("0 2 * * *", async () => {
         err
       );
     }
+  }
+});
+// Deadline reminder job: runs hourly
+cron.schedule("0 * * * *", async () => {
+  try {
+    const now = new Date();
+    const in48h = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const projects = await Project.find({ project_status: { $ne: "deleted" } });
+    for (const p of projects) {
+      // Project end_date
+      if (p.end_date) {
+        const end = new Date(p.end_date);
+        if (end >= now && end <= in48h) {
+          const recipients = [p.project_lead, ...(p.team_members || [])].filter(Boolean);
+          await Notification.updateMany(
+            {
+              companyName: p.companyName,
+              type: "project_deadline",
+              projectId: p.project_id,
+              recipientTeamMemberId: { $in: recipients },
+              message: { $regex: /due soon/i },
+            },
+            { $setOnInsert: { title: "Project deadline approaching" } },
+            { upsert: false }
+          );
+          const io = app.get("io");
+          for (const r of recipients) {
+            const exists = await Notification.findOne({
+              companyName: p.companyName,
+              type: "project_deadline",
+              projectId: p.project_id,
+              recipientTeamMemberId: r,
+              createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            });
+            if (!exists) {
+              const doc = await Notification.create({
+                companyName: p.companyName,
+                type: "project_deadline",
+                title: "Project deadline approaching",
+                message: `Project ${p.project_name} is due soon (${p.end_date}).`,
+                link: `/projects/${p.project_id}`,
+                projectId: p.project_id,
+                recipientTeamMemberId: r,
+              });
+              io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+            }
+          }
+        }
+      }
+
+      // Phases deadlines
+      for (const ph of p.phases || []) {
+        if (ph.dueDate) {
+          const phDue = new Date(ph.dueDate);
+          if (phDue >= now && phDue <= in48h) {
+            const recipients = [p.project_lead, ...(p.team_members || [])].filter(Boolean);
+            for (const r of recipients) {
+              const exists = await Notification.findOne({
+                companyName: p.companyName,
+                type: "phase_deadline",
+                projectId: p.project_id,
+                phaseId: ph.phase_id,
+                recipientTeamMemberId: r,
+                createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+              });
+              if (!exists) {
+                const doc = await Notification.create({
+                  companyName: p.companyName,
+                  type: "phase_deadline",
+                  title: "Phase deadline approaching",
+                  message: `Phase '${ph.title}' in project ${p.project_name} is due soon (${ph.dueDate}).`,
+                  link: `/projects/${p.project_id}`,
+                  projectId: p.project_id,
+                  phaseId: ph.phase_id,
+                  recipientTeamMemberId: r,
+                });
+                const io = app.get("io");
+                io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+              }
+            }
+          }
+        }
+
+        // Subtasks deadlines
+        for (const st of ph.subtasks || []) {
+          if (st.dueDate && st.assigned_member) {
+            const stDue = new Date(st.dueDate);
+            if (stDue >= now && stDue <= in48h) {
+              const r = st.assigned_member;
+              const exists = await Notification.findOne({
+                companyName: p.companyName,
+                type: "subtask_deadline",
+                projectId: p.project_id,
+                phaseId: ph.phase_id,
+                subtaskId: st.subtask_id,
+                recipientTeamMemberId: r,
+                createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+              });
+              if (!exists) {
+                const doc = await Notification.create({
+                  companyName: p.companyName,
+                  type: "subtask_deadline",
+                  title: "Subtask deadline approaching",
+                  message: `Subtask '${st.subtask_title}' is due soon (${new Date(st.dueDate).toLocaleDateString()}).`,
+                  link: `/projects/${p.project_id}`,
+                  projectId: p.project_id,
+                  phaseId: ph.phase_id,
+                  subtaskId: st.subtask_id,
+                  recipientTeamMemberId: r,
+                });
+                const io = app.get("io");
+                io.to(`userRoom:${p.companyName}:${r}`).emit("notification:new", doc);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[CRON] Deadline notification error:", err.message);
   }
 });
 
@@ -211,7 +335,9 @@ io.on("connection", async (socket) => {
 
     if (!user) {
       // Try to find employee
-      user = await Employee.findById(userId).select("name email companyName");
+      user = await Employee.findById(userId).select(
+        "name email companyName teamMemberId"
+      );
       if (user) {
         isEmployee = true;
       } else {
@@ -241,6 +367,12 @@ io.on("connection", async (socket) => {
     } else {
       const companyRoom = `companyRoom:${companyName}`;
       socket.join(companyRoom);
+    }
+
+    // Join personal room for employees to receive notifications
+    if (isEmployee && user.teamMemberId) {
+      const personalRoom = `userRoom:${companyName}:${user.teamMemberId}`;
+      socket.join(personalRoom);
     }
 
     // Send welcome message only to this user

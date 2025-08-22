@@ -4,6 +4,7 @@ const User = require("../models/User");
 const { Project } = require("../models/Project");
 const { uploadCompressedImage } = require("../utils/cloudinaryUpload");
 const mongoose = require("mongoose");
+const { sendNotification } = require("../utils/notify");
 
 const getPerformer = (user) =>
   user?.firstName
@@ -105,6 +106,27 @@ exports.createProject = async (req, res) => {
       performedBy: getPerformer(req.user),
       companyName,
     });
+
+    // Notify project lead and team members
+    try {
+      const io = req.app.get("io");
+      const recipientIds = [
+        newProject.project_lead,
+        ...newProject.team_members,
+      ].filter(Boolean);
+      await sendNotification({
+        io,
+        companyName,
+        type: "project_created",
+        title: `New project assigned: ${newProject.project_name}`,
+        message: `You have been added to project ${newProject.project_name}.`,
+        link: `/projects/${newProject.project_id}`,
+        projectId: newProject.project_id,
+        recipientTeamMemberIds: recipientIds,
+      });
+    } catch (e) {
+      console.error("project create notify failed:", e.message);
+    }
 
     res.status(201).json({ message: "Project created", project: newProject });
   } catch (err) {
@@ -218,7 +240,7 @@ exports.updateProject = async (req, res) => {
       });
     }
 
-    const { add_members = [], remove_members = [], ...otherUpdates } = req.body;
+    let { add_members = [], remove_members = [], ...otherUpdates } = req.body;
 
     const userCompany = req.user.companyName;
     const project = await Project.findOne({
@@ -226,6 +248,16 @@ exports.updateProject = async (req, res) => {
       companyName: userCompany,
     });
     if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // If client sends the full team_members array (common in edit UI), infer additions/removals
+    if (Array.isArray(otherUpdates.team_members)) {
+      const incoming = [...new Set(otherUpdates.team_members.map(String))];
+      const existing = (project.team_members || []).map(String);
+      const inferredAdds = incoming.filter((id) => !existing.includes(id));
+      const inferredRemovals = existing.filter((id) => !incoming.includes(id));
+      if (inferredAdds.length > 0) add_members = [...new Set([...(add_members || []), ...inferredAdds])];
+      if (inferredRemovals.length > 0) remove_members = [...new Set([...(remove_members || []), ...inferredRemovals])];
+    }
 
     // 🔍 Validate and add members
     if (Array.isArray(add_members) && add_members.length > 0) {
@@ -265,7 +297,14 @@ exports.updateProject = async (req, res) => {
     }
 
     // Update other fields if present (like project_name, description, etc.)
-    Object.assign(project, otherUpdates);
+    // Avoid blindly overwriting team_members because we already set it above when needed
+    const { team_members: _, ...restUpdates } = otherUpdates;
+    Object.assign(project, restUpdates);
+
+    // Handle starred toggle (since this route already restricts to owner/admin/manager)
+    if (Object.prototype.hasOwnProperty.call(otherUpdates, "starred")) {
+      project.starred = Boolean(otherUpdates.starred);
+    }
 
     await project.save();
 
@@ -277,6 +316,42 @@ exports.updateProject = async (req, res) => {
       performedBy: getPerformer(req.user),
       companyName: req.user.companyName,
     });
+
+    // Notifications for completion or member changes
+    try {
+      const io = req.app.get("io");
+      const companyName = req.user.companyName;
+      // If project completed, notify all members
+      if (project.project_status === "completed") {
+        const recipients = [project.project_lead, ...project.team_members].filter(Boolean);
+        await sendNotification({
+          io,
+          companyName,
+          type: "project_completed",
+          title: `Project completed: ${project.project_name}`,
+          message: `Project ${project.project_name} has been marked completed.`,
+          link: `/projects/${project.project_id}`,
+          projectId: project.project_id,
+          recipientTeamMemberIds: recipients,
+        });
+      }
+
+      // If members added, notify added members only
+      if (Array.isArray(add_members) && add_members.length > 0) {
+        await sendNotification({
+          io,
+          companyName,
+          type: "project_member_added",
+          title: `Added to project: ${project.project_name}`,
+          message: `You were added to project ${project.project_name}.`,
+          link: `/projects/${project.project_id}`,
+          projectId: project.project_id,
+          recipientTeamMemberIds: add_members,
+        });
+      }
+    } catch (e) {
+      console.error("project update notify failed:", e.message);
+    }
 
     res.status(200).json({ message: "Project updated", project });
   } catch (err) {
@@ -535,6 +610,25 @@ exports.addProjectPhase = async (req, res) => {
       message: "Phase added successfully",
       phase: newPhase,
     });
+
+    // Notify project members about new phase
+    try {
+      const io = req.app.get("io");
+      const recipients = [project.project_lead, ...project.team_members].filter(Boolean);
+      await sendNotification({
+        io,
+        companyName,
+        type: "phase_added",
+        title: `New phase in ${project.project_name}`,
+        message: `Phase '${title}' has been added to project ${project.project_name}.`,
+        link: `/projects/${project.project_id}`,
+        projectId: project.project_id,
+        phaseId: phaseId,
+        recipientTeamMemberIds: recipients,
+      });
+    } catch (e) {
+      console.error("phase add notify failed:", e.message);
+    }
   } catch (error) {
     console.error("Error in addProjectPhase:", error);
     res.status(500).json({
@@ -908,6 +1002,8 @@ exports.updateSubtaskStatus = async (req, res) => {
       success: true,
       message: "Subtask status updated successfully",
     });
+
+    // Optionally inform assignee about status change by others (skip if self?)
   } catch (error) {
     console.error("Error updating subtask status:", error);
     return res.status(500).json({
@@ -1173,6 +1269,27 @@ exports.editSubtask = async (req, res) => {
       message: "Subtask updated successfully",
       images: finalImages,
     });
+
+    // Notify new assignee if changed
+    try {
+      if (assigned_member && assigned_member !== currentSubtask.assigned_member) {
+        const io = req.app.get("io");
+        await sendNotification({
+          io,
+          companyName,
+          type: "subtask_assigned",
+          title: `Subtask assigned: ${subtask_title || currentSubtask.subtask_title}`,
+          message: `You have been assigned a subtask in project ${project.project_name}.`,
+          link: `/projects/${project.project_id}`,
+          projectId: project.project_id,
+          phaseId: phase.phase_id,
+          subtaskId: subtask_id,
+          recipientTeamMemberIds: [assigned_member],
+        });
+      }
+    } catch (e) {
+      console.error("subtask edit notify failed:", e.message);
+    }
   } catch (error) {
     console.error("Error editing subtask:", error);
     return res.status(500).json({
@@ -1603,6 +1720,27 @@ exports.addSubtask = async (req, res) => {
       message: "Subtask added successfully",
       subtask: newSubtask,
     });
+
+    // Notify assigned member if present
+    try {
+      if (assigned_member) {
+        const io = req.app.get("io");
+        await sendNotification({
+          io,
+          companyName,
+          type: "subtask_assigned",
+          title: `New subtask assigned: ${subtask_title}`,
+          message: `You have been assigned a subtask in project ${project.project_name}.`,
+          link: `/projects/${project.project_id}`,
+          projectId: project.project_id,
+          phaseId: phase_id,
+          subtaskId: subtask_id,
+          recipientTeamMemberIds: [assigned_member],
+        });
+      }
+    } catch (e) {
+      console.error("subtask add notify failed:", e.message);
+    }
   } catch (error) {
     console.error("Error adding subtask:", error);
     res.status(500).json({

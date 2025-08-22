@@ -1,4 +1,4 @@
-import { Plus, Users, Trash2, CalendarDays, Pencil, X } from "lucide-react";
+import { Plus, Users, Trash2, CalendarDays, Pencil, X, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api_url } from "@/api/Api";
@@ -21,6 +21,7 @@ const Section_a = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [starred, setStarred] = useState([]); // array of project_id
 
   useEffect(() => {
     // Get user role from localStorage
@@ -53,11 +54,31 @@ const Section_a = () => {
         const response = await apiHandler.GetApi(api_url.getAllProjects, token);
         if (Array.isArray(response.projects)) {
           setProjects(
-            response.projects.filter(
-              (p) =>
-                p.project_status === "ongoing" || p.project_status === "on hold"
-            )
+            response.projects
+              .filter(
+                (p) =>
+                  p.project_status === "ongoing" || p.project_status === "on hold"
+              )
+              .map((p) => ({ ...p }))
           );
+          // Initialize starred state from backend (works for all roles)
+          try {
+            const raw = localStorage.getItem("starredProjects");
+            const localIds = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+            // If backend has starred flag, merge it into local for owners/admins/managers, and load for others
+            const backendStarred = response.projects
+              .filter((p) => p.starred === true)
+              .map((p) => p.project_id);
+            const merged = Array.from(new Set([...(localIds || []), ...backendStarred]));
+            setStarred(merged);
+            localStorage.setItem("starredProjects", JSON.stringify(merged));
+            // Seed names map for Sidebar
+            const nameMap = {};
+            response.projects.forEach((p) => {
+              if (merged.includes(p.project_id)) nameMap[p.project_id] = p.project_name;
+            });
+            localStorage.setItem("starredProjectsNames", JSON.stringify(nameMap));
+          } catch {}
         } else {
           setError(response?.message || "Failed to fetch projects");
         }
@@ -68,6 +89,14 @@ const Section_a = () => {
       }
     };
     fetchProjects();
+    // Load starred from localStorage
+    try {
+      const raw = localStorage.getItem("starredProjects");
+      const ids = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+      setStarred(ids);
+    } catch {
+      setStarred([]);
+    }
   }, []);
 
   // Simple check if user can see edit/delete icons
@@ -144,15 +173,76 @@ const Section_a = () => {
     return lead ? lead.name : "—";
   };
 
-  const handleCardClick = (project) => {
+  const handleCardClick = async (project) => {
+    // Mark all project phase and subtask notifications as read when opening project
+    const token = localStorage.getItem("token");
+    try {
+      // Get all unread notifications for this project
+      const res = await apiHandler.GetApi(api_url.getMyNotifications, token);
+      const unreadNotifs = (res?.notifications || []).filter((n) => 
+        n && n.read === false && 
+        n.projectId === project.project_id &&
+        ["phase_added", "phase_deadline", "subtask_assigned", "subtask_deadline"].includes(n.type)
+      );
+      
+      // Mark them as read
+      for (const notif of unreadNotifs) {
+        await apiHandler.UpdateApi(api_url.markNotifRead + notif._id + "/read", {}, token);
+      }
+      
+      // Dispatch event to clear sidebar badges
+      if (unreadNotifs.length > 0) {
+        window.dispatchEvent(new CustomEvent("notifications:categoryRead", { 
+          detail: { category: "projects" } 
+        }));
+      }
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+    }
+
+    // Navigate to project details
     navigate("/ProjectDetails", { state: { project_id: project.project_id } });
   };
+
+  // When arriving from Sidebar starred click, optionally scroll/highlight
+  useEffect(() => {
+    const state = (history?.state && history.state.usr) || {};
+    if (state && state.openProjectId) {
+      // Optionally, we could auto-open details if that route exists; keep as no-op for now.
+    }
+  }, []);
 
   const handleEditClick = (e, project) => {
     e.stopPropagation();
     setEditingProject(project);
     setShowEditModal(true);
     setEditError("");
+  };
+
+  const isStarred = (projectId) => starred.includes(projectId);
+
+  const toggleStar = async (e, project) => {
+    e.stopPropagation();
+    setStarred((prev) => {
+      let next;
+      if (prev.includes(project.project_id)) {
+        next = prev.filter((id) => id !== project.project_id);
+      } else {
+        next = [...prev, project.project_id];
+      }
+      // We no longer rely on localStorage broadcasting; Sidebar fetches fresh from backend.
+      return next;
+    });
+
+    // Persist to backend: only owner/admin/manager have the star toggle rendered, so call update API
+    try {
+      const token = localStorage.getItem("token");
+      await apiHandler.PutApi(
+        api_url.getAllProjects + "/" + project.project_id,
+        { starred: !isStarred(project.project_id) },
+        token
+      );
+    } catch {}
   };
 
   const validateEditForm = () => {
@@ -372,6 +462,18 @@ const Section_a = () => {
                 {/* Action Buttons - Only for Owner, Admin, Manager */}
                 {canSeeEditDelete() && (
                   <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                    {/* Star toggle */}
+                    <button
+                      onClick={(e) => toggleStar(e, project)}
+                      className="p-2 bg-white rounded-lg shadow-md hover:bg-yellow-50 transition-colors duration-200"
+                      title={isStarred(project.project_id) ? "Unstar" : "Mark important"}
+                    >
+                      <Star
+                        size={16}
+                        className={isStarred(project.project_id) ? "text-yellow-500" : "text-gray-400"}
+                        fill={isStarred(project.project_id) ? "#f59e0b" : "none"}
+                      />
+                    </button>
                     <button
                       onClick={(e) => handleEditClick(e, project)}
                       className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"

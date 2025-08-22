@@ -1,6 +1,7 @@
 const Team = require("../models/Team");
 const Employee = require("../models/Employee");
 const Activity = require("../models/Activity");
+const { sendNotification } = require("../utils/notify");
 
 const getPerformer = (user) =>
   user?.firstName
@@ -67,6 +68,26 @@ exports.createTeam = async (req, res) => {
     });
 
     res.status(201).json({ message: "Team created successfully", team });
+
+    // Notify team lead and members
+    try {
+      const io = req.app.get("io");
+      const memberDocs = await Employee.find({ _id: { $in: team.members } });
+      const memberTids = memberDocs.map((m) => m.teamMemberId).filter(Boolean);
+      const leadDoc = await Employee.findById(team.teamLead);
+      const recipients = [leadDoc?.teamMemberId, ...memberTids].filter(Boolean);
+      await sendNotification({
+        io,
+        companyName: req.user.companyName,
+        type: "team_created",
+        title: `Added to team: ${team.teamName}`,
+        message: `You are part of team ${team.teamName}.`,
+        link: `/teams/${team.teamName}`,
+        recipientTeamMemberIds: recipients,
+      });
+    } catch (e) {
+      console.error("team create notify failed:", e.message);
+    }
   } catch (err) {
     console.error("Error creating team:", err);
     res.status(500).json({ message: "Server error" });
@@ -162,6 +183,36 @@ exports.updateTeam = async (req, res) => {
     await team.save();
 
     res.status(200).json({ message: "Team updated successfully", team });
+
+    // Notify newly added members or new lead
+    try {
+      const io = req.app.get("io");
+      const { teamMembers, teamLead } = req.body;
+      if (Array.isArray(teamMembers) && teamMembers.length > 0) {
+        await sendNotification({
+          io,
+          companyName: req.user.companyName,
+          type: "team_member_added",
+          title: `Added to team: ${team.teamName}`,
+          message: `You have been added to team ${team.teamName}.`,
+          link: `/teams/${team.teamName}`,
+          recipientTeamMemberIds: teamMembers,
+        });
+      }
+      if (teamLead) {
+        await sendNotification({
+          io,
+          companyName: req.user.companyName,
+          type: "team_member_added",
+          title: `You are team lead: ${team.teamName}`,
+          message: `You are assigned as team lead of ${team.teamName}.`,
+          link: `/teams/${team.teamName}`,
+          recipientTeamMemberIds: [teamLead],
+        });
+      }
+    } catch (e) {
+      console.error("team update notify failed:", e.message);
+    }
   } catch (err) {
     console.error("Error updating team:", err);
     res.status(500).json({ message: "Server error" });

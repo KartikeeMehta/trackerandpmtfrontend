@@ -654,6 +654,11 @@ function Section_a() {
         }
       }
 
+      // Exclude completed projects from subtask overview for every role
+      scopedProjects = scopedProjects.filter(
+        (p) => String(p.project_status || "").toLowerCase() !== "completed"
+      );
+
       // Flatten subtasks
       const allSubtasks = [];
       scopedProjects.forEach((project) => {
@@ -800,7 +805,9 @@ function Section_a() {
       const tmId = employee?.teamMemberId;
       const myName = employee?.name || employee?.email || "";
 
-      scopedEmployeeProjects.forEach((p) => {
+      scopedEmployeeProjects
+        .filter((p) => String(p.project_status || "").toLowerCase() !== "completed")
+        .forEach((p) => {
         let count = 0;
         (p.phases || []).forEach((ph) => {
           (ph.subtasks || []).forEach((st) => {
@@ -849,7 +856,9 @@ function Section_a() {
 
   // Per-project completed vs pending (stacked)
   const perProjectStatusData = useMemo(() => {
-    return scopedEmployeeProjects.map((p) => {
+    return scopedEmployeeProjects
+      .filter((p) => String(p.project_status || "").toLowerCase() !== "completed")
+      .map((p) => {
       let completed = 0,
         pending = 0;
       (p.phases || []).forEach((ph) => {

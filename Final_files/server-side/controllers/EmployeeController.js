@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const User = require("../models/User"); // Required for companyName
 const Activity = require("../models/Activity");
+const { sendNotification } = require("../utils/notify");
 
 const getPerformer = (user) =>
   user?.firstName
@@ -111,6 +112,22 @@ Note: This is an auto-generated password and it will expire in 5 minutes. If you
     res
       .status(201)
       .json({ message: "Employee added successfully", employee: newEmployee });
+
+    // Optional: notify new employee (if they will log into app)
+    try {
+      const io = req.app.get("io");
+      await sendNotification({
+        io,
+        companyName,
+        type: "team_member_added",
+        title: `Welcome to ${companyName}`,
+        message: `Your account is created. Please check your email for credentials.`,
+        link: `/profile`,
+        recipientTeamMemberIds: [newEmployee.teamMemberId],
+      });
+    } catch (e) {
+      console.error("employee add notify failed:", e.message);
+    }
   } catch (err) {
     console.error("Error adding employee:", err);
     res.status(500).json({ message: "Internal server error" });
