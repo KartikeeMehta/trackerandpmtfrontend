@@ -62,6 +62,7 @@ const Section_a = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [userRole, setUserRole] = useState("");
+  const [currentMemberId, setCurrentMemberId] = useState("");
 
   useEffect(() => {
     // Get user role from localStorage
@@ -72,6 +73,7 @@ const Section_a = () => {
       try {
         const user = JSON.parse(storedUser);
         setUserRole(user.role || "owner");
+        if (user.teamMemberId) setCurrentMemberId(String(user.teamMemberId));
       } catch {
         setUserRole("owner");
       }
@@ -79,6 +81,7 @@ const Section_a = () => {
       try {
         const employee = JSON.parse(storedEmployee);
         setUserRole(employee.role || "teamMember");
+        if (employee.teamMemberId) setCurrentMemberId(String(employee.teamMemberId));
       } catch {
         setUserRole("teamMember");
       }
@@ -159,6 +162,31 @@ const Section_a = () => {
       }
       return false;
     });
+  };
+
+  // Check if current user is part of the given team (as lead or member)
+  const isUserInTeam = (team) => {
+    try {
+      const id = String(currentMemberId || "");
+      if (!id) return false;
+      // Lead check
+      const leadId =
+        (team.teamLead && (team.teamLead.teamMemberId || team.teamLead)) || "";
+      if (leadId && String(leadId) === id) return true;
+      // Members array may contain strings or objects
+      if (Array.isArray(team.members)) {
+        return team.members.some((m) =>
+          String(m?.teamMemberId || m?._id || m) === id
+        );
+      }
+      // Fallback to teamMembers field if available
+      if (Array.isArray(team.teamMembers)) {
+        return team.teamMembers.some((m) => String(m) === id);
+      }
+      return false;
+    } catch {
+      return false;
+    }
   };
   const getTeamTasks = (team) => {
     if (!team || !tasks.length) return [];
@@ -434,20 +462,22 @@ const Section_a = () => {
                       </Button>
                     </div>
 
-                    <div className="mt-1 pt-4 border-t border-gray-100">
-                      {/* View Projects Button */}
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          viewProjects(team);
-                        }}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                        size="sm"
-                      >
-                        <Activity size={14} className="mr-1" />
-                        View Projects
-                      </Button>
-                    </div>
+                    {(isUserInTeam(team) || canSeeEditDelete()) && (
+                      <div className="mt-1 pt-4 border-t border-gray-100">
+                        {/* View Projects Button (only for members of this team) */}
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewProjects(team);
+                          }}
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl py-2 text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                          size="sm"
+                        >
+                          <Activity size={14} className="mr-1" />
+                          View Projects
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Action Buttons - Hidden by default, shown on hover - Only for Owner, Admin, Manager */}
                     {canSeeEditDelete() && (

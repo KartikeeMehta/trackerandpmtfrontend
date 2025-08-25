@@ -24,6 +24,11 @@ const subtaskSchema = new mongoose.Schema(
     description: { type: String },
     assigned_team: { type: String },
     assigned_member: { type: String },
+    priority: {
+      type: String,
+      enum: ["Low", "High", "Critical"],
+      default: "Low",
+    },
     status: {
       type: String,
       enum: ["Pending", "In Progress", "Completed"],

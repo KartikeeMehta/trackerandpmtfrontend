@@ -93,6 +93,18 @@ const Section_a = () => {
   }, []);
 
   useEffect(() => {
+    // When a team is selected, auto-assign its members to Team Members
+    if (!form.teamId || teams.length === 0) return;
+    const selectedTeam = teams.find((t) => t._id === form.teamId);
+    if (selectedTeam && Array.isArray(selectedTeam.members)) {
+      const memberIds = selectedTeam.members
+        .map((m) => m?.teamMemberId)
+        .filter(Boolean);
+      setSelectedMember(memberIds);
+    }
+  }, [form.teamId, teams]);
+
+  useEffect(() => {
     // If editing, pre-select team members in the dropdown
     if (editMode && project?.team_members && teamMember.length > 0) {
       setSelectedMember(project.team_members);
@@ -290,18 +302,6 @@ const Section_a = () => {
             )}
           </div>
 
-          <div className="">
-            <DropDownWithCheckBox
-              label="Team Members"
-              options={teamMember}
-              onChange={(selectedUsers) => {
-                const idsOnly = selectedUsers.map((user) => user?.id);
-                setSelectedMember(idsOnly);
-              }}
-              value={selectedMermber}
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700">
               Assign Project to Team
@@ -322,6 +322,18 @@ const Section_a = () => {
             {errors.teamId && (
               <p className="text-red-500 text-sm mt-1">{errors.teamId}</p>
             )}
+          </div>
+
+          <div className="">
+            <DropDownWithCheckBox
+              label="Team Members"
+              options={teamMember}
+              onChange={(selectedUsers) => {
+                const idsOnly = selectedUsers.map((user) => user?.id);
+                setSelectedMember(idsOnly);
+              }}
+              value={selectedMermber}
+            />
           </div>
 
           <div>

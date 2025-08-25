@@ -1020,6 +1020,7 @@ exports.editSubtask = async (req, res) => {
     const subtask_title = req.body.subtask_title;
     const description = req.body.description;
     const assigned_member = req.body.assigned_member;
+    const priority = req.body.priority;
     const existing_images = req.body.existing_images;
     const companyName = req.user.companyName;
     const userRole = req.user.role;
@@ -1236,6 +1237,9 @@ exports.editSubtask = async (req, res) => {
     if (assigned_member) {
       updateFields["phases.$[].subtasks.$[subtask].assigned_member"] =
         assigned_member;
+    }
+    if (priority) {
+      updateFields["phases.$[].subtasks.$[subtask].priority"] = priority;
     }
     if (finalImages.length > 0) {
       updateFields["phases.$[].subtasks.$[subtask].images"] = finalImages;
@@ -1552,6 +1556,7 @@ exports.addSubtask = async (req, res) => {
       description,
       assigned_team,
       assigned_member,
+      priority,
       phase_id,
       dueDate,
     } = req.body;
@@ -1688,6 +1693,7 @@ exports.addSubtask = async (req, res) => {
       description,
       assigned_team: finalAssignedTeam,
       assigned_member,
+      priority: priority || "Low",
       status: "Pending",
       images: imageUrls,
       createdAt: new Date(),

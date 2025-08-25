@@ -16,6 +16,9 @@ import {
   AlertCircle,
   User,
   Shield,
+  Play,
+  Circle,
+  Target,
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -62,6 +65,8 @@ const PhaseDetails = () => {
     title: "",
     description: "",
     assigned_member: "",
+    status: "Pending",
+    priority: "Low",
     images: [],
     dueDate: "",
   });
@@ -255,16 +260,14 @@ const PhaseDetails = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "Completed":
-        return <CheckCircle size={16} className="text-green-600" />;
-      case "In Progress":
-        return <Clock size={16} className="text-blue-600" />;
       case "Pending":
-        return <AlertCircle size={16} className="text-yellow-600" />;
-      case "final_checks":
-        return <Shield size={16} className="text-emerald-600" />;
+        return <Clock size={16} className="text-amber-500" />;
+      case "In Progress":
+        return <Play size={16} className="text-blue-500" />;
+      case "Completed":
+        return <CheckCircle size={16} className="text-green-500" />;
       default:
-        return <Clock size={16} className="text-gray-600" />;
+        return <Circle size={16} className="text-gray-400" />;
     }
   };
 
@@ -295,6 +298,19 @@ const PhaseDetails = () => {
         return "Final Checks";
       default:
         return status;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "Low":
+        return "bg-green-100 text-green-800";
+      case "High":
+        return "bg-yellow-100 text-yellow-800";
+      case "Critical":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -344,6 +360,7 @@ const PhaseDetails = () => {
       description: "",
       assigned_member: "",
       status: "Pending",
+      priority: "Low",
       images: [],
       dueDate: "",
     });
@@ -362,6 +379,7 @@ const PhaseDetails = () => {
       formData.append("description", newSubtask.description);
       formData.append("assigned_team", ""); // No team selection in UI
       formData.append("assigned_member", newSubtask.assigned_member);
+      formData.append("priority", newSubtask.priority);
       formData.append("phase_id", phaseId);
       if (newSubtask.dueDate) formData.append("dueDate", newSubtask.dueDate);
 
@@ -410,6 +428,8 @@ const PhaseDetails = () => {
         title: "",
         description: "",
         assigned_member: "",
+        status: "Pending",
+        priority: "Low",
         images: [],
         dueDate: "",
       });
@@ -660,7 +680,7 @@ const PhaseDetails = () => {
       </div>
 
       <div className="p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
@@ -710,68 +730,132 @@ const PhaseDetails = () => {
                 </p>
               </div>
 
-              {/* Subtasks */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              {/* Refined Subtasks Section */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Subtasks
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-md flex items-center justify-center">
+                      <Target className="w-3 h-3 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900">Subtasks</h3>
+                      <p className="text-xs text-gray-500">{subtasks.length} total</p>
+                    </div>
+                  </div>
                   {userRole?.toLowerCase() !== "teammember" && (
                     <button
                       onClick={handleAddSubtask}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center gap-1 transition-colors"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors"
                     >
-                      <Plus size={14} />
-                      Add Subtask
+                      <Plus size={12} />
+                      Add
                     </button>
                   )}
                 </div>
-                <div className="space-y-3">
-                  {subtasks.map((subtask) => (
-                    <div
-                      key={subtask.subtask_id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSubtaskClick(subtask)}
-                    >
-                      {getStatusIcon(subtask.status)}
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium text-gray-900">
-                          {subtask.subtask_title}
-                        </h4>
-                        <p className="text-xs text-gray-600">
-                          {subtask.description}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Assigned to:{" "}
-                          {getAssignedMemberName(subtask.assigned_member)}
-                        </p>
-                        {subtask.images && subtask.images.length > 0 && (
-                          <div className="flex gap-1 mt-2">
-                            {subtask.images.slice(0, 3).map((image, index) => (
-                              <img
-                                key={index}
-                                src={image}
-                                alt={`Subtask image ${index + 1}`}
-                                className="w-8 h-8 rounded object-cover"
-                              />
-                            ))}
-                            {subtask.images.length > 3 && (
-                              <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-600">
-                                +{subtask.images.length - 3}
+                
+                <div className="space-y-2">
+                  {subtasks.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Target className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-1">No subtasks yet</h4>
+                      <p className="text-gray-500 text-xs">Create your first subtask to get started</p>
+                    </div>
+                  ) : (
+                    subtasks.map((subtask) => (
+                      <div
+                        key={subtask.subtask_id}
+                        className="group bg-gray-50 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-white hover:shadow-sm hover:border-blue-200 transition-all duration-200"
+                        onClick={() => handleSubtaskClick(subtask)}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Compact Status Icon */}
+                          <div className="flex-shrink-0">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                              subtask.status === "Completed" 
+                                ? "bg-emerald-100" 
+                                : subtask.status === "In Progress"
+                                ? "bg-blue-100"
+                                : "bg-amber-100"
+                            }`}>
+                              {subtask.status === "Completed" ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              ) : subtask.status === "In Progress" ? (
+                                <Play className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-amber-600" />
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-sm font-medium text-gray-900 truncate">
+                                {subtask.subtask_title}
+                              </h4>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  subtask.priority === "Critical" 
+                                    ? "bg-red-100 text-red-700" 
+                                    : subtask.priority === "High"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-emerald-100 text-emerald-700"
+                                }`}
+                              >
+                                {subtask.priority || "Low"}
+                              </span>
+                            </div>
+                            
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                              {subtask.description || "No description available"}
+                            </p>
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">Assigned:</span>
+                                <span className="text-xs font-medium text-gray-700">
+                                  {getAssignedMemberName(subtask.assigned_member)}
+                                </span>
+                              </div>
+                              
+                              {/* Compact Status indicator */}
+                              <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                subtask.status === "Completed" 
+                                  ? "bg-emerald-100 text-emerald-700" 
+                                  : subtask.status === "In Progress"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>
+                                {subtask.status || "Pending"}
+                              </div>
+                            </div>
+                            
+                            {/* Compact Images section */}
+                            {subtask.images && subtask.images.length > 0 && (
+                              <div className="flex gap-1 mt-2">
+                                {subtask.images.slice(0, 3).map((image, index) => (
+                                  <div key={index} className="relative">
+                                    <img
+                                      src={image}
+                                      alt={`Subtask image ${index + 1}`}
+                                      className="w-6 h-6 rounded object-cover border border-gray-200"
+                                    />
+                                  </div>
+                                ))}
+                                {subtask.images.length > 3 && (
+                                  <div className="w-6 h-6 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-600">
+                                    +{subtask.images.length - 3}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                          subtask.status
-                        )}`}
-                      >
-                        {getStatusText(subtask.status)}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -950,6 +1034,25 @@ const PhaseDetails = () => {
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Priority
+                    </label>
+                    <select
+                      value={newSubtask.priority}
+                      onChange={(e) =>
+                        setNewSubtask((prev) => ({
+                          ...prev,
+                          priority: e.target.value,
+                        }))
+                      }
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

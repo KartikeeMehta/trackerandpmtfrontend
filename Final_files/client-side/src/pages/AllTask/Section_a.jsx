@@ -8,6 +8,9 @@ import {
   Trash2,
   X,
   Pencil,
+  CheckCircle,
+  Play,
+  Clock,
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
@@ -287,6 +290,7 @@ const Section_a = () => {
     task_id: s.subtask_id || s._id || s.id,
     title: s.subtask_title || s.title || "",
     description: s.description || "",
+    priority: s.priority || "Low",
     status: toFrontendStatus(s.status),
     project: projectId,
     assignedTo: s.assigned_member,
@@ -644,6 +648,19 @@ const Section_a = () => {
     return project ? project.project_name : "Unknown Project";
   };
 
+  const getPriorityColor = (priority) => {
+    switch (priority.toLowerCase()) {
+      case "high":
+        return "bg-red-100 text-red-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "low":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Sidebar: Members (hidden for team member to show list directly) */}
@@ -975,9 +992,9 @@ const Section_a = () => {
                         {tasks.map((task) => (
                           <div key={task._id}>
                             <div
-                              className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                              className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
                                 selectedTask?._id === task._id
-                                  ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-lg"
+                                  ? "bg-blue-50 border-blue-200 shadow-sm"
                                   : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
                               }`}
                               onClick={() =>
@@ -986,12 +1003,47 @@ const Section_a = () => {
                                 )
                               }
                             >
-                              <div className="flex justify-between items-start mb-3">
-                                <h4 className="font-bold text-gray-900 capitalize text-lg">
+                              <div className="flex items-start gap-3">
+                                {/* Compact Status Icon */}
+                                <div className="flex-shrink-0">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    task.status === "completed" 
+                                      ? "bg-emerald-100" 
+                                      : task.status === "in-progress"
+                                      ? "bg-blue-100"
+                                      : "bg-amber-100"
+                                  }`}>
+                                    {task.status === "completed" ? (
+                                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                    ) : task.status === "in-progress" ? (
+                                      <Play className="w-4 h-4 text-blue-600" />
+                                    ) : (
+                                      <Clock className="w-4 h-4 text-amber-600" />
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                      <h4 className="font-semibold text-gray-900 capitalize text-base">
                                   {task.title}
                                 </h4>
+                                  <span
+                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          task.priority === "Critical" 
+                                            ? "bg-red-100 text-red-700" 
+                                            : task.priority === "High"
+                                            ? "bg-amber-100 text-amber-700"
+                                            : "bg-emerald-100 text-emerald-700"
+                                        }`}
+                                  >
+                                    {task.priority || "Low"}
+                                  </span>
+                                </div>
                                 <span
-                                  className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                      className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
                                     task.status === "completed"
                                       ? "bg-green-100 text-green-700"
                                       : task.status === "in-progress"
@@ -1002,16 +1054,20 @@ const Section_a = () => {
                                   {task.status}
                                 </span>
                               </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">
+                                  
+                                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">
                                 {task.description}
                               </p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <span className="text-xs font-medium text-gray-500">
+                                  
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs text-gray-500">
                                   Project:
                                 </span>
-                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
                                   {getProjectNameById(task.project)}
                                 </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
 
@@ -1080,6 +1136,18 @@ const Section_a = () => {
                                         {getProjectNameById(
                                           selectedTask.project
                                         )}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-gray-700">
+                                        Priority:
+                                      </span>
+                                      <span
+                                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(
+                                          selectedTask.priority || "Low"
+                                        )}`}
+                                      >
+                                        {selectedTask.priority || "Low"}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">

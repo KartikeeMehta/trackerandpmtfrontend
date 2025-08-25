@@ -345,6 +345,7 @@ const SubtaskDetails = () => {
       formData.append("subtask_title", editingSubtask.subtask_title);
       formData.append("description", editingSubtask.description);
       formData.append("assigned_member", editingSubtask.assigned_member);
+      formData.append("priority", editingSubtask.priority || "Low");
       if (editingSubtask.dueDate)
         formData.append("dueDate", editingSubtask.dueDate);
 
@@ -564,6 +565,140 @@ const SubtaskDetails = () => {
     }
   };
 
+  // Enhanced Progress Tracking Functions
+  const getStatusProgress = (status) => {
+    switch (status) {
+      case "Completed":
+        return 100;
+      case "In Progress":
+        return 60;
+      case "Pending":
+        return 20;
+      default:
+        return 0;
+    }
+  };
+
+  const getAssignmentProgress = (subtask) => {
+    if (!subtask.assigned_member) return 0;
+    if (subtask.assigned_team) return 100;
+    return 80; // Assigned to member but no team specified
+  };
+
+  const getTimeEfficiencyProgress = (subtask) => {
+    if (!subtask.dueDate) return 50; // No due date, neutral score
+    
+    const dueDate = new Date(subtask.dueDate);
+    const now = new Date();
+    const timeDiff = dueDate.getTime() - now.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    // Calculate time efficiency based on status and remaining time
+    if (subtask.status === "Completed") {
+      // If completed, reward early completion and penalize late completion
+      if (daysDiff >= 7) return 120; // Completed 7+ days early - excellent!
+      if (daysDiff >= 3) return 110; // Completed 3-6 days early - very good
+      if (daysDiff >= 1) return 105; // Completed 1-2 days early - good
+      if (daysDiff === 0) return 100; // Completed on due date
+      if (daysDiff >= -1) return 95; // Completed 1 day late
+      if (daysDiff >= -3) return 85; // Completed 2-3 days late
+      if (daysDiff >= -7) return 75; // Completed within a week late
+      return 60; // Completed significantly late
+    } else if (subtask.status === "In Progress") {
+      // If in progress, check if we're on track
+      if (daysDiff > 14) return 90; // Plenty of time left - excellent progress
+      if (daysDiff > 7) return 80; // Good amount of time left
+      if (daysDiff > 3) return 70; // Reasonable time left
+      if (daysDiff > 0) return 60; // Due soon but still time
+      if (daysDiff > -3) return 40; // Slightly overdue
+      return 20; // Significantly overdue
+    } else {
+      // If pending, check urgency
+      if (daysDiff > 21) return 70; // Plenty of time to start
+      if (daysDiff > 14) return 60; // Good amount of time
+      if (daysDiff > 7) return 50; // Should start planning
+      if (daysDiff > 3) return 40; // Should start soon
+      if (daysDiff > 0) return 30; // Urgent - need to start
+      return 10; // Overdue and not started
+    }
+  };
+
+  const getDueDateProgress = (subtask) => {
+    if (!subtask.dueDate) return 0;
+    
+    const dueDate = new Date(subtask.dueDate);
+    const now = new Date();
+    const timeDiff = dueDate.getTime() - now.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    // More logical due date progress: closer to due date = higher progress
+    if (daysDiff < 0) return 20; // Overdue - low progress
+    if (daysDiff <= 1) return 90; // Due today/tomorrow - high progress
+    if (daysDiff <= 3) return 80; // Due soon
+    if (daysDiff <= 7) return 70; // Due this week
+    if (daysDiff <= 14) return 50; // Due in 2 weeks
+    if (daysDiff <= 30) return 30; // Due in a month
+    return 10; // Due later - low progress
+  };
+
+  const calculateProgressPercentage = (subtask) => {
+    const statusWeight = 0.6; // 60% weight for status
+    const timeEfficiencyWeight = 0.4; // 40% weight for time efficiency
+
+    const statusProgress = getStatusProgress(subtask.status);
+    const timeEfficiencyProgress = getTimeEfficiencyProgress(subtask);
+
+    const totalProgress = 
+      (statusProgress * statusWeight) +
+      (timeEfficiencyProgress * timeEfficiencyWeight);
+
+    // Cap the progress at 100% but allow for bonus points in insights
+    const calculatedProgress = Math.round(totalProgress);
+    
+    // For completed tasks, ensure minimum 85% but cap at 100%
+    if (subtask.status === "Completed") {
+      return Math.min(Math.max(calculatedProgress, 85), 100);
+    }
+
+    return Math.min(calculatedProgress, 100);
+  };
+
+  const getProgressInsights = (subtask) => {
+    const progress = calculateProgressPercentage(subtask);
+    const timeEfficiency = getTimeEfficiencyProgress(subtask);
+    
+    if (subtask.status === "Completed") {
+      // Check for early completion bonuses
+      if (timeEfficiency >= 120) {
+        return "Outstanding! Completed 7+ days early with excellent efficiency.";
+      } else if (timeEfficiency >= 110) {
+        return "Excellent! Completed 3-6 days early with very good efficiency.";
+      } else if (timeEfficiency >= 105) {
+        return "Great job! Completed 1-2 days early with good efficiency.";
+      } else if (timeEfficiency === 100) {
+        return "Perfect! Completed exactly on the due date.";
+      } else if (timeEfficiency >= 95) {
+        return "Good completion! Only slightly delayed by 1 day.";
+      } else if (timeEfficiency >= 85) {
+        return "Completed successfully but 2-3 days late.";
+      } else if (timeEfficiency >= 75) {
+        return "Completed but significantly delayed (within a week of due date).";
+      } else {
+        return "Completed but very late. Consider improving time management.";
+      }
+    } else if (progress >= 80) {
+      return "Subtask is nearly complete. Consider final review and testing.";
+    } else if (progress >= 60) {
+      return "Good progress made. Focus on completing remaining tasks.";
+    } else if (progress >= 40) {
+      return "Moderate progress. Consider setting intermediate milestones.";
+    } else if (progress >= 20) {
+      return "Initial progress made. Need more active work to meet deadlines.";
+    } else {
+      return "Minimal progress. Immediate attention required to stay on track.";
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -660,7 +795,7 @@ const SubtaskDetails = () => {
       </div>
 
       <div className="p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
@@ -688,36 +823,83 @@ const SubtaskDetails = () => {
                 </p>
               </div>
 
-              {/* Progress Tracking */}
+              {/* Enhanced Progress Tracking */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Activity size={18} className="text-blue-600" />
                   Progress Tracking
                 </h3>
                 <div className="space-y-4">
+                  {/* Main Progress Bar */}
                   <div>
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600">Progress</span>
+                      <span className="text-gray-600">Overall Progress</span>
                       <span className="text-gray-900 font-medium">
-                        {subtask.status === "Completed"
-                          ? "100%"
-                          : subtask.status === "In Progress"
-                          ? "50%"
-                          : "0%"}
+                        {calculateProgressPercentage(subtask)}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
                       <div
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          subtask.status === "Completed"
-                            ? "bg-green-500 w-full"
-                            : subtask.status === "In Progress"
-                            ? "bg-blue-500 w-1/2"
-                            : "bg-gray-300 w-0"
+                        className={`h-3 rounded-full transition-all duration-500 ${
+                          calculateProgressPercentage(subtask) === 100
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                            : calculateProgressPercentage(subtask) >= 70
+                            ? "bg-gradient-to-r from-blue-500 to-indigo-500"
+                            : calculateProgressPercentage(subtask) >= 40
+                            ? "bg-gradient-to-r from-yellow-500 to-orange-500"
+                            : "bg-gradient-to-r from-gray-400 to-gray-500"
                         }`}
+                        style={{ width: `${calculateProgressPercentage(subtask)}%` }}
                       ></div>
                     </div>
                   </div>
+
+                                     {/* Progress Breakdown */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                     {/* Status Progress */}
+                     <div className="bg-gray-50 rounded-lg p-3">
+                       <div className="flex items-center justify-between mb-2">
+                         <span className="text-xs font-medium text-gray-600">Status</span>
+                         <span className="text-xs font-medium text-gray-900">
+                           {getStatusProgress(subtask.status)}%
+                         </span>
+                       </div>
+                       <div className="w-full bg-gray-200 rounded-full h-1.5">
+                         <div
+                           className={`h-1.5 rounded-full transition-all duration-300 ${
+                             getStatusProgress(subtask.status) === 100
+                               ? "bg-green-500"
+                               : getStatusProgress(subtask.status) >= 50
+                               ? "bg-blue-500"
+                               : "bg-gray-400"
+                           }`}
+                           style={{ width: `${getStatusProgress(subtask.status)}%` }}
+                         ></div>
+                       </div>
+                     </div>
+
+                     {/* Time Efficiency Progress */}
+                     <div className="bg-gray-50 rounded-lg p-3">
+                       <div className="flex items-center justify-between mb-2">
+                         <span className="text-xs font-medium text-gray-600">Time Efficiency</span>
+                         <span className="text-xs font-medium text-gray-900">
+                           {getTimeEfficiencyProgress(subtask)}%
+                         </span>
+                       </div>
+                       <div className="w-full bg-gray-200 rounded-full h-1.5">
+                         <div
+                           className={`h-1.5 rounded-full transition-all duration-300 ${
+                             getTimeEfficiencyProgress(subtask) === 100
+                               ? "bg-green-500"
+                               : getTimeEfficiencyProgress(subtask) >= 50
+                               ? "bg-blue-500"
+                               : "bg-gray-400"
+                           }`}
+                           style={{ width: `${getTimeEfficiencyProgress(subtask)}%` }}
+                         ></div>
+                       </div>
+                     </div>
+                   </div>
 
                   {/* Priority Level */}
                   <div className="flex items-center gap-2">
@@ -729,6 +911,17 @@ const SubtaskDetails = () => {
                     >
                       {subtask.priority || "Low"} Priority
                     </span>
+                  </div>
+
+                  {/* Progress Insights */}
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={14} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-800">
+                        <p className="font-medium mb-1">Progress Insights:</p>
+                        <p>{getProgressInsights(subtask)}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1023,6 +1216,25 @@ const SubtaskDetails = () => {
                           {employee.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Priority
+                    </label>
+                    <select
+                      value={editingSubtask.priority || "Low"}
+                      onChange={(e) =>
+                        setEditingSubtask((prev) => ({
+                          ...prev,
+                          priority: e.target.value,
+                        }))
+                      }
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="High">High</option>
+                      <option value="Critical">Critical</option>
                     </select>
                   </div>
                   <div>

@@ -122,8 +122,8 @@ const Section_a = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex justify-center items-start px-4 py-10 bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-5xl flex justify-center">
+    <div className="min-h-screen w-full flex items-start px-0 py-6 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="w-full">
         {/* Project Details */}
         <div
           className="w-full bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 max-h-[90vh] overflow-y-auto"

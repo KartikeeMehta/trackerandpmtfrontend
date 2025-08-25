@@ -29,6 +29,7 @@ const PhasesTab = ({ project }) => {
   const [employees, setEmployees] = useState([]);
   const [newPhase, setNewPhase] = useState({
     title: "",
+    description: "",
     assigned_members: [],
     status: "Pending",
     due_date: "",
@@ -249,6 +250,7 @@ const PhasesTab = ({ project }) => {
   const handleAddPhase = () => {
     setNewPhase({
       title: "",
+      description: "",
       assigned_members: [],
       status: "Pending",
       due_date: "",
@@ -391,6 +393,7 @@ const PhasesTab = ({ project }) => {
         const payload = {
           projectId: project?.project_id,
           title: phaseData.title,
+          description: phaseData.description || "",
           dueDate: phaseData.due_date || "",
           status: phaseData.status,
         };
@@ -418,6 +421,7 @@ const PhasesTab = ({ project }) => {
           setShowAddModal(false);
           setNewPhase({
             title: "",
+            description: "",
             assigned_members: [],
             status: "Pending",
             due_date: "",
@@ -438,7 +442,7 @@ const PhasesTab = ({ project }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -730,6 +734,23 @@ const PhasesTab = ({ project }) => {
                       }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={newPhase.description}
+                      onChange={(e) =>
+                        setNewPhase((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Enter phase description..."
                     />
                   </div>
                   <div>

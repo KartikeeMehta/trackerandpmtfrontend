@@ -115,10 +115,8 @@ class WindowsNotificationService {
       tag: `pmt-${type}-${projectId || 'general'}`,
       requireInteraction: type.includes('deadline'), // Keep deadline notifications visible
       onClick: () => {
-        // Navigate to the relevant page when clicked
-        if (projectId) {
-          window.location.href = `/projects/${projectId}`;
-        }
+        // Always open dashboard from Windows notification clicks
+        window.location.href = '/Dashboard';
       }
     });
   }
@@ -133,12 +131,8 @@ class WindowsNotificationService {
       badge: '/logo_favicon.png',
       tag: `pmt-${type}`,
       onClick: () => {
-        // Navigate to team or relevant page
-        if (type === 'team_created') {
-          window.location.href = '/teams';
-        } else if (type === 'team_member_added') {
-          window.location.href = '/my-team';
-        }
+        // Always open dashboard from Windows notification clicks
+        window.location.href = '/Dashboard';
       }
     });
   }
@@ -152,6 +146,10 @@ class WindowsNotificationService {
       icon: '/logo_favicon.png',
       badge: '/logo_favicon.png',
       tag: `pmt-${type}`,
+      onClick: () => {
+        // Always open dashboard from Windows notification clicks
+        window.location.href = '/Dashboard';
+      }
     });
   }
 
