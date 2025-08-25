@@ -216,11 +216,11 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   }, []);
   return (
     <aside
-      className={`bg-white h-screen shadow-md fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 ${
+      className={`h-screen fixed left-0 top-0 flex flex-col z-20 transition-all duration-300 bg-slate-50 border-r border-slate-200 ${
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
-      <div className="flex items-center justify-between p-4 shadow-sm mt-3">
+      <div className="flex items-center justify-between px-3 py-3 mt-2">
         <div className="flex items-center gap-2">
           <svg
             width="30"
@@ -239,39 +239,42 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             />
           </svg>
           {!isCollapsed && (
-            <span className="text-blue-700 font-semibold text-xl">
+            <span className="text-slate-900 font-semibold text-[17px] tracking-wide">
               Project Flow
             </span>
           )}
         </div>
         <button
           onClick={onToggle}
-          className="text-gray-700 w-5 h-5 hover:text-blue-600 transition-colors p-1 rounded hover:bg-gray-100"
+          className="text-slate-600 w-6 h-6 hover:text-blue-600 transition-colors p-1.5 rounded-md hover:bg-slate-100"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
-      <nav className={`${isCollapsed ? "px-2" : "px-4"} py-4`}>
+      <nav className={`${isCollapsed ? "px-2" : "px-3"} py-3`}>
         {navLinks.map((section, index) => (
           <div key={index} className="mb-4">
             {!isCollapsed && (
-              <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">
+              <h4 className="text-[12px] font-semibold text-slate-400 uppercase tracking-wide px-2 mb-2">
                 {section.label}
               </h4>
             )}
-            <ul className="space-y-1 mb-4">
+            <ul className="space-y-1.5 mb-4">
               {section.items.map((item) => {
                 const Icon = item.icon;
+                const active = location.pathname === item.to;
                 return (
                   <li key={item.to}>
                     <Link
                       to={item.to}
-                      className={`relative flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
-                        location.pathname === item.to
-                          ? "bg-blue-50 text-blue-700 border-blue-700 rounded"
-                          : "text-gray-700 hover:bg-gray-100 border-transparent"
-                      } ${isCollapsed ? "justify-center px-2" : ""}`}
+                      className={`group relative flex items-center gap-3 ${
+                        isCollapsed ? "px-2 justify-center" : "px-2"
+                      } py-2 rounded-md transition ${
+                        active
+                          ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                          : "text-slate-700 hover:bg-slate-100"
+                      }`}
                       title={isCollapsed ? item.label : ""}
                       onClick={async () => {
                         if (item.badgeKey) {
@@ -321,34 +324,34 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                         }
                       }}
                     >
-                      <Icon size={isCollapsed ? 30 : 18} />
-                      {!isCollapsed && <span className="flex-1">{item.label}</span>}
+                      <Icon size={isCollapsed ? 24 : 18} className={`${active ? "text-blue-700" : "text-slate-600 group-hover:text-slate-800"}`} />
+                      {!isCollapsed && <span className="flex-1 text-[15px]">{item.label}</span>}
                       {!isCollapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
-                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-5 px-1.5 text-xs rounded-full bg-red-600 text-white">
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-5 px-1.5 text-[10px] rounded-full bg-rose-600 text-white">
                           {badges[item.badgeKey]}
                         </span>
                       )}
                       {isCollapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full"></span>
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-rose-600 rounded-full"></span>
                       )}
                     </Link>
                   </li>
                 );
               })}
             </ul>
-            {!isCollapsed && <hr />}
+            {!isCollapsed && <div className="h-px bg-slate-200/70 mx-2" />}
           </div>
         ))}
         {/* Important Projects subsection */}
         {!isCollapsed && starred.length > 0 && (
           <div className="mt-6">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Important projects</h4>
+            <h4 className="text-[12px] font-semibold text-slate-400 uppercase tracking-wide px-2 mb-2">Important projects</h4>
             <ul className="space-y-1">
               {starred.map((p) => (
                 <li key={p.id}>
                   <button
-                    className={`w-full text-left relative flex items-center gap-3 px-4 py-2 font-medium transition border-l-4 ${
-                      location.pathname === "/ProjectDetails" ? "bg-blue-50 text-blue-700 border-blue-700 rounded" : "text-gray-700 hover:bg-gray-100 border-transparent"
+                    className={`w-full text-left relative flex items-center gap-3 px-2 py-2 rounded-md transition ${
+                      location.pathname === "/ProjectDetails" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200" : "text-slate-700 hover:bg-slate-100"
                     }`}
                     title={p.name}
                     onClick={() => {
@@ -356,8 +359,8 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                       navigate("/ProjectDetails", { state: { project_id: p.id } });
                     }}
                   >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">★</span>
-                    <span className="flex-1 truncate">{p.name}</span>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold">★</span>
+                    <span className="flex-1 truncate text-[15px]">{p.name}</span>
                   </button>
                 </li>
               ))}

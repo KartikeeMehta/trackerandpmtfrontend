@@ -1,3 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+/* Display font for premium headings */
+.font-display {
+	font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
+	letter-spacing: -0.01em;
+}
+
+/* Unified dashboard section title */
+.dash-section-title {
+	font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial;
+	font-weight: 700;
+	font-size: 1.0625rem; /* 17px */
+	line-height: 1.6;
+	color: #0f172a; /* slate-900 */
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

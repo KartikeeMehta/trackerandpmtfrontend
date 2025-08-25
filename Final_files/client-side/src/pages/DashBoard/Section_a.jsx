@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Briefcase,
@@ -99,17 +100,28 @@ const ChartBlock = React.memo(({ title, data }) => {
           textAnchor={x > cx ? "start" : "end"}
           dominantBaseline="central"
         >
-          {`${data[index].name}: ${data[index].value}%`}
+          {data[index] && data[index].count != null
+            ? `${data[index].name}: ${data[index].count} (${data[index].value}%)`
+            : `${data[index].name}: ${data[index].value}%`}
         </text>
       );
     };
   }, [data]);
+  const hasValue = useMemo(() => {
+    try {
+      if (!Array.isArray(data)) return false;
+      return data.some((d) => (d?.value || 0) > 0);
+    } catch {
+      return false;
+    }
+  }, [data]);
   return (
-    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
-      <div className="font-bold py-3">
-        <h2>{title}</h2>
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+      <div className="py-3">
+        <h2 className="dash-section-title">{title}</h2>
       </div>
       <div className="h-[300px]">
+        {hasValue ? (
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -140,6 +152,11 @@ const ChartBlock = React.memo(({ title, data }) => {
             />
           </PieChart>
         </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            No completed projects yet.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -148,9 +165,9 @@ const ChartBlock = React.memo(({ title, data }) => {
 // Simple Bar chart block
 const BarBlock = React.memo(({ title, data, color = "#4285F4" }) => {
   return (
-    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
-      <div className="font-bold py-3">
-        <h2>{title}</h2>
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+      <div className="py-3">
+        <h2 className="dash-section-title">{title}</h2>
       </div>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -177,12 +194,85 @@ const BarBlock = React.memo(({ title, data, color = "#4285F4" }) => {
   );
 });
 
+// Professional Team Sizes (horizontal) with value labels
+const TeamSizesBarBlock = React.memo(({ title, data }) => {
+  const sorted = useMemo(() => {
+    return Array.isArray(data)
+      ? [...data].sort((a, b) => (b.value || 0) - (a.value || 0))
+      : [];
+  }, [data]);
+  const palette = ["#6FA8F9", "#8B5CF6", "#38BDF8", "#60A5FA", "#93C5FD", "#A78BFA"];
+  return (
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+      <div className="py-3">
+        <h2 className="dash-section-title">{title}</h2>
+      </div>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={sorted}
+            margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+            layout="vertical"
+          >
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" allowDecimals={false} hide />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={140}
+              tick={{ fontSize: 12, fontFamily: 'Plus Jakarta Sans, Inter, ui-sans-serif, system-ui', fontWeight: 600, fill: '#334155' }}
+            />
+            <Tooltip cursor={{ fill: "#f1f5f9" }} wrapperStyle={{ fontFamily: 'Plus Jakarta Sans, Inter, ui-sans-serif, system-ui', fontSize: 12 }} />
+            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+              {sorted.map((_, i) => (
+                <Cell key={i} fill={palette[i % palette.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {sorted && sorted.length > 0 && (
+        <div className="px-1 pb-3 text-xs text-slate-600 font-medium">Team member counts by team</div>
+      )}
+    </div>
+  );
+});
+
+// Comparative bar for Completed vs Pending by project (grouped, pro palette)
+const StackedBarBlock = React.memo(
+  ({ title, data, completedColor = "#3b82f6", pendingColor = "#8b5cf6" }) => {
+    return (
+      <div className="w-[100%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+        <div className="py-3">
+          <h2 className="dash-section-title">{title}</h2>
+        </div>
+        <div className="h-[360px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }} barCategoryGap="22%" barGap={6}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} />
+              <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12, fontFamily: 'Plus Jakarta Sans, Inter, ui-sans-serif, system-ui', fontWeight: 600, fill: '#334155' }} />
+              <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: 8, borderColor: '#e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }} formatter={(val, name) => [val, name]} />
+              <Legend iconType="circle" />
+              <Bar dataKey="Completed" name="Completed" fill={completedColor} radius={[0, 6, 6, 0]} fillOpacity={0.9} activeBar={{ fillOpacity: 1, stroke: '#0f766e', strokeWidth: 1 }} />
+              <Bar dataKey="Pending" name="Pending" fill={pendingColor} radius={[0, 6, 6, 0]} fillOpacity={0.9} activeBar={{ fillOpacity: 1, stroke: '#7c3aed', strokeWidth: 1 }} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {Array.isArray(data) && data.length > 0 && (
+          <div className="px-1 pb-3 text-xs text-slate-600 font-medium">Subtasks status by project</div>
+        )}
+      </div>
+    );
+  }
+);
+
 // Simple Line chart block
 const LineBlock = React.memo(({ title, data, color = "#EA4335" }) => {
   return (
-    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
-      <div className="font-bold py-3">
-        <h2>{title}</h2>
+    <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+      <div className="py-3">
+        <h2 className="dash-section-title">{title}</h2>
       </div>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -212,9 +302,9 @@ const LineBlock = React.memo(({ title, data, color = "#EA4335" }) => {
 const AreaBlock = React.memo(
   ({ title, data, color = "#34A853", gradientId = "gradArea" }) => {
     return (
-      <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3">
-        <div className="font-bold py-3">
-          <h2>{title}</h2>
+      <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 shadow-sm transition hover:shadow-md hover:border-gray-200">
+        <div className="py-3">
+          <h2 className="dash-section-title">{title}</h2>
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -252,9 +342,9 @@ const DonutBlock = React.memo(
   ({ title, data, colors = ["#34A853", "#FBBC05"], centerText = "" }) => {
     const total = (data || []).reduce((a, b) => a + (b.value || 0), 0);
     return (
-      <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 relative">
-        <div className="font-bold py-3">
-          <h2>{title}</h2>
+      <div className="w-[100%] md:w-[48%] border border-gray-300 rounded bg-white px-3 relative shadow-sm transition hover:shadow-md hover:border-gray-200">
+        <div className="py-3">
+          <h2 className="dash-section-title">{title}</h2>
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -286,6 +376,7 @@ const DonutBlock = React.memo(
   }
 );
 function Section_a() {
+  const navigate = useNavigate();
   const [quote, setQuote] = useState(generateQuote());
   const [fade, setFade] = useState(true);
   const [projects, setProjects] = useState([]);
@@ -302,6 +393,8 @@ function Section_a() {
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState("");
+  const [activityFilter, setActivityFilter] = useState("All");
+  const [activitySearch, setActivitySearch] = useState("");
 
   // Fetch user name and role from localStorage
   useEffect(() => {
@@ -494,6 +587,90 @@ function Section_a() {
     }, 300);
   }, [userRole]);
 
+  // Derive Subtask activities from current projects → phases → subtasks
+  const subtaskActivities = useMemo(() => {
+    try {
+      // Build scopedProjects without referencing variables declared later
+      let scopedProjects = projects || [];
+      if (userRole === "teamLead" || userRole === "teamMember") {
+        try {
+          const stored = localStorage.getItem("employee") || localStorage.getItem("user");
+          if (stored) {
+            const emp = JSON.parse(stored);
+            const tmId = emp?.teamMemberId;
+            if (tmId) {
+              scopedProjects = scopedProjects.filter(
+                (p) => p.project_lead === tmId || (Array.isArray(p.team_members) && p.team_members.includes(tmId))
+              );
+            } else {
+              scopedProjects = [];
+            }
+          }
+        } catch {}
+      }
+
+      const items = [];
+      (scopedProjects || []).forEach((p) => {
+        (p.phases || []).forEach((ph) => {
+          (ph.subtasks || []).forEach((st) => {
+            const assigned = st.assigned_member || st.assignedTo || "";
+            const createdAt = st.createdAt ? new Date(st.createdAt) : null;
+            const updatedAt = st.updatedAt ? new Date(st.updatedAt) : null;
+            const when = updatedAt || createdAt || new Date();
+            const raw = String(st.status || "").toLowerCase();
+            let action = "UPDATED";
+            if (createdAt && (!updatedAt || Math.abs(updatedAt - createdAt) < 2000)) action = "ADDED";
+            else if (raw.includes("complete")) action = "COMPLETED";
+            else if (raw.includes("progress")) action = "IN PROGRESS";
+            else if (raw.includes("pending")) action = "PENDING";
+            items.push({
+              type: "Subtask",
+              name: st.subtask_title || st.title || "Subtask",
+              action,
+              description: `${p.project_name || "Project"} • ${ph.title || "Phase"}`,
+              performedBy: typeof assigned === "object" ? (assigned.name || assigned.teamMemberId || "") : assigned,
+              timestamp: when,
+            });
+          });
+        });
+      });
+      // newest first
+      items.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      return items;
+    } catch {
+      return [];
+    }
+  }, [projects, userRole]);
+
+  const filteredActivities = useMemo(() => {
+    try {
+      // Use derived subtask activities when Subtasks filter is active
+      let list = activityFilter === "Subtasks" ? subtaskActivities.slice() : (Array.isArray(activity) ? activity.slice() : []);
+      if (activityFilter !== "All") {
+        const filterMap = {
+          Projects: "Project",
+          Subtasks: "Subtask",
+          Employees: "Employee",
+        };
+        const target = filterMap[activityFilter] || activityFilter;
+        list = list.filter((it) => String(it.type || "") === target);
+      }
+      if (activitySearch && activitySearch.trim()) {
+        const q = activitySearch.toLowerCase();
+        list = list.filter((it) =>
+          `${it.type || ""} ${it.name || ""} ${it.action || ""} ${
+            it.description || ""
+          } ${it.performedBy || ""}`
+            .toLowerCase()
+            .includes(q)
+        );
+      }
+      return list;
+    } catch {
+      return Array.isArray(activity) ? activity : [];
+    }
+  }, [activity, subtaskActivities, activityFilter, activitySearch]);
+
   // Calculate project stats
   const totalProjects = projects.length;
   const activeProjects = projects.filter(
@@ -603,6 +780,33 @@ function Section_a() {
   const employeeRoleData = Object.entries(employeeRoles).map(
     ([role, count]) => ({ name: role, value: count })
   );
+
+  // Utility: convert count map to percentage array summing to 100
+  const toPercentageArray = (nameToCountMap) => {
+    const entries = Object.entries(nameToCountMap || {});
+    const total = entries.reduce((sum, [, c]) => sum + (c || 0), 0);
+    if (!total) return [];
+    const percentValues = entries.map(([name, c]) => ({ name, count: c || 0, value: Math.round(((c || 0) / total) * 100) }));
+    // Adjust rounding drift so sum == 100
+    const sumPct = percentValues.reduce((s, it) => s + it.value, 0);
+    const diff = 100 - sumPct;
+    if (diff !== 0) {
+      // Add diff to the item with max count to keep order sensible
+      let maxIdx = 0;
+      for (let i = 1; i < percentValues.length; i++) {
+        if (percentValues[i].count > percentValues[maxIdx].count) maxIdx = i;
+      }
+      percentValues[maxIdx].value = Math.max(0, percentValues[maxIdx].value + diff);
+    }
+    return percentValues.map(({ name, value }) => ({ name, value }));
+  };
+
+  // Dynamic Employee Distribution as percentages from employees list
+  const employeeDistributionPercentData = useMemo(() => {
+    return toPercentageArray(employeeRoles);
+  }, [employeeRoles]);
+
+  
 
   // Map a teamMemberId (or already-name) to display name
   const resolveMemberName = (idOrName) => {
@@ -1049,12 +1253,13 @@ function Section_a() {
   return (
     <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Greeting */}
-      <div className="font-bold py-3 flex flex-col md:flex-row md:items-center md:justify-between">
+      <div className="relative">
+        <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl md:text-4xl text-gray-800 drop-shadow-sm">
+            <h2 className="text-3xl md:text-4xl text-gray-800 drop-shadow-sm font-display">
             Welcome back, <span className="text-blue-700">{userName}</span>!
           </h2>
-          <p className="text-base text-gray-600 mt-1">
+            <p className="text-base text-gray-700/80 mt-1">
             {userRole === "teamLead" || userRole === "teamMember"
               ? "Here's an overview of your performance."
               : "Here's an overview of your company's performance."}
@@ -1066,8 +1271,8 @@ function Section_a() {
             fade ? "opacity-100" : "opacity-0"
           }`}
         >
-          <div className="bg-gray-50 shadow rounded px-6 py-4 mt-4 md:mt-0 border max-w-md mx-auto">
-            <span className="block text-gray-500 font-semibold mb-2">
+            <div className="backdrop-blur bg-white/50 shadow rounded-lg px-6 py-4 mt-4 md:mt-0 border border-white/60 max-w-md mx-auto">
+              <span className="block text-gray-700 font-semibold mb-2">
               For You & Your Team
             </span>
             <p className="text-gray-800 italic font-medium text-lg">
@@ -1075,6 +1280,8 @@ function Section_a() {
             </p>
           </div>
         </div>
+        </div>
+        <div className="h-px mt-3 bg-gradient-to-r from-transparent via-indigo-300/50 to-transparent"></div>
       </div>
       {/* Quick Tips Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between my-4 gap-4">
@@ -1275,15 +1482,15 @@ function Section_a() {
         ) : (
           // Admin/Manager/Owner view - show all cards
           <>
-            <div className="flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="group flex border rounded bg-gradient-to-br from-blue-50 to-blue-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">Total Team</p>
                 <p className="font-bold text-2xl text-gray-800">{totalTeams}</p>
                 <p className="text-gray-400">{totalEmployees} employees</p>
               </div>
-              <Users className="h-6 w-6 text-blue-400" />
+              <Users className="h-6 w-6 text-blue-400 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3" />
             </div>
-            <div className="flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="group flex border rounded bg-gradient-to-br from-green-50 to-green-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">Total Projects</p>
                 <p className="font-bold text-2xl text-gray-800">
@@ -1293,9 +1500,9 @@ function Section_a() {
                   All Projects (including completed)
                 </p>
               </div>
-              <Briefcase className="h-6 w-6 text-green-400" />
+              <Briefcase className="h-6 w-6 text-green-400 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-3" />
             </div>
-            <div className="flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="group flex border rounded bg-gradient-to-br from-yellow-50 to-yellow-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">Active Projects</p>
                 <p className="font-bold text-2xl text-gray-800">
@@ -1303,9 +1510,9 @@ function Section_a() {
                 </p>
                 <p className="text-gray-400">Currently being worked on</p>
               </div>
-              <Clock className="h-6 w-6 text-yellow-400" />
+              <Clock className="h-6 w-6 text-yellow-400 transition-transform duration-200 group-hover:scale-110" />
             </div>
-            <div className="flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="group flex border rounded bg-gradient-to-br from-purple-50 to-purple-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">
                   Completed Projects
@@ -1315,9 +1522,9 @@ function Section_a() {
                 </p>
                 <p className="text-gray-400">Finished Projects</p>
               </div>
-              <CheckCircle className="h-6 w-6 text-purple-400" />
+              <CheckCircle className="h-6 w-6 text-purple-400 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
             </div>
-            <div className="flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
+            <div className="group flex border rounded bg-gradient-to-br from-pink-50 to-pink-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
               <div className="w-full">
                 <p className="font-semibold text-gray-700">Subtasks Overview</p>
                 <p className="font-bold text-2xl text-gray-800">
@@ -1327,7 +1534,7 @@ function Section_a() {
                   {completedSubtasks} completed, {pendingSubtasks} pending
                 </p>
               </div>
-              <CheckCircle className="h-6 w-6 text-pink-400" />
+              <CheckCircle className="h-6 w-6 text-pink-400 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
             </div>
             {topPerformer && (
               <div className="flex border rounded bg-gradient-to-br from-indigo-50 to-indigo-100 py-3 px-3 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition">
@@ -1346,62 +1553,159 @@ function Section_a() {
           </>
         )}
       </div>
+      {/* Upcoming Project Deadlines section */}
+      <div className="mt-6">
+        <div className="bg-white border rounded shadow px-6 py-4">
+          <h3 className="dash-section-title mb-2">Upcoming Project Deadlines</h3>
+          {upcomingProjects.length === 0 ? (
+            <div className="text-slate-500">No upcoming deadlines.</div>
+          ) : (
+            <ul className="text-slate-700 text-sm space-y-2">
+              {upcomingProjects.map((p, idx) => {
+                const daysLeft = Math.max(dayjs(p.end_date).startOf('day').diff(dayjs().startOf('day'), 'day'), 0);
+                return (
+                  <li
+                    key={idx}
+                    className="flex items-center justify-between gap-3 px-4 py-3 border rounded-lg bg-white/60 hover:bg-white transition cursor-pointer"
+                    onClick={() => {
+                      const id = p.project_id || p.projectId || p._id;
+                      if (id) {
+                        navigate("/ProjectDetails", { state: { project_id: id } });
+                      } else {
+                        navigate("/ProjectDetails");
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Target className="h-4 w-4 text-blue-500" />
+                      <span className="font-semibold text-blue-700 truncate">
+                        {p.project_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-slate-500 hidden sm:inline">{daysLeft} {daysLeft === 1 ? 'day' : 'days'} left</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-slate-100 ring-1 ring-slate-200 text-slate-700">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {dayjs(p.end_date).format("MMM D, YYYY")}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+
       {/* Recent Activity Section (Owners/Admins/Managers only) */}
       {(userRole === "owner" ||
         userRole === "admin" ||
         userRole === "manager") && (
         <div className="mt-6">
-          <div className="bg-white border rounded shadow px-6 py-4 overflow-y-scroll max-h-[300px]">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              Recent Activity
-            </h3>
-            {activityLoading ? (
-              <div className="text-gray-500">Loading activity...</div>
-            ) : activityError ? (
-              <div className="text-red-600">{activityError}</div>
-            ) : activity.length === 0 ? (
-              <div className="text-gray-500">No recent activity found.</div>
-            ) : (
-              <ul className="text-gray-600 text-sm space-y-2">
-                {activity.map((item, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-3 border-b last:border-b-0 py-2"
-                  >
-                    <span
-                      className={`font-bold ${
-                        item.type === "Project"
-                          ? "text-blue-600"
-                          : item.type === "Task"
-                          ? "text-green-600"
-                          : item.type === "Employee"
-                          ? "text-purple-600"
-                          : "text-pink-600"
+          <div className="bg-gradient-to-br from-white/80 to-slate-50/80 backdrop-blur-md border border-slate-200/60 rounded-xl shadow-md px-6 py-5 overflow-y-auto max-h-[420px]">
+            <div className="mb-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="dash-section-title">Recent Activity</h3>
+                  <p className="text-xs text-slate-500">Latest changes across projects, tasks, and team</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {[
+                    { label: "All" },
+                    { label: "Projects" },
+                    { label: "Subtasks" },
+                    { label: "Employees" },
+                  ].map((f) => (
+                    <button
+                      key={f.label}
+                      onClick={() => setActivityFilter(f.label)}
+                      className={`text-xs px-3 py-1 rounded-full ring-1 transition ${
+                        activityFilter === f.label
+                          ? "bg-slate-900 text-white ring-slate-900"
+                          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
                       }`}
                     >
-                      {item.type}
-                    </span>
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-800">
+                      {f.label}
+                    </button>
+                  ))}
+                  <div className="relative ml-2">
+                    <input
+                      value={activitySearch}
+                      onChange={(e) => setActivitySearch(e.target.value)}
+                      placeholder="Search..."
+                      className="text-xs pl-8 pr-3 py-1.5 rounded-full bg-white ring-1 ring-slate-200 focus:ring-slate-400 outline-none placeholder:text-slate-400"
+                    />
+                    <svg className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {activityLoading ? (
+              <div className="text-slate-500">Loading activity...</div>
+            ) : activityError ? (
+              <div className="text-rose-600">{activityError}</div>
+            ) : filteredActivities.length === 0 ? (
+              <div className="text-slate-500">No recent activity found.</div>
+            ) : (
+              <ul className="text-slate-800 text-sm space-y-2">
+                {filteredActivities.map((item, idx) => {
+                  const type = String(item.type || "");
+                  const action = String(item.action || "").toLowerCase();
+                  // Type meta
+                  const typeMeta =
+                    type === "Project"
+                      ? { icon: Briefcase, bg: "bg-blue-50", text: "text-blue-600", accent: "border-l-blue-400", ring: "ring-blue-200", grad: "from-blue-50 to-indigo-50" }
+                      : type === "Task"
+                      ? { icon: CheckCircle, bg: "bg-emerald-50", text: "text-emerald-600", accent: "border-l-emerald-400", ring: "ring-emerald-200", grad: "from-emerald-50 to-teal-50" }
+                      : type === "Employee"
+                      ? { icon: Users, bg: "bg-purple-50", text: "text-purple-600", accent: "border-l-purple-400", ring: "ring-purple-200", grad: "from-purple-50 to-fuchsia-50" }
+                      : { icon: Award, bg: "bg-pink-50", text: "text-pink-600", accent: "border-l-pink-400", ring: "ring-pink-200", grad: "from-pink-50 to-rose-50" };
+                  const Icon = typeMeta.icon;
+                  // Action badge color
+                  const badge = action.includes("delete") || action.includes("remove") || action.includes("cancel")
+                    ? { bg: "bg-rose-100", text: "text-rose-700", ring: "ring-rose-200" }
+                    : action.includes("create") || action.includes("add")
+                    ? { bg: "bg-sky-100", text: "text-sky-700", ring: "ring-sky-200" }
+                    : action.includes("completed")
+                    ? { bg: "bg-teal-100", text: "text-teal-700", ring: "ring-teal-200" }
+                    : action.includes("pending")
+                    ? { bg: "bg-violet-100", text: "text-violet-700", ring: "ring-violet-200" }
+                    : action.includes("progress") || action.includes("update") || action.includes("edit") || action.includes("status")
+                    ? { bg: "bg-indigo-100", text: "text-indigo-700", ring: "ring-indigo-200" }
+                    : { bg: "bg-gray-100", text: "text-gray-700", ring: "ring-gray-200" };
+                  const rowBg = idx % 2 === 0 ? "bg-white/90" : "bg-white/70";
+                  return (
+                    <li key={idx} className={`group flex items-start gap-3 p-4 border border-slate-200/70 rounded-xl shadow-sm hover:shadow-md transition ${rowBg} hover:bg-white ${typeMeta.accent}`}>
+                      <div className={`mt-0.5 h-10 w-10 rounded-full flex items-center justify-center ${typeMeta.text} shrink-0 bg-gradient-to-br ${typeMeta.grad} ring-1 ${typeMeta.ring}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-2 min-w-0">
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">{type}</span>
+                          <span className="font-semibold text-slate-900 truncate pr-2">
                         {item.name}
                       </span>
-                      <span className="ml-2 text-xs text-gray-400">
-                        [{item.action}]
-                      </span>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${badge.bg} ${badge.text} ring-1 ${badge.ring} uppercase tracking-wide`}>{item.action}</span>
+                        </div>
+                        {item.description && (
+                          <div className="text-[13px] text-slate-600 mt-1 line-clamp-2">
                         {item.description}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        By: {item.performedBy || "Unknown"}
+                        )}
+                        <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-3">
+                          <span>By: {item.performedBy || "Unknown"}</span>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 ring-1 ring-slate-200">
+                            <CalendarDays className="h-3 w-3" />
+                            {item.timestamp ? dayjs(item.timestamp).format("MMM D, YYYY h:mm A") : ""}
+                          </span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                      {item.timestamp
-                        ? dayjs(item.timestamp).format("MMM D, YYYY h:mm A")
-                        : ""}
-                    </span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -1411,43 +1715,64 @@ function Section_a() {
       {(userRole === "owner" ||
         userRole === "admin" ||
         userRole === "manager") && (
+        <>
         <div className="flex justify-between my-6 flex-wrap gap-4">
-          <ChartBlock
-            title="Project Status Distribution"
+            {/* Keep a mix: Donut + Pie + Bar replacements for variety */}
+            <DonutBlock
+              title="Project Status"
             data={projectStatusData}
-          />
-          <ChartBlock title="Team Performance" data={teamPerformanceData} />
-          <ChartBlock title="Team Sizes" data={teamSizeData} />
-          <ChartBlock title="Employee Distribution" data={employeeRoleData} />
+              colors={["#3b82f6", "#22c55e", "#f59e0b", "#ef4444"]}
+              centerText="Projects"
+            />
+            <ChartBlock title="Team Performance" data={(() => {
+              try {
+                // Compute team performance based on each team's own totals
+                // For each team: total projects, completed projects, pending(=non-completed)
+                const teamIdToName = new Map((teams || []).map((t) => [String(t._id || t.team_id || t.id || ''), t.teamName || 'Team']));
+                const stats = {};
+                (projects || []).forEach((p) => {
+                  const teamKey = String(p.team_id || '');
+                  const teamName = teamIdToName.get(teamKey) || (p.assigned_team || 'Unassigned');
+                  if (!stats[teamName]) stats[teamName] = { total: 0, completed: 0, pending: 0 };
+                  stats[teamName].total += 1;
+                  if (String(p.project_status || '').toLowerCase() === 'completed') stats[teamName].completed += 1;
+                  else stats[teamName].pending += 1;
+                });
+
+                const rows = Object.entries(stats).map(([name, s]) => {
+                  const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+                  // value drives slice size (completion rate), count shows completed projects in label
+                  return { name, count: s.completed, value: pct };
+                });
+                // Keep a stable order (descending by completion rate then by completed count)
+                rows.sort((a, b) => (b.value - a.value) || (b.count - a.count));
+                return rows;
+              } catch {
+                return [];
+              }
+            })()} />
+            <TeamSizesBarBlock title="Team Sizes" data={teamSizeData} />
+            <DonutBlock
+              title="Employee Distribution"
+              data={employeeRoleData}
+              colors={["#0ea5e9", "#22c55e", "#a855f7", "#f59e0b", "#ef4444", "#14b8a6"]}
+              centerText="Employees"
+            />
+          </div>
+          {/* Add stacked bar for deeper insight */}
+          {perProjectStatusData && perProjectStatusData.length > 0 && (
+            <div className="my-6">
+              <StackedBarBlock
+                title="Per-Project Subtasks: Completed vs Pending"
+                data={perProjectStatusData}
+                completedColor="#0ea5e9"
+                pendingColor="#8b5cf6"
+              />
         </div>
-      )}
-      {/* Upcoming Project Deadlines section */}
-      <div className="mt-6">
-        <div className="bg-white border rounded shadow px-6 py-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-            Upcoming Project Deadlines
-          </h3>
-          {upcomingProjects.length === 0 ? (
-            <div className="text-gray-500">No upcoming deadlines.</div>
-          ) : (
-            <ul className="text-gray-600 text-sm space-y-2">
-              {upcomingProjects.map((p, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-center gap-3 border-b last:border-b-0 py-2"
-                >
-                  <span className="font-bold text-blue-600">
-                    {p.project_name}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    Due: {dayjs(p.end_date).format("MMM D, YYYY")}
-                  </span>
-                </li>
-              ))}
-            </ul>
           )}
-        </div>
-      </div>
+        </>
+      )}
+      {/* Upcoming Project Deadlines moved above; duplicate bottom card removed as requested */}
       {/* Error/Loading States */}
       {loading ? (
         <div className="text-center text-gray-500">Loading projects...</div>
