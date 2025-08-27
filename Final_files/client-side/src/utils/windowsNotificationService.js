@@ -39,9 +39,10 @@ class WindowsNotificationService {
       return null;
     }
 
+    const origin = window.location.origin || '';
     const defaultOptions = {
-      icon: '/logo_favicon.png', // Your app logo
-      badge: '/logo_favicon.png', // Small icon for notification
+      icon: origin + '/logo_favicon.png', // absolute path for prod
+      badge: origin + '/logo_favicon.png', // absolute path for prod
       tag: 'pmt-notification', // Group similar notifications
       requireInteraction: false, // Auto-close after a few seconds
       silent: false, // Play notification sound (enabled)
@@ -54,6 +55,18 @@ class WindowsNotificationService {
     }
 
     try {
+      // Prefer ServiceWorker notifications when available
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg && reg.showNotification) {
+            reg.showNotification(title, defaultOptions);
+          } else {
+            new Notification(title, defaultOptions);
+          }
+        });
+        return null;
+      }
+
       const notification = new Notification(title, defaultOptions);
       
       // Handle notification events
@@ -91,8 +104,9 @@ class WindowsNotificationService {
   showProjectNotification(notification) {
     const { title, message, type, projectId } = notification;
     
-    let icon = '/logo_favicon.png';
-    let badge = '/logo_favicon.png';
+    const origin = window.location.origin || '';
+    let icon = origin + '/logo_favicon.png';
+    let badge = origin + '/logo_favicon.png';
     
     // Customize icon based on notification type
     switch (type) {

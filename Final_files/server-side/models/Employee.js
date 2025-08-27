@@ -1,5 +1,29 @@
 const mongoose = require("mongoose");
 
+const generalSubtaskSchema = new mongoose.Schema(
+  {
+    subtask_id: { type: String, required: true },
+    subtask_title: { type: String, required: true },
+    description: { type: String },
+    priority: {
+      type: String,
+      enum: ["Low", "High", "Critical"],
+      default: "Low",
+    },
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Completed"],
+      default: "Pending",
+    },
+    dueDate: { type: Date },
+    images: [{ type: String }],
+    assignedBy: { type: String }, // teamMemberId of assigner
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const employeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -26,6 +50,8 @@ const employeeSchema = new mongoose.Schema(
     location: { type: String },
     resetOTP: { type: String },
     resetOTPExpiry: { type: Date },
+    // General (non-project) subtasks assigned to this employee (admins/managers)
+    generalSubtasks: [generalSubtaskSchema],
   },
   { timestamps: true }
 );

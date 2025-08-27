@@ -12,3 +12,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Register a simple service worker to improve notification reliability in production
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((e) => console.debug('SW register failed:', e?.message || e))
+  })
+}

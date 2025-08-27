@@ -1565,7 +1565,7 @@ exports.addSubtask = async (req, res) => {
     const userRole = req.user.role;
     const userTeamMemberId = req.user.teamMemberId;
 
-    if (!subtask_title || !phase_id || !companyName) {
+    if (!subtask_title || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -1577,15 +1577,18 @@ exports.addSubtask = async (req, res) => {
       });
     }
 
-    // Find project + phase
-    const project = await Project.findOne({
-      "phases.phase_id": phase_id,
-      companyName,
-    });
-    if (!project) return res.status(404).json({ message: "Project not found" });
-
-    const phase = project.phases.find((p) => p.phase_id === phase_id);
-    if (!phase) return res.status(404).json({ message: "Phase not found" });
+    // If phase_id provided -> project subtask path; else handle general subtasks
+    let project = null;
+    let phase = null;
+    if (phase_id) {
+      project = await Project.findOne({
+        "phases.phase_id": phase_id,
+        companyName,
+      });
+      if (!project) return res.status(404).json({ message: "Project not found" });
+      phase = project.phases.find((p) => p.phase_id === phase_id);
+      if (!phase) return res.status(404).json({ message: "Phase not found" });
+    }
 
     // Role-based access control for adding subtasks
     if (userRole === "teamLead") {
@@ -1628,17 +1631,25 @@ exports.addSubtask = async (req, res) => {
     }
     // Owner and admin have full access
 
-    // Assigned team fallback logic
+    // Assigned team fallback logic (only for project-based subtasks)
     let finalAssignedTeam = assigned_team || "Not assigned";
-    if (!assigned_team && project.team_id) {
+    if (phase_id && !assigned_team && project && project.team_id) {
       const Team = require("../models/Team");
       const team = await Team.findOne({ _id: project.team_id, companyName });
       finalAssignedTeam = team ? team.teamName : "Not assigned";
     }
 
     // Subtask ID generation
-    const nextIndex = (phase.subtasks || []).length + 1;
-    const subtask_id = `${phase_id}-${nextIndex}`;
+    // Subtask ID generation
+    let subtask_id = "";
+    if (phase_id && phase) {
+      const nextIndex = (phase.subtasks || []).length + 1;
+      subtask_id = `${phase_id}-${nextIndex}`;
+    } else {
+      const ts = Date.now();
+      const rnd = Math.random().toString(36).slice(2, 6);
+      subtask_id = `GEN-${ts}-${rnd}`;
+    }
 
     // 🌟 Upload all images to Cloudinary (compressed)
     let imageUrls = [];
@@ -1701,24 +1712,57 @@ exports.addSubtask = async (req, res) => {
       dueDate: dueDate ? new Date(dueDate) : undefined,
     };
 
-    // Push into embedded subtasks
-    const result = await Project.updateOne(
-      {
-        project_id: project.project_id,
-        companyName,
-        "phases.phase_id": phase_id,
-      },
-      {
-        $push: {
-          "phases.$.subtasks": newSubtask,
+    if (phase_id && project) {
+      // Push into project phase subtasks
+      const result = await Project.updateOne(
+        {
+          project_id: project.project_id,
+          companyName,
+          "phases.phase_id": phase_id,
         },
+        {
+          $push: {
+            "phases.$.subtasks": newSubtask,
+          },
+        }
+      );
+      if (result.modifiedCount === 0) {
+        return res
+          .status(500)
+          .json({ message: "Failed to add subtask to phase" });
       }
-    );
+    } else {
+      // General subtask path: store on Employee (admin/manager only)
+      const Employee = require("../models/Employee");
+      // Role permissions: owner -> admin|manager, admin -> manager
+      const assignerRole = userRole;
+      let allowed = false;
+      if (assignerRole === "owner" && assigned_member) {
+        const assignee = await Employee.findOne({ teamMemberId: assigned_member, companyName });
+        allowed = assignee && (assignee.role === "admin" || assignee.role === "manager");
+      } else if (assignerRole === "admin" && assigned_member) {
+        const assignee = await Employee.findOne({ teamMemberId: assigned_member, companyName });
+        allowed = assignee && assignee.role === "manager";
+      }
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: "Not allowed to assign general subtasks to this role" });
+      }
 
-    if (result.modifiedCount === 0) {
-      return res
-        .status(500)
-        .json({ message: "Failed to add subtask to phase" });
+      // save general subtask to employee document
+      const result = await Employee.updateOne(
+        { teamMemberId: assigned_member, companyName },
+        {
+          $push: {
+            generalSubtasks: {
+              ...newSubtask,
+              assignedBy: userTeamMemberId,
+            },
+          },
+        }
+      );
+      if (result.modifiedCount === 0) {
+        return res.status(500).json({ message: "Failed to add general subtask" });
+      }
     }
 
     res.status(201).json({
@@ -1736,9 +1780,9 @@ exports.addSubtask = async (req, res) => {
           companyName,
           type: "subtask_assigned",
           title: `New subtask assigned: ${subtask_title}`,
-          message: `You have been assigned a subtask in project ${project.project_name}.`,
-          link: `/projects/${project.project_id}`,
-          projectId: project.project_id,
+          message: phase_id && project ? `You have been assigned a subtask in project ${project.project_name}.` : `You have been assigned a general subtask.`,
+          link: phase_id && project ? `/projects/${project.project_id}` : `/tasks`,
+          projectId: project ? project.project_id : undefined,
           phaseId: phase_id,
           subtaskId: subtask_id,
           recipientTeamMemberIds: [assigned_member],

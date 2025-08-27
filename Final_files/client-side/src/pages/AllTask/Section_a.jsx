@@ -37,7 +37,9 @@ const Section_a = () => {
     title: "",
     description: "",
     dueDate: "",
+    priority: "Low",
   });
+  const [selectedImages, setSelectedImages] = useState([]);
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [editTaskLoading, setEditTaskLoading] = useState(false);
   const [editTaskError, setEditTaskError] = useState("");
@@ -65,6 +67,12 @@ const Section_a = () => {
   const [phases, setPhases] = useState([]);
   const [phasesLoading, setPhasesLoading] = useState(false);
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  // General subtasks state
+  const [generalTasks, setGeneralTasks] = useState([]);
+  const [generalLoading, setGeneralLoading] = useState(false);
+  const [selectedGeneralTask, setSelectedGeneralTask] = useState(null);
+  const [generalOngoingExpanded, setGeneralOngoingExpanded] = useState(true);
+  const [generalCompletedExpanded, setGeneralCompletedExpanded] = useState(true);
   // Pinned filters for History view
   const [historyProjectId, setHistoryProjectId] = useState(null);
   const [historyPhaseId, setHistoryPhaseId] = useState("");
@@ -248,6 +256,47 @@ const Section_a = () => {
       );
     }
   }, [selectedProject, selectedMember, selectedPhaseId]);
+
+  // Fetch general subtasks for admin/manager with visibility rules
+  useEffect(() => {
+    const doFetch = async () => {
+      if (!selectedMember) return;
+      const role = (selectedMember.role || "").toLowerCase();
+      // Only admins and managers have general subtasks
+      if (role !== "admin" && role !== "manager") {
+        setGeneralTasks([]);
+        return;
+      }
+      setGeneralLoading(true);
+      const token = localStorage.getItem("token");
+      try {
+        const res = await apiHandler.GetApi(
+          api_url.getGeneralSubtasks + selectedMember.teamMemberId,
+          token
+        );
+        const list = Array.isArray(res?.generalSubtasks)
+          ? res.generalSubtasks
+          : [];
+        // Map to UI shape
+        const mapped = list.map((s) => ({
+          _id: s.subtask_id,
+          task_id: s.subtask_id,
+          title: s.subtask_title,
+          description: s.description,
+          priority: s.priority || "Low",
+          status: toFrontendStatus(s.status),
+          createdAt: s.createdAt,
+          general: true,
+        }));
+        setGeneralTasks(mapped);
+      } catch (e) {
+        setGeneralTasks([]);
+      } finally {
+        setGeneralLoading(false);
+      }
+    };
+    doFetch();
+  }, [selectedMember]);
 
   // When only the phase changes, refetch lists (phases already loaded above)
   // Covered by dependency in the effect above
@@ -461,25 +510,34 @@ const Section_a = () => {
     setAddTaskError("");
     const token = localStorage.getItem("token");
     try {
-      if (!selectedProject || !selectedPhaseId) {
+      const privileged =
+        (userRole || "").toLowerCase() === "owner" ||
+        (userRole || "").toLowerCase() === "admin" ||
+        (userRole || "").toLowerCase() === "manager";
+      if (!privileged && (!selectedProject || !selectedPhaseId)) {
         setAddTaskError("Please select a project and phase.");
         return;
       }
-      const payload = {
-        subtask_title: newTask.title,
-        description: newTask.description,
-        assigned_member: selectedMember.teamMemberId,
-        phase_id: selectedPhaseId,
-        dueDate: newTask.dueDate || undefined,
-      };
-      const response = await apiHandler.postApiWithToken(
+      // Use FormData to support optional image uploads similar to PhaseDetails
+      const formData = new FormData();
+      formData.append("subtask_title", newTask.title);
+      formData.append("description", newTask.description);
+      formData.append("assigned_member", selectedMember.teamMemberId);
+      if (selectedPhaseId) formData.append("phase_id", selectedPhaseId);
+      formData.append("priority", newTask.priority || "Low");
+      if (newTask.dueDate) formData.append("dueDate", newTask.dueDate);
+      if (selectedImages.length > 0) {
+        selectedImages.forEach((file) => formData.append("images", file));
+      }
+      const response = await apiHandler.imageUpload(
         api_url.addSubtask,
-        payload,
+        formData,
         token
       );
       if (response?.success) {
         setShowAddTaskModal(false);
-        setNewTask({ title: "", description: "", dueDate: "" });
+        setNewTask({ title: "", description: "", dueDate: "", priority: "Low" });
+        setSelectedImages([]);
         fetchOngoingTasks(selectedMember.teamMemberId);
       } else {
         let errorMsg = "Failed to add subtask";
@@ -499,6 +557,18 @@ const Section_a = () => {
     } finally {
       setAddTaskLoading(false);
     }
+  };
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    // Enforce max 2 images
+    const combined = [...selectedImages, ...files].slice(0, 2);
+    setSelectedImages(combined);
+  };
+
+  const removeSelectedImage = (index) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleEditTaskOpen = () => {
@@ -603,8 +673,22 @@ const Section_a = () => {
         setShowDeleteConfirm(false);
         setSelectedTask(null);
         setDeleteReason("");
-        setShowTaskHistory(true);
+        // Keep current view and filters intact
+        if (selectedProject) {
+          fetchTasksByMemberInProject(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+          fetchTaskHistory(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+        } else {
         fetchOngoingTasks(selectedMember.teamMemberId);
+          fetchTaskHistory(selectedMember.teamMemberId);
+        }
       } else {
         setDeleteTaskError(response?.message || "Failed to delete subtask");
       }
@@ -661,6 +745,42 @@ const Section_a = () => {
     }
   };
 
+  const updateGeneralStatus = async (task, newStatus) => {
+    const token = localStorage.getItem("token");
+    const outMap = {
+      pending: "Pending",
+      "in-progress": "In Progress",
+      completed: "Completed",
+    };
+    await apiHandler.postApiWithToken(
+      api_url.updateGeneralSubtaskStatus,
+      {
+        teamMemberId: selectedMember.teamMemberId,
+        subtask_id: task.task_id,
+        status: outMap[newStatus] || newStatus,
+      },
+      token
+    );
+    // refresh list
+    const refreshed = generalTasks.map((t) =>
+      t.task_id === task.task_id ? { ...t, status: newStatus } : t
+    );
+    setGeneralTasks(refreshed);
+  };
+
+  const deleteGeneral = async (task) => {
+    const token = localStorage.getItem("token");
+    await apiHandler.postApiWithToken(
+      api_url.deleteGeneralSubtask,
+      {
+        teamMemberId: selectedMember.teamMemberId,
+        subtask_id: task.task_id,
+      },
+      token
+    );
+    setGeneralTasks((prev) => prev.filter((t) => t.task_id !== task.task_id));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex">
       {/* Sidebar: Members (hidden for team member to show list directly) */}
@@ -679,6 +799,25 @@ const Section_a = () => {
             {userRole === "teamLead" ? (
               <div className="space-y-6">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="mb-4">
+                    <div className="text-sm text-gray-600 mb-2">You</div>
+                    <button
+                      className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                        selectedMember?._id === currentEmployee?._id
+                          ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                          : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+                      }`}
+                      onClick={() => {
+                        if (currentEmployee) setSelectedMember(currentEmployee);
+                        setShowTaskHistory(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                        {(currentEmployee?.name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-medium">{currentEmployee?.name || "Me"}</span>
+                    </button>
+                  </div>
                   <div className="relative mb-4">
                     <input
                       type="text"
@@ -853,9 +992,220 @@ const Section_a = () => {
                   </div>
                 </div>
               )}
+              {(selectedMember?.role === "admin" || selectedMember?.role === "manager") && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                  {generalLoading ? (
+                    <div className="text-gray-500 text-sm">Loading general subtasks...</div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-1 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+                        <button
+                          onClick={() => setGeneralOngoingExpanded(!generalOngoingExpanded)}
+                          className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-amber-600 transition-colors duration-200 cursor-pointer"
+                        >
+                          <span>Ongoing General Subtasks</span>
+                          <span className="text-lg">{generalOngoingExpanded ? "▼" : "▶"}</span>
+                        </button>
+                      </div>
+                      {generalOngoingExpanded && (
+                        <div className="space-y-4 mb-8">
+                          {generalTasks.filter((x) => x.status !== "completed").length === 0 ? (
+                            <div className="text-gray-500 text-sm">No ongoing general subtasks.</div>
+                          ) : (
+                            generalTasks
+                              .filter((x) => x.status !== "completed")
+                              .map((t) => (
+                                <div key={t._id}>
+                                  <div
+                                    className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                                      selectedGeneralTask?._id === t._id
+                                        ? "bg-emerald-50 border-emerald-200 shadow-sm"
+                                        : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                    }`}
+                                    onClick={() =>
+                                      setSelectedGeneralTask(
+                                        selectedGeneralTask?._id === t._id ? null : t
+                                      )
+                                    }
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-semibold text-gray-900 capitalize text-base">{t.title}</h4>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                          </div>
+                                          <span
+                                            className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                              t.status === "completed"
+                                                ? "bg-green-100 text-green-700"
+                                                : t.status === "in-progress"
+                                                ? "bg-blue-100 text-blue-700"
+                                                : "bg-gray-100 text-gray-700"
+                                            }`}
+                                          >
+                                            {t.status}
+                                          </span>
+                                        </div>
+                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">{t.description}</p>
+                                      </div>
+                                    </div>
+                                  </div>
 
-              {/* Project Selection */}
-              {!showTaskHistory && (
+                                  {selectedGeneralTask?._id === t._id && (
+                                    <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                      <div className="flex justify-between items-center mb-4">
+                                        <h4 className="text-xl font-bold text-gray-800">{t.title}</h4>
+                                        <div className="flex items-center gap-2">
+                                          <select
+                                            className="text-sm border rounded px-2 py-1"
+                                            value={t.status}
+                                            onChange={(e) => updateGeneralStatus(t, e.target.value)}
+                                          >
+                                            <option value="pending">Pending</option>
+                                            <option value="in-progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                          </select>
+                                          <button
+                                            className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                            onClick={() => deleteGeneral(t)}
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-3">
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold text-gray-800">Description:</span>
+                                          <p className="mt-1 text-gray-600 leading-relaxed">{t.description}</p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-gray-700">Priority:</span>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-gray-700">Created At:</span>
+                                            <span className="text-gray-600">{new Date(t.createdAt).toLocaleString()}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                        <button
+                          onClick={() => setGeneralCompletedExpanded(!generalCompletedExpanded)}
+                          className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-200 cursor-pointer"
+                        >
+                          <span>Completed General Subtasks</span>
+                          <span className="text-lg">{generalCompletedExpanded ? "▼" : "▶"}</span>
+                        </button>
+                      </div>
+                      {generalCompletedExpanded && (
+                        <div className="space-y-4">
+                          {generalTasks.filter((x) => x.status === "completed").length === 0 ? (
+                            <div className="text-gray-500 text-sm">No completed general subtasks.</div>
+                          ) : (
+                            generalTasks
+                              .filter((x) => x.status === "completed")
+                              .map((t) => (
+                                <div key={t._id}>
+                                  <div
+                                    className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                                      selectedGeneralTask?._id === t._id
+                                        ? "bg-emerald-50 border-emerald-200 shadow-sm"
+                                        : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                    }`}
+                                    onClick={() =>
+                                      setSelectedGeneralTask(
+                                        selectedGeneralTask?._id === t._id ? null : t
+                                      )
+                                    }
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-semibold text-gray-900 capitalize text-base">{t.title}</h4>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                          </div>
+                                          <span
+                                            className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                              t.status === "completed"
+                                                ? "bg-green-100 text-green-700"
+                                                : t.status === "in-progress"
+                                                ? "bg-blue-100 text-blue-700"
+                                                : "bg-gray-100 text-gray-700"
+                                            }`}
+                                          >
+                                            {t.status}
+                                          </span>
+                                        </div>
+                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">{t.description}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {selectedGeneralTask?._id === t._id && (
+                                    <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                      <div className="flex justify-between items-center mb-4">
+                                        <h4 className="text-xl font-bold text-gray-800">{t.title}</h4>
+                                        <div className="flex items-center gap-2">
+                                          <select
+                                            className="text-sm border rounded px-2 py-1"
+                                            value={t.status}
+                                            onChange={(e) => updateGeneralStatus(t, e.target.value)}
+                                          >
+                                            <option value="pending">Pending</option>
+                                            <option value="in-progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                          </select>
+                                          <button
+                                            className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                            onClick={() => deleteGeneral(t)}
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-3">
+                                        <div className="text-gray-700">
+                                          <span className="font-semibold text-gray-800">Description:</span>
+                                          <p className="mt-1 text-gray-600 leading-relaxed">{t.description}</p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-gray-700">Priority:</span>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-gray-700">Created At:</span>
+                                            <span className="text-gray-600">{new Date(t.createdAt).toLocaleString()}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Project Selection (hidden for admin) */}
+              {!showTaskHistory && selectedMember?.role !== "admin" && (
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
@@ -938,9 +1288,7 @@ const Section_a = () => {
               )}
             </div>
 
-            {
-              // Ongoing Subtasks section
-            }
+            {selectedMember?.role !== "admin" && (
             <>
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
                 <div className="flex items-center gap-3 mb-6">
@@ -1335,6 +1683,7 @@ const Section_a = () => {
                 )}
               </div>
             </>
+            )}
           </>
         ) : (
           <>
@@ -1419,7 +1768,13 @@ const Section_a = () => {
                       setSelectedPhaseId("");
                     }
                   }}
-                  required
+                  required={
+                    !(
+                      (userRole || "").toLowerCase() === "owner" ||
+                      (userRole || "").toLowerCase() === "admin" ||
+                      (userRole || "").toLowerCase() === "manager"
+                    )
+                  }
                 >
                   <option value="">Select a project</option>
                   {projects.map((project) => (
@@ -1443,7 +1798,13 @@ const Section_a = () => {
                       className="mt-1 block w-full border rounded-md p-2"
                       value={selectedPhaseId}
                       onChange={(e) => setSelectedPhaseId(e.target.value)}
-                      required
+                      required={
+                        !(
+                          (userRole || "").toLowerCase() === "owner" ||
+                          (userRole || "").toLowerCase() === "admin" ||
+                          (userRole || "").toLowerCase() === "manager"
+                        )
+                      }
                     >
                       <option value="">Select a phase</option>
                       {(phases || []).map((ph) => (
@@ -1481,6 +1842,67 @@ const Section_a = () => {
                   }
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  className="mt-1 block w-full border rounded-md p-2"
+                  value={newTask.dueDate}
+                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Priority
+                </label>
+                <select
+                  className="mt-1 block w-full border rounded-md p-2"
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                >
+                  <option value="Low">Low</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Images (0/2)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="mt-1 block w-full border rounded-md p-2"
+                />
+                {selectedImages.length > 0 && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {selectedImages.map((file, idx) => (
+                      <div key={idx} className="relative w-20 h-20 border rounded overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt="preview"
+                          className="object-cover w-full h-full"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedImage(idx)}
+                          className="absolute -top-2 -right-2 bg-white border rounded-full w-6 h-6 text-xs"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedImages.length >= 2 && (
+                  <p className="text-xs text-gray-500 mt-1">Maximum 2 images reached</p>
+                )}
               </div>
               {addTaskError && (
                 <div className="text-red-600 text-sm">{addTaskError}</div>

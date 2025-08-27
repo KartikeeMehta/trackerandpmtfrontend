@@ -99,10 +99,18 @@ exports.addEmployee = async (req, res) => {
       companyName: req.user.companyName,
     });
 
-    await sendEmail(
-      email,
-      "Welcome to the Team",
-      `Hi ${name},
+    // Respond immediately; move email + notification to background
+    res
+      .status(201)
+      .json({ message: "Employee added successfully", employee: newEmployee });
+
+    // Fire-and-forget background tasks (won't block the response)
+    setImmediate(async () => {
+      try {
+        await sendEmail(
+          email,
+          "Welcome to the Team",
+          `Hi ${name},
 
 You've been added as an employee in ${companyName}.
 
@@ -113,27 +121,26 @@ To set your password and activate your account, please log in here (valid for 30
 https://project-flow.digiwbs.com/emp-login
 
 Note: This is an auto-generated password and it will expire in 30 minutes. If you do not set your password in time, your account will be deleted automatically.`
-    );
+        );
+      } catch (e) {
+        console.error("employee add email failed:", e?.message || e);
+      }
 
-    res
-      .status(201)
-      .json({ message: "Employee added successfully", employee: newEmployee });
-
-    // Optional: notify new employee (if they will log into app)
-    try {
-      const io = req.app.get("io");
-      await sendNotification({
-        io,
-        companyName,
-        type: "team_member_added",
-        title: `Welcome to ${companyName}`,
-        message: `Your account is created. Please check your email for credentials.`,
-        link: `/profile`,
-        recipientTeamMemberIds: [newEmployee.teamMemberId],
-      });
-    } catch (e) {
-      console.error("employee add notify failed:", e.message);
-    }
+      try {
+        const io = req.app.get("io");
+        await sendNotification({
+          io,
+          companyName,
+          type: "team_member_added",
+          title: `Welcome to ${companyName}`,
+          message: `Your account is created. Please check your email for credentials.`,
+          link: `/profile`,
+          recipientTeamMemberIds: [newEmployee.teamMemberId],
+        });
+      } catch (e) {
+        console.error("employee add notify failed:", e?.message || e);
+      }
+    });
   } catch (err) {
     console.error("Error adding employee:", err);
     res.status(500).json({ message: "Internal server error" });
@@ -368,6 +375,119 @@ exports.getAllTeamMembers = async (req, res) => {
   } catch (error) {
     console.error("Error fetching team members:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get general subtasks for a specific admin/manager with role-based visibility
+exports.getGeneralSubtasks = async (req, res) => {
+  try {
+    const companyName = req.user.companyName;
+    const requesterRole = req.user.role;
+    const requesterTmId = req.user.teamMemberId;
+    const targetTmId = req.params.teamMemberId;
+
+    if (!targetTmId) return res.status(400).json({ message: "teamMemberId is required" });
+
+    const Employee = require("../models/Employee");
+    const target = await Employee.findOne({ teamMemberId: targetTmId, companyName });
+    if (!target) return res.status(404).json({ message: "Employee not found" });
+
+    // Visibility rules
+    const targetRole = (target.role || "").toLowerCase();
+    const reqRole = (requesterRole || "").toLowerCase();
+    let allowed = false;
+    if (targetRole === "admin") {
+      allowed = reqRole === "owner" || reqRole === "admin";
+    } else if (targetRole === "manager") {
+      allowed = reqRole === "owner" || reqRole === "admin" || (reqRole === "manager" && requesterTmId === targetTmId);
+    }
+    if (!allowed) return res.status(403).json({ message: "Not authorized to view general subtasks" });
+
+    return res.status(200).json({ generalSubtasks: target.generalSubtasks || [] });
+  } catch (err) {
+    console.error("Error fetching general subtasks:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update status of a general subtask
+exports.updateGeneralSubtaskStatus = async (req, res) => {
+  try {
+    const companyName = req.user.companyName;
+    const requesterRole = (req.user.role || "").toLowerCase();
+    const requesterTmId = req.user.teamMemberId;
+    const { teamMemberId, subtask_id, status } = req.body;
+
+    if (!teamMemberId || !subtask_id || !status) {
+      return res.status(400).json({ message: "teamMemberId, subtask_id and status are required" });
+    }
+
+    const Employee = require("../models/Employee");
+    const target = await Employee.findOne({ teamMemberId, companyName });
+    if (!target) return res.status(404).json({ message: "Employee not found" });
+
+    const targetRole = (target.role || "").toLowerCase();
+    let allowed = false;
+    if (targetRole === "admin") {
+      allowed = requesterRole === "owner" || requesterRole === "admin";
+    } else if (targetRole === "manager") {
+      allowed = requesterRole === "owner" || requesterRole === "admin" || (requesterRole === "manager" && requesterTmId === teamMemberId);
+    }
+    if (!allowed) return res.status(403).json({ message: "Not authorized to update this subtask" });
+
+    const result = await Employee.updateOne(
+      { teamMemberId, companyName, "generalSubtasks.subtask_id": subtask_id },
+      {
+        $set: {
+          "generalSubtasks.$.status": status,
+          "generalSubtasks.$.updatedAt": new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) return res.status(404).json({ message: "General subtask not found" });
+    res.status(200).json({ success: true, message: "Status updated" });
+  } catch (err) {
+    console.error("Error updating general subtask status:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Delete a general subtask
+exports.deleteGeneralSubtask = async (req, res) => {
+  try {
+    const companyName = req.user.companyName;
+    const requesterRole = (req.user.role || "").toLowerCase();
+    const requesterTmId = req.user.teamMemberId;
+    const { teamMemberId, subtask_id } = req.body;
+
+    if (!teamMemberId || !subtask_id) {
+      return res.status(400).json({ message: "teamMemberId and subtask_id are required" });
+    }
+
+    const Employee = require("../models/Employee");
+    const target = await Employee.findOne({ teamMemberId, companyName });
+    if (!target) return res.status(404).json({ message: "Employee not found" });
+
+    const targetRole = (target.role || "").toLowerCase();
+    let allowed = false;
+    if (targetRole === "admin") {
+      allowed = requesterRole === "owner" || requesterRole === "admin";
+    } else if (targetRole === "manager") {
+      allowed = requesterRole === "owner" || requesterRole === "admin" || (requesterRole === "manager" && requesterTmId === teamMemberId);
+    }
+    if (!allowed) return res.status(403).json({ message: "Not authorized to delete this subtask" });
+
+    const result = await Employee.updateOne(
+      { teamMemberId, companyName },
+      { $pull: { generalSubtasks: { subtask_id } } }
+    );
+    if (result.modifiedCount === 0) return res.status(404).json({ message: "General subtask not found" });
+
+    res.status(200).json({ success: true, message: "General subtask deleted" });
+  } catch (err) {
+    console.error("Error deleting general subtask:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 

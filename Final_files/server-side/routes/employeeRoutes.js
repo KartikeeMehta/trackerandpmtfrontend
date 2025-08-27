@@ -26,4 +26,21 @@ router.get(
 );
 router.get("/roles", authMiddleware, employeeController.getAllRoles);
 
+// General subtasks (admins/managers)
+router.get(
+  "/general-subtasks/:teamMemberId",
+  authMiddleware,
+  employeeController.getGeneralSubtasks
+);
+router.post(
+  "/general-subtasks/update-status",
+  authMiddleware,
+  employeeController.updateGeneralSubtaskStatus
+);
+router.post(
+  "/general-subtasks/delete",
+  authMiddleware,
+  employeeController.deleteGeneralSubtask
+);
+
 module.exports = router;
