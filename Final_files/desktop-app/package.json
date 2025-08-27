@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electronmon .",
+    "build": "electron-builder --win nsis --x64",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build:mac": "electron-builder --mac dmg",
@@ -19,7 +20,7 @@
   },
   "devDependencies": {
     "electron": "28.2.0",
-    "electron-builder": "24.13.3",
+    "electron-builder": "^24.9.1",
     "electronmon": "2.0.2"
   },
   "build": {
@@ -31,14 +32,30 @@
       "index.html",
       "package.json"
     ],
+    "directories": {
+      "output": "dist"
+    },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.productivity"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "publisherName": "ProjectFlow"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     }
   }
 }
-

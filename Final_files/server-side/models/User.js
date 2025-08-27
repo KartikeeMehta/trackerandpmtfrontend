@@ -23,7 +23,16 @@ const userSchema = new mongoose.Schema({
   token: { type: String },
   companyLogo: { type: String },
   resetOTP: { type: String },
-  resetOTPExpiry: { type: Date }
+  resetOTPExpiry: { type: Date },
+  // Tracker pairing fields
+  pairingOTP: { type: String },
+  pairingOTPExpiry: { type: Date },
+  pairingStatus: {
+    type: String,
+    enum: ["not_paired", "pending", "paired"],
+    default: "not_paired",
+  },
+  lastPaired: { type: Date },
 });
 
 module.exports = mongoose.model("User", userSchema);

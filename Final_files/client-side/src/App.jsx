@@ -25,6 +25,8 @@ import Verification from "./pages/Verification";
 import ResetPassword from "./pages/ResetPassword";
 import Messaging from "./pages/Message/Messaging";
 import NotificationWrapper from "./components/NotificationWrapper";
+import DownloadApp from "./components/DownloadApp";
+import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 
 // Main App component
 
@@ -190,6 +192,26 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <Settings />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/download-app"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <DownloadApp />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tracker-connect"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <TrackerConnectPageWrapper />
                 </MainLayout>
               </ProtectedRoute>
             }

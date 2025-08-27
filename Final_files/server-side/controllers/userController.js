@@ -267,36 +267,49 @@ exports.changePassword = async (req, res) => {
 
     // Validate required fields
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      return res.status(400).json({ message: "All password fields are required" });
+      return res
+        .status(400)
+        .json({ message: "All password fields are required" });
     }
 
     // Check if new password matches confirmation
     if (newPassword !== confirmNewPassword) {
-      return res.status(400).json({ message: "New password and confirmation do not match" });
+      return res
+        .status(400)
+        .json({ message: "New password and confirmation do not match" });
     }
 
     // Validate new password length
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters long" });
     }
 
     // Check if new password is same as current password
     if (currentPassword === newPassword) {
-      return res.status(400).json({ message: "New password must be different from current password" });
+      return res.status(400).json({
+        message: "New password must be different from current password",
+      });
     }
 
     // First try to find user in User collection
     let user = await User.findById(userId);
     if (user) {
       // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        user.password
+      );
       if (!isCurrentPasswordValid) {
-        return res.status(400).json({ message: "Current password is incorrect" });
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect" });
       }
 
       // Hash new password
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-      
+
       // Update password
       user.password = hashedNewPassword;
       await user.save();
@@ -308,18 +321,25 @@ exports.changePassword = async (req, res) => {
     let employee = await Employee.findById(userId);
     if (employee) {
       // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, employee.password);
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        employee.password
+      );
       if (!isCurrentPasswordValid) {
-        return res.status(400).json({ message: "Current password is incorrect" });
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect" });
       }
 
       // Hash new password
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-      
+
       // Update password and reset mustChangePassword flag
       employee.password = hashedNewPassword;
       employee.mustChangePassword = false;
-      employee.passwordExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+      employee.passwordExpiresAt = new Date(
+        Date.now() + 90 * 24 * 60 * 60 * 1000
+      ); // 90 days from now
       await employee.save();
 
       return res.json({ message: "Password changed successfully" });
@@ -329,5 +349,163 @@ exports.changePassword = async (req, res) => {
   } catch (err) {
     console.error("Change password error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Tracker pairing functionality
+exports.generatePairingOTP = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Generate a 6-digit OTP
+    const pairingOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Set expiry time (5 minutes from now)
+    const pairingOTPExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+    // Update user with OTP and expiry
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        pairingOTP,
+        pairingOTPExpiry,
+        pairingStatus: "pending",
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      pairingOTP,
+      pairingOTPExpiry,
+      message: "OTP generated successfully",
+    });
+  } catch (error) {
+    console.error("Error generating pairing OTP:", error);
+    res.status(500).json({ success: false, message: "Failed to generate OTP" });
+  }
+};
+
+exports.verifyPairingOTP = async (req, res) => {
+  try {
+    const { email, pairingOTP } = req.body;
+
+    if (!email || !pairingOTP) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if OTP matches and is not expired
+    if (user.pairingOTP !== pairingOTP) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (user.pairingOTPExpiry < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    // Update pairing status to connected
+    user.pairingStatus = "paired";
+    user.pairingOTP = null;
+    user.pairingOTPExpiry = null;
+    user.lastPaired = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Tracker paired successfully",
+      userId: user._id,
+      companyName: user.companyName,
+    });
+  } catch (error) {
+    console.error("Error verifying pairing OTP:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to verify OTP",
+    });
+  }
+};
+
+exports.getPairingStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select("pairingStatus lastPaired");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      status: user.pairingStatus || "not_paired",
+      lastPaired: user.lastPaired,
+    });
+  } catch (error) {
+    console.error("Error getting pairing status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get pairing status",
+    });
+  }
+};
+
+exports.disconnectTracker = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        pairingStatus: "not_paired",
+        pairingOTP: null,
+        pairingOTPExpiry: null,
+        lastPaired: null,
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Tracker disconnected successfully",
+    });
+  } catch (error) {
+    console.error("Error disconnecting tracker:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to disconnect tracker",
+    });
   }
 };

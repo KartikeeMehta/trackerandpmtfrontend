@@ -35,4 +35,18 @@ router.get(
   EmployeeController.getRecentActivity
 );
 
+// Tracker pairing routes
+router.post(
+  "/pairing/generate",
+  authMiddleware,
+  userController.generatePairingOTP
+);
+router.post("/pairing/verify", authMiddleware, userController.verifyPairingOTP);
+router.get("/pairing/status", authMiddleware, userController.getPairingStatus);
+router.delete(
+  "/pairing/disconnect",
+  authMiddleware,
+  userController.disconnectTracker
+);
+
 module.exports = router;
