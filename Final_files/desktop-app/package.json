@@ -1,0 +1,44 @@
+{
+  "name": "projectflow-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "description": "Desktop app for ProjectFlow",
+  "author": "",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electronmon .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:mac": "electron-builder --mac dmg",
+    "build:mac:both": "electron-builder --mac dmg --x64 --arm64",
+    "build:win": "electron-builder --win nsis",
+    "build:win:x64": "electron-builder --win nsis --x64",
+    "build:win:ia32": "electron-builder --win nsis --ia32",
+    "build:all": "electron-builder -mwl"
+  },
+  "devDependencies": {
+    "electron": "28.2.0",
+    "electron-builder": "24.13.3",
+    "electronmon": "2.0.2"
+  },
+  "build": {
+    "appId": "com.projectflow.app",
+    "productName": "ProjectFlow",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "package.json"
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": ["nsis"],
+      "publisherName": "ProjectFlow"
+    }
+  }
+}
+
