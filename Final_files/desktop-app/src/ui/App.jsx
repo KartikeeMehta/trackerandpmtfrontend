@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-
 const BASE_URL = 'http://localhost:8000/api';
 
 function Badge({ state, text }) {
@@ -45,67 +44,164 @@ export default function App() {
 
   // ticker
   useEffect(() => {
-    if (!startTs) return;
-    const t = setInterval(() => setElapsed(Date.now() - startTs), 1000);
-    return () => clearInterval(t);
+    console.log('Timer effect triggered - startTs:', startTs);
+    if (!startTs) {
+      console.log('No startTs, timer not starting');
+      return;
+    }
+    console.log('Starting timer interval');
+    const t = setInterval(() => {
+      const newElapsed = Date.now() - startTs;
+      setElapsed(newElapsed);
+      console.log('Timer tick - elapsed:', newElapsed);
+    }, 1000);
+    return () => {
+      console.log('Clearing timer interval');
+      clearInterval(t);
+    };
   }, [startTs]);
 
   const connect = async (e) => {
     e.preventDefault();
+    const emailValue = emailRef.current?.value?.trim();
+    const otpValue = otpRef.current?.value?.trim();
+    
+    console.log('Connecting...', emailValue, otpValue);
+    console.log('Email ref current:', emailRef.current);
+    console.log('Email ref value:', emailRef.current?.value);
+    
+    if (!emailValue || !otpValue) {
+      console.log('Missing email or OTP');
+      setMessage('Email and OTP are required');
+      return;
+    }
+    
     setMessage('Connecting...');
     try {
-      const res = await fetch(`${BASE_URL}/pairing/verify`, {
+      const res = await fetch(`http://localhost:8000/api/pairing/verify`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailRef.current.value.trim(), pairingOTP: otpRef.current.value.trim() })
+        body: JSON.stringify({ email: emailValue, pairingOTP: otpValue })
       });
       const data = await res.json();
+      console.log('Connect response:', data);
       if (!data.success) throw new Error(data.message || 'Failed to connect');
+      
       setStatus('connected');
       setMessage('Connected');
       setScreen('track');
-      const em = emailRef.current.value.trim();
-      setEmail(em);
-      try { window.trackerAPI?.setUserEmail(em); } catch {}
-      try { localStorage.setItem('pf_tracker_email', em); } catch {}
+      
+      // Set email in state
+      setEmail(emailValue);
+      console.log('Email set to state:', emailValue);
+      
+      try { 
+        window.trackerAPI?.setUserEmail(emailValue); 
+        console.log('Email set to tracker API');
+      } catch (err) {
+        console.log('Failed to set email in tracker API:', err);
+      }
+      
+      try { 
+        localStorage.setItem('pf_tracker_email', emailValue); 
+        console.log('Email saved to localStorage');
+      } catch (err) {
+        console.log('Failed to save email to localStorage:', err);
+      }
+      
     } catch (e) {
+      console.error('Connect error:', e);
       setMessage(e.message);
     }
   };
 
   const start = async () => {
+    console.log('=== PUNCH IN BUTTON CLICKED ===');
+    console.log('Punch In clicked!');
     setMessage('Starting...');
-    const userEmail = (emailRef.current?.value || email || '').trim();
-    if (!userEmail) { setMessage('Email not set. Please connect first.'); return; }
-    try {
-      const res = await fetch(`${BASE_URL}/tracker/start`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setMessage(data.message || 'Failed to start'); return; }
-      setSessionId(data.sessionId);
-      setStartTs(Date.now());
-      setLocalIdleMs(0);
-      setLocalBreakMs(0);
-      setMessage('Tracking');
-      try { await refreshTodayData(userEmail); } catch {}
-    } catch (err) {
-      setMessage('Network error while starting');
+    
+    // Use the stored email from state, not from input field
+    const userEmail = email.trim();
+    console.log('User email from state:', userEmail);
+    
+    if (!userEmail) { 
+      console.log('No email found in state');
+      setMessage('Email not set. Please connect first.'); 
+      return; 
     }
+
+    // Start timer immediately for better UX
+    const now = Date.now();
+    console.log('Starting timer at:', now);
+    setStartTs(now);
+    setElapsed(0);
     setPunchInAt(new Date());
     setPunchOutAt(null);
+    setLocalIdleMs(0);
+    setLocalBreakMs(0);
+    setMessage('Tracking...');
+
+    try {
+      console.log("Making API call to:", `http://localhost:8000/api/tracker/start`);
+      console.log("With email:", userEmail);
+      
+      const res = await fetch(`http://localhost:8000/api/tracker/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      });
+      
+      console.log("Response status:", res.status);
+      console.log("Response ok:", res.ok);
+      
+      const data = await res.json();
+      console.log("API Response:", data);
+      
+      if (!res.ok || !data.success) { 
+        console.log("API failed:", data.message);
+        setMessage(data.message || 'Failed to start'); 
+        // Reset timer if API fails
+        setStartTs(null);
+        setElapsed(0);
+        setPunchInAt(null);
+        return; 
+      }
+
+      setSessionId(data.sessionId);
+      setMessage('Tracking');
+
+      try { 
+        await refreshTodayData(userEmail); 
+      } catch {}
+      
+    } catch (err) {
+      console.log("Network error:", err);
+      setMessage('Network error while starting');
+      // Reset timer if network error
+      setStartTs(null);
+      setElapsed(0);
+      setPunchInAt(null);
+    }
   };
 
   const stop = async () => {
-    if (!sessionId) return;
+    console.log('=== PUNCH OUT BUTTON CLICKED ===');
+    console.log('Punch Out clicked!');
+    if (!sessionId) {
+      console.log('No session ID found');
+      return;
+    }
     setMessage('Stopping...');
+    const stopTime = new Date();
+    setPunchOutAt(stopTime);
+    
     try {
-      const res = await fetch(`${BASE_URL}/tracker/stop`, {
+      const res = await fetch(`http://localhost:8000/api/tracker/stop`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, graceMs: 7 * 60 * 1000 })
       });
       try {
         const data = await res.json();
+        console.log('Stop response:', data);
         if (data && data.success) {
           // reflect totals from server response immediately
           setTodayStats((prev) => ({ ...prev, totalTimeMs: data.totalTimeMs || prev.totalTimeMs, activeTimeMs: data.activeTimeMs || prev.activeTimeMs }));
@@ -116,26 +212,29 @@ export default function App() {
     setStartTs(null);
     setElapsed(0);
     setMessage('Ended');
-    setPunchOutAt(new Date());
     try { await refreshTodayData(); } catch {}
   };
 
   const pushBreak = async (type, minutes) => {
+    console.log('Push break clicked:', type, minutes);
     if (!sessionId) return;
     const now = new Date();
+    setBreakStartAt(now);
+    setIsOnBreak(true);
+    setMessage(`Break started: ${type}`);
+    
     // Use start/end endpoints to match server API
     try {
-      await fetch(`${BASE_URL}/tracker/break/start`, {
+      await fetch(`http://localhost:8000/api/tracker/break/start`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, type, startedAt: now })
       });
     } catch {}
-    setBreakStartAt(now);
-    setIsOnBreak(true);
+    
     // Auto end after minutes
     const endAt = new Date(now.getTime() + minutes * 60 * 1000);
     try {
-      await fetch(`${BASE_URL}/tracker/break/end`, {
+      await fetch(`http://localhost:8000/api/tracker/break/end`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, endedAt: endAt })
       });
@@ -150,28 +249,35 @@ export default function App() {
 
   // Manual Break controls (no preset duration)
   const breakStart = async () => {
+    console.log('=== BREAK START BUTTON CLICKED ===');
+    console.log('Break Start clicked!');
     if (!sessionId) return;
     const now = new Date();
-    await fetch(`${BASE_URL}/tracker/break/start`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, type: 'manual', startedAt: now })
-    });
     setBreakStartAt(now);
     setIsOnBreak(true);
     setMessage('Break started');
+    
+    await fetch(`http://localhost:8000/api/tracker/break/start`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, type: 'manual', startedAt: now })
+    });
   };
 
   const breakEnd = async () => {
+    console.log('=== BREAK END BUTTON CLICKED ===');
+    console.log('Break End clicked!');
     if (!sessionId || !isOnBreak) return;
     const endAt = new Date();
-    await fetch(`${BASE_URL}/tracker/break/end`, {
+    setBreakEndAt(endAt);
+    setMessage('Break ended');
+    
+    await fetch(`http://localhost:8000/api/tracker/break/end`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, endedAt: endAt })
     });
-    setBreakEndAt(endAt);
+    
     if (breakStartAt) setLocalBreakMs((ms) => ms + Math.max(0, endAt - new Date(breakStartAt)));
     setIsOnBreak(false);
-    setMessage('Break ended');
   };
 
   // idle detection (31s rule)
@@ -185,7 +291,7 @@ export default function App() {
       if (now - lastActivityTs > 31000) {
         const started = new Date(lastActivityTs + 31000);
         const ended = new Date();
-        fetch(`${BASE_URL}/tracker/idle`, {
+        fetch(`http://localhost:8000/api/tracker/idle`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId, startedAt: started, endedAt: ended })
         }).catch(() => {});
@@ -245,9 +351,19 @@ export default function App() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('pf_tracker_email');
-      if (saved) setEmail(saved);
+      if (saved) {
+        setEmail(saved);
+        console.log('Loaded saved email:', saved);
+      }
     } catch {}
   }, []);
+
+  // Debug email state when screen changes
+  useEffect(() => {
+    console.log('Screen changed to:', screen);
+    console.log('Current email state:', email);
+    console.log('Current status:', status);
+  }, [screen, email, status]);
 
   // Fetch today's stats and latest session/break info
   const refreshTodayData = async (eml) => {
@@ -255,8 +371,8 @@ export default function App() {
     if (!emailQ) return;
     try {
       const [statsRes, listRes] = await Promise.all([
-        fetch(`${BASE_URL}/tracker/stats/today?email=${encodeURIComponent(emailQ)}`),
-        fetch(`${BASE_URL}/tracker/sessions/today?email=${encodeURIComponent(emailQ)}`)
+        fetch(`http://localhost:8000/api/tracker/stats/today?email=${encodeURIComponent(emailQ)}`),
+        fetch(`http://localhost:8000/api/tracker/sessions/today?email=${encodeURIComponent(emailQ)}`)
       ]);
       const stats = await statsRes.json();
       const list = await listRes.json();
@@ -295,7 +411,7 @@ export default function App() {
 
   const Welcome = () => (
     <div className="p-8">
-      <h1 className="text-2xl font-semibold mb-2">Welcome to ProjectFlow Tracker </h1>
+      <h1 className="text-2xl font-semibold mb-2">Welcome to ProjectFlow Tracker hello developer </h1>
       <p className="text-slate-400 mb-4">Track working hours, breaks, and idle time for accurate reports.</p>
       <ul className="list-disc ml-6 text-slate-400 space-y-1">
         <li>Automatic idle detection after 30 seconds (counted from 31s)</li>
@@ -320,7 +436,7 @@ export default function App() {
           <label className="text-xs text-slate-400">OTP</label>
           <input ref={otpRef} maxLength={6} className="w-full mt-1 rounded-md bg-slate-800 border border-slate-700 px-3 py-2 outline-none" required />
         </div>
-        <button className="rounded-md bg-sky-600 hover:bg-sky-700 px-4 py-2">Connect</button>
+        <button type="submit" className="rounded-md bg-sky-600 hover:bg-sky-700 px-4 py-2">Connect</button>
       </form>
       <div className="text-xs text-slate-400 mt-2 min-h-[18px]">{message}</div>
     </div>
@@ -330,19 +446,41 @@ export default function App() {
     <div className="p-8">
       <div className="text-4xl font-bold tabular-nums tracking-wide">{format(elapsed)}</div>
       <div className="flex flex-wrap gap-2 mt-3">
-        <button onClick={start} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700">Start</button>
-        <button onClick={stop} className="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700">Stop</button>
-        <button onClick={start} className="px-3 py-2 rounded-md bg-emerald-700/40 border border-emerald-800">Punch In</button>
-        <button onClick={stop} className="px-3 py-2 rounded-md bg-rose-700/40 border border-rose-800">Punch Out</button>
-        <button onClick={breakStart} disabled={!sessionId || isOnBreak} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50">Break Start</button>
-        <button onClick={breakEnd} disabled={!sessionId || !isOnBreak} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50">Break End</button>
+        <button 
+          onClick={start} 
+          className="px-3 py-2 rounded-md bg-emerald-700/40 border border-emerald-800 hover:bg-emerald-600/40"
+          disabled={!!sessionId}
+        >
+          Punch In
+        </button>
+        <button 
+          onClick={stop} 
+          className="px-3 py-2 rounded-md bg-rose-700/40 border border-rose-800 hover:bg-rose-600/40"
+          disabled={!sessionId}
+        >
+          Punch Out
+        </button>
+        <button 
+          onClick={breakStart} 
+          disabled={!sessionId || isOnBreak} 
+          className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50 hover:bg-slate-700"
+        >
+          Break Start
+        </button>
+        <button 
+          onClick={breakEnd} 
+          disabled={!sessionId || !isOnBreak} 
+          className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50 hover:bg-slate-700"
+        >
+          Break End
+        </button>
       </div>
       <div className="flex flex-wrap gap-2 mt-3">
-        <button onClick={() => pushBreak('tea15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Tea 15m</button>
-        <button onClick={() => pushBreak('full45', 45)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Lunch 45m</button>
-        <button onClick={() => pushBreak('meeting15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Meeting 15m</button>
-        <button onClick={() => pushBreak('meeting15_2', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Meeting 15m</button>
-        <button onClick={() => { const v = Number(prompt('Custom break minutes?', '10')) || 0; if (v > 0) pushBreak('custom', v); }} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Custom</button>
+        <button onClick={() => pushBreak('tea15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 hover:bg-slate-700">Tea 15m</button>
+        <button onClick={() => pushBreak('full45', 45)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 hover:bg-slate-700">Lunch 45m</button>
+        <button onClick={() => pushBreak('meeting15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 hover:bg-slate-700">Meeting 15m</button>
+        <button onClick={() => pushBreak('meeting15_2', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 hover:bg-slate-700">Meeting 15m</button>
+        <button onClick={() => { const v = Number(prompt('Custom break minutes?', '10')) || 0; if (v > 0) pushBreak('custom', v); }} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 hover:bg-slate-700">Custom</button>
       </div>
       {/* Read-only info panels */}
       <div className="grid grid-cols-2 gap-4 mt-6">
@@ -353,6 +491,7 @@ export default function App() {
             <div className="flex justify-between"><span>Punch Out</span><span className="tabular-nums">{fmt(punchOutAt)}</span></div>
             <div className="flex justify-between"><span>Break Start</span><span className="tabular-nums">{fmt(breakStartAt)}</span></div>
             <div className="flex justify-between"><span>Break End</span><span className="tabular-nums">{isOnBreak ? 'Ongoing' : fmt(breakEndAt)}</span></div>
+            <div className="flex justify-between border-t border-slate-700 pt-1 mt-2"><span>Elapsed</span><span className="tabular-nums text-emerald-400">{format(elapsed)}</span></div>
           </div>
         </div>
         <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
@@ -375,7 +514,7 @@ export default function App() {
         <div className="flex items-center justify-between px-5 py-3 bg-slate-950 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="h-7 w-7 rounded bg-sky-600" />
-            <div className="font-semibold">ProjectFlow Tracker</div>
+            <div className="font-semibold">ProjectFlow Trackeraaa</div>
           </div>
           <Badge state={status === 'connected' ? 'connected' : 'disconnected'} text={status === 'connected' ? 'Connected' : 'Not Connected'} />
         </div>

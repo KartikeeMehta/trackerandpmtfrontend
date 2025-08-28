@@ -129,6 +129,7 @@
 
 const TrackerSession = require("../models/TrackerSession");
 const User = require("../models/User");
+const Employee = require("../models/Employee");
 
 // Punch In → start a new session
 exports.punchIn = async (req, res) => {
@@ -136,8 +137,19 @@ exports.punchIn = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: "Email is required" });
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    // Try to find user first, then employee
+    let user = await User.findOne({ email });
+    let isEmployee = false;
+
+    if (!user) {
+      // Try to find employee
+      user = await Employee.findOne({ email });
+      if (user) {
+        isEmployee = true;
+      } else {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+    }
 
     // End any running sessions before starting new one
     await TrackerSession.updateMany(
@@ -148,7 +160,7 @@ exports.punchIn = async (req, res) => {
     const session = await TrackerSession.create({
       userId: user._id,
       email: user.email,
-      companyId: user.companyID,
+      companyId: isEmployee ? user.companyName : user.companyID, // Employee uses companyName, User uses companyID
       companyName: user.companyName,
       startedAt: new Date(),
       status: "running",
