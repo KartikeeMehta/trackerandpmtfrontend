@@ -2,15 +2,79 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"> 
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 https://project-flow.digiwbs.com https://railwayselfpmtdeployed-production.up.railway.app; img-src 'self' data:;"> 
     <title>ProjectFlow Desktop</title>
     <style>
-      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-      h1 { font-size: 48px; }
+      body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:#0b1220; color:#e6e8ef; margin:0; }
+      .container { display:flex; align-items:center; justify-content:center; height:100vh; }
+      .card { width: 760px; background:#0f172a; border:1px solid #1f2a44; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.35); overflow:hidden; }
+      .header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:#0b1220; border-bottom:1px solid #1f2a44; }
+      .badge { font-size:12px; padding:6px 10px; border-radius:9999px; background:#0e1b35; color:#9ec5ff; border:1px solid #1f3b77; }
+      .content { display:flex; }
+      .left { flex:1; padding:24px; }
+      .right { width:360px; padding:24px; border-left:1px solid #1f2a44; background:#0b1220; }
+      h1 { font-size:24px; margin: 0 0 8px; }
+      p { color:#aab3c5; font-size:14px; margin:0 0 12px; }
+      form { display:flex; flex-direction:column; gap:10px; }
+      label { font-size: 12px; color:#aab3c5; }
+      input { padding:10px 12px; border-radius:8px; border:1px solid #253252; background:#0d1730; color:#e6e8ef; outline:none; }
+      button { padding:10px 12px; border-radius:8px; background:#2563eb; color:white; border:none; cursor:pointer; }
+      #status { margin-top:10px; min-height:20px; font-size:13px; }
+      .step { display:flex; gap:10px; color:#aab3c5; font-size:13px; margin-bottom:8px; }
+      .timer { font-size:36px; font-weight:700; letter-spacing:1px; }
     </style>
   </head>
   <body>
-    <h1>Hi from projectflow</h1>
+    <div class="container">
+      <div class="card">
+        <div class="header">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="./icon.png" alt="logo" width="28" height="28"/>
+            <strong>ProjectFlow Tracker</strong>
+          </div>
+          <span class="badge" id="statusBadge">Not Connected</span>
+        </div>
+        <div class="content">
+          <div class="left">
+            <h1>Stay focused. We’ll handle the time.</h1>
+            <p>ProjectFlow Tracker keeps accurate working time, breaks, and idle activity so your reports are always right.</p>
+            <div class="step"><span>1.</span><span>Open your dashboard and go to Tracker Connect to get OTP.</span></div>
+            <div class="step"><span>2.</span><span>Click Connect to Dashboard and enter your email + OTP here.</span></div>
+            <div class="step"><span>3.</span><span>Start tracking. Use break buttons for tea, lunch, and meetings.</span></div>
+          </div>
+          <div class="right">
+            <form id="pairForm">
+              <div>
+                <label for="email">Email</label>
+                <input type="email" id="email" required />
+              </div>
+              <div>
+                <label for="otp">OTP</label>
+                <input type="text" id="otp" maxlength="6" required />
+              </div>
+              <button type="submit">Connect to Dashboard</button>
+            </form>
+            <p id="status"></p>
+            <hr style="border-color:#1f2a44;margin:16px 0;"/>
+            <div>
+              <div class="timer" id="timer">00:00:00</div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <button id="startBtn">Start</button>
+                <button id="stopBtn" style="background:#ef4444">Stop</button>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                <button id="teaBreak">Tea 15m</button>
+                <button id="fullBreak">Lunch 45m</button>
+                <button id="meet1">Meeting 15m</button>
+                <button id="meet2">Meeting 15m</button>
+                <button id="customBreak">Custom</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="renderer.js"></script>
   </body>
   
 </html>

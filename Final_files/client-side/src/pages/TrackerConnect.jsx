@@ -8,6 +8,8 @@ const TrackerConnect = () => {
   const [expiresAt, setExpiresAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pairStatus, setPairStatus] = useState("not_paired");
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   const token = localStorage.getItem("token");
   const userStr =
@@ -33,16 +35,53 @@ const TrackerConnect = () => {
     }
   };
 
+  const refreshPairingStatus = async () => {
+    try {
+      setCheckingStatus(true);
+      const res = await apiHandler.GetApi(api_url.checkPairingStatus, token);
+      if (res?.success) {
+        setPairStatus(res.status || "not_paired");
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const disconnect = async () => {
+    try {
+      setCheckingStatus(true);
+      const res = await apiHandler.DeleteApi(api_url.disconnectTracker, token);
+      if (res?.success) {
+        setPairStatus("not_paired");
+        // regenerate OTP so user can pair again easily
+        generateOtp();
+      }
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
   useEffect(() => {
     generateOtp();
+    refreshPairingStatus();
 
     // Set up interval to refresh OTP every 5 minutes
     const interval = setInterval(() => {
       generateOtp();
     }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
+    // Poll pairing status every 5 seconds
+    const statusInterval = setInterval(() => {
+      refreshPairingStatus();
+    }, 5000);
+
     // Cleanup interval on component unmount
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(statusInterval);
+    };
   }, []);
 
   return (
@@ -53,25 +92,39 @@ const TrackerConnect = () => {
         prompted to pair this dashboard with your app.
       </p>
 
-      <div className="border rounded-lg p-4 mb-4 flex items-center justify-between">
-        <div>
-          <div className="text-sm text-gray-500">Your OTP</div>
-          <div className="text-2xl font-bold tracking-widest">
-            {otp || "------"}
-          </div>
-          {expiresAt && (
-            <div className="text-xs text-gray-500 mt-1">
-              Expires: {new Date(expiresAt).toLocaleTimeString()}
+      {pairStatus !== "paired" && (
+        <div className="border rounded-lg p-4 mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-gray-500">Your OTP</div>
+            <div className="text-2xl font-bold tracking-widest">
+              {otp || "------"}
             </div>
-          )}
+            {expiresAt && (
+              <div className="text-xs text-gray-500 mt-1">
+                Expires: {new Date(expiresAt).toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={generateOtp}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-60"
+          >
+            {loading ? "Refreshing..." : "Refresh OTP"}
+          </button>
         </div>
-        <button
-          onClick={generateOtp}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-60"
-        >
-          {loading ? "Refreshing..." : "Refresh OTP"}
-        </button>
+      )}
+
+      <div className="mb-4">
+        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${pairStatus === "paired" ? "bg-green-100 text-green-700" : pairStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
+          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${pairStatus === "paired" ? "bg-green-600" : pairStatus === "pending" ? "bg-yellow-600" : "bg-gray-500"}`}></span>
+          {checkingStatus ? "Checking..." : pairStatus === "paired" ? "Paired" : pairStatus === "pending" ? "Pending" : "Not Paired"}
+        </div>
+        {pairStatus === "paired" && (
+          <button onClick={disconnect} disabled={checkingStatus} className="ml-3 px-3 py-1 text-sm bg-red-600 text-white rounded-md disabled:opacity-60">
+            {checkingStatus ? "Working..." : "Disconnect"}
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">

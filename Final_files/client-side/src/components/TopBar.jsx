@@ -29,10 +29,40 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
   const [unread, setUnread] = useState(0);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [pairStatus, setPairStatus] = useState("not_paired");
+  const [checkingPair, setCheckingPair] = useState(false);
 
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  // Live pairing status polling (no 'Checking...' flicker)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    let mounted = true;
+    const fetchStatus = async () => {
+      try {
+        const res = await apiHandler.GetApi(api_url.checkPairingStatus, token);
+        if (mounted && res?.success) setPairStatus(res.status || "not_paired");
+      } catch (_) {}
+    };
+    fetchStatus();
+    const id = setInterval(fetchStatus, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  const disconnectTracker = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      await apiHandler.DeleteApi(api_url.disconnectTracker, token);
+      setPairStatus("not_paired");
+    } catch (_) {}
+  };
 
   // Initialize sockets for notifications
   useEffect(() => {
@@ -355,14 +385,28 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
         isSidebarCollapsed ? "left-16 right-0" : "left-64 right-0"
       }`}
     >
-      {/* Connect Now Button */}
-      <button
-        onClick={handleConnectNow}
-        className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
-      >
-        <Link className="h-4 w-4" />
-        Connect Now
-      </button>
+      {/* Pairing status badge + Connect/Disconnect controls */}
+      <div className="flex items-center gap-3">
+        <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${pairStatus === "paired" ? "bg-green-100 text-green-700" : pairStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
+          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${pairStatus === "paired" ? "bg-green-600" : pairStatus === "pending" ? "bg-yellow-600" : "bg-gray-500"}`}></span>
+          {pairStatus === "paired" ? "Connected" : pairStatus === "pending" ? "Pending" : "Not Connected"}
+        </div>
+        <button
+          onClick={handleConnectNow}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white`}
+        >
+          <Link className="h-4 w-4" />
+          Connect Now
+        </button>
+        {pairStatus === "paired" && (
+          <button
+            onClick={disconnectTracker}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
+          >
+            Disconnect
+          </button>
+        )}
+      </div>
 
       {/* Notification Bell - moved before company pill */}
       <div className="relative" ref={notifRef}>

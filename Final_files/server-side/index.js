@@ -333,6 +333,29 @@ cron.schedule("0 * * * *", async () => {
   }
 });
 
+// Auto-disconnect trackers paired more than 3 days ago
+cron.schedule("0 3 * * *", async () => {
+  try {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const users = await User.updateMany(
+      { pairingStatus: "paired", lastPaired: { $lt: threeDaysAgo } },
+      {
+        $set: {
+          pairingStatus: "not_paired",
+          pairingOTP: null,
+          pairingOTPExpiry: null,
+        },
+        $unset: { lastPaired: "" },
+      }
+    );
+    if (users?.modifiedCount) {
+      console.log(`[CRON] Auto-disconnected ${users.modifiedCount} trackers inactive >3 days`);
+    }
+  } catch (err) {
+    console.error("[CRON] Auto-disconnect job failed:", err.message);
+  }
+});
+
 // Resend temporary password if not used within 5 minutes (one-time)
 cron.schedule("* * * * *", async () => {
   try {

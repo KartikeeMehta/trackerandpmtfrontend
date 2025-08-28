@@ -355,7 +355,7 @@ exports.changePassword = async (req, res) => {
 // Tracker pairing functionality
 exports.generatePairingOTP = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const requester = req.user; // could be User or Employee
 
     // Generate a 6-digit OTP
     const pairingOTP = Math.floor(100000 + Math.random() * 900000).toString();
@@ -364,20 +364,33 @@ exports.generatePairingOTP = async (req, res) => {
     const pairingOTPExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
     // Update user with OTP and expiry
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        pairingOTP,
-        pairingOTPExpiry,
-        pairingStatus: "pending",
-      },
-      { new: true }
-    );
+    let updatedUser = null;
+    if (requester.role) {
+      // Employee model
+      updatedUser = await Employee.findByIdAndUpdate(
+        requester._id,
+        {
+          pairingOTP,
+          pairingOTPExpiry,
+          pairingStatus: "pending",
+        },
+        { new: true }
+      );
+    } else {
+      // Owner User
+      updatedUser = await User.findByIdAndUpdate(
+        requester._id,
+        {
+          pairingOTP,
+          pairingOTPExpiry,
+          pairingStatus: "pending",
+        },
+        { new: true }
+      );
+    }
 
     if (!updatedUser) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     res.json({
@@ -404,12 +417,15 @@ exports.verifyPairingOTP = async (req, res) => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email });
+    // Find in User or Employee by email
+    let user = await User.findOne({ email });
+    let isEmployee = false;
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      user = await Employee.findOne({ email });
+      isEmployee = !!user;
+    }
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     // Check if OTP matches and is not expired
@@ -451,21 +467,15 @@ exports.verifyPairingOTP = async (req, res) => {
 
 exports.getPairingStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    const user = await User.findById(userId).select("pairingStatus lastPaired");
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+    const userId = req.user._id;
+    let doc = await User.findById(userId).select("pairingStatus lastPaired");
+    if (!doc) {
+      doc = await Employee.findById(userId).select("pairingStatus lastPaired");
     }
-
-    res.json({
-      success: true,
-      status: user.pairingStatus || "not_paired",
-      lastPaired: user.lastPaired,
-    });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, status: doc.pairingStatus || "not_paired", lastPaired: doc.lastPaired });
   } catch (error) {
     console.error("Error getting pairing status:", error);
     res.status(500).json({
@@ -477,35 +487,52 @@ exports.getPairingStatus = async (req, res) => {
 
 exports.disconnectTracker = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    const updatedUser = await User.findByIdAndUpdate(
+    const userId = req.user._id;
+    let updated = await User.findByIdAndUpdate(
       userId,
-      {
-        pairingStatus: "not_paired",
-        pairingOTP: null,
-        pairingOTPExpiry: null,
-        lastPaired: null,
-      },
+      { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
       { new: true }
     );
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+    if (!updated) {
+      updated = await Employee.findByIdAndUpdate(
+        userId,
+        { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+        { new: true }
+      );
     }
-
-    res.json({
-      success: true,
-      message: "Tracker disconnected successfully",
-    });
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, message: "Tracker disconnected successfully" });
   } catch (error) {
     console.error("Error disconnecting tracker:", error);
     res.status(500).json({
       success: false,
       message: "Failed to disconnect tracker",
     });
+  }
+};
+
+// For desktop app on forced exit: disconnect by email without auth token
+exports.disconnectByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: "Email required" });
+    let updated = await User.findOneAndUpdate(
+      { email },
+      { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+      { new: true }
+    );
+    if (!updated) {
+      updated = await Employee.findOneAndUpdate(
+        { email },
+        { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+        { new: true }
+      );
+    }
+    if (!updated) return res.status(404).json({ success: false, message: "User not found" });
+    res.json({ success: true, message: "Disconnected" });
+  } catch (e) {
+    res.status(500).json({ success: false, message: "Failed to disconnect" });
   }
 };

@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App specific tweaks */
+.badge {
+  @apply text-xs px-2 py-1 rounded-full border;
+}
+
+

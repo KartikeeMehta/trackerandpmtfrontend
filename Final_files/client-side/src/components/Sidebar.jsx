@@ -7,6 +7,7 @@ import {
   ListChecks,
   BookCopy,
   History,
+  Timer,
   ChevronLeft,
   ChevronRight,
   MessageCircle,
@@ -97,6 +98,12 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           label: "Work History",
           icon: History,
         },
+      ],
+    },
+    {
+      label: "TIME TRACKING",
+      items: [
+        { to: "/tracker", label: "Tracker", icon: Timer },
       ],
     },
     {

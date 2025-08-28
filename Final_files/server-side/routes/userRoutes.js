@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
+const trackerController = require("../controllers/trackerController");
 const authMiddleware = require("../middleware/authMiddleware");
 const EmployeeController = require("../controllers/EmployeeController");
 
@@ -41,12 +42,23 @@ router.post(
   authMiddleware,
   userController.generatePairingOTP
 );
-router.post("/pairing/verify", authMiddleware, userController.verifyPairingOTP);
+// OTP verification must be accessible to the desktop app (no auth token available)
+router.post("/pairing/verify", userController.verifyPairingOTP);
 router.get("/pairing/status", authMiddleware, userController.getPairingStatus);
 router.delete(
   "/pairing/disconnect",
   authMiddleware,
   userController.disconnectTracker
 );
+// Desktop emergency disconnect by email (no auth)
+router.post("/pairing/disconnect-by-email", userController.disconnectByEmail);
+
+// Tracker APIs (desktop app will call these; verifyPairing already pairs)
+router.post("/tracker/start", trackerController.startSession);
+router.post("/tracker/stop", trackerController.stopSession);
+router.post("/tracker/idle", trackerController.pushIdle);
+router.post("/tracker/break", trackerController.pushBreak);
+router.get("/tracker/stats/today", trackerController.statsToday);
+router.get("/tracker/sessions/today", trackerController.listToday);
 
 module.exports = router;
