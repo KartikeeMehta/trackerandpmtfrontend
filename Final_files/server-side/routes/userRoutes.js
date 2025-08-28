@@ -54,11 +54,33 @@ router.delete(
 router.post("/pairing/disconnect-by-email", userController.disconnectByEmail);
 
 // Tracker APIs (desktop app will call these; verifyPairing already pairs)
-router.post("/tracker/start", trackerController.startSession);
-router.post("/tracker/stop", trackerController.stopSession);
+// router.post("/tracker/start", trackerController.startSession);
+// router.post("/tracker/stop", trackerController.stopSession);
+// router.post("/tracker/idle", trackerController.pushIdle);
+// router.post("/tracker/break", trackerController.pushBreak);
+// router.get("/tracker/stats/today", trackerController.statsToday);
+// router.get("/tracker/sessions/today", trackerController.listToday);
+
+router.post("/tracker/start", trackerController.punchIn);
+
+// Punch Out → end session
+router.post("/tracker/stop", trackerController.punchOut);
+
+// Push Idle periods
 router.post("/tracker/idle", trackerController.pushIdle);
-router.post("/tracker/break", trackerController.pushBreak);
+
+// Break Start
+router.post("/tracker/break/start", trackerController.breakStart);
+
+// Break End
+router.post("/tracker/break/end", trackerController.breakEnd);
+
+// Stats Today
 router.get("/tracker/stats/today", trackerController.statsToday);
+
+// List Today's Sessions
 router.get("/tracker/sessions/today", trackerController.listToday);
+
+
 
 module.exports = router;

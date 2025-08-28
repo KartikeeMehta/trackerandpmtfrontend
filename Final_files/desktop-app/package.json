@@ -19,16 +19,16 @@
     "build:all": "electron-builder -mwl"
   },
   "devDependencies": {
-    "electron": "28.2.0",
-    "electron-builder": "^24.9.1",
-    "electronmon": "2.0.2",
-    "vite": "^5.3.4",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "electronmon": "2.0.2",
     "postcss": "^8.4.33",
-    "autoprefixer": "^10.4.17",
     "tailwindcss": "^3.4.3",
+    "vite": "^5.3.4",
     "wait-on": "^7.2.0"
   },
   "dependencies": {

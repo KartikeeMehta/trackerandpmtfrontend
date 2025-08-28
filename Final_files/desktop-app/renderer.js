@@ -9,6 +9,14 @@ const fullBtn = document.getElementById('fullBreak');
 const meet1Btn = document.getElementById('meet1');
 const meet2Btn = document.getElementById('meet2');
 const customBtn = document.getElementById('customBreak');
+const punchInEl = document.getElementById('punchInTime');
+const punchOutEl = document.getElementById('punchOutTime');
+const breakStartEl = document.getElementById('breakStartTime');
+const breakEndEl = document.getElementById('breakEndTime');
+const statActiveEl = document.getElementById('statActive');
+const statTotalEl = document.getElementById('statTotal');
+const statIdleEl = document.getElementById('statIdle');
+const statBreaksEl = document.getElementById('statBreaks');
 
 // Adjust base URL to your running backend. In prod, consider env/config file.
 const BASE_URL = 'http://localhost:8000/api';
@@ -39,6 +47,83 @@ let sessionId = null;
 let startTs = null;
 let ticker = null;
 let idleSince = null;
+let poller = null;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function formatTime(dt) {
+  if (!dt) return '—';
+  const d = new Date(dt);
+  if (isNaN(d.getTime())) return '—';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+function formatMs(ms) {
+  if (!ms || ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
+}
+
+async function fetchStats(email) {
+  try {
+    const res = await fetch(`${BASE_URL}/tracker/stats/today?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (data && data.success) {
+      statActiveEl.textContent = formatMs(data.activeTimeMs);
+      statTotalEl.textContent = formatMs(data.totalTimeMs);
+      statIdleEl.textContent = formatMs(data.idleTimeMs);
+      statBreaksEl.textContent = formatMs(data.breaksTimeMs);
+    }
+  } catch (_) { /* silent */ }
+}
+
+async function fetchSessions(email) {
+  try {
+    const res = await fetch(`${BASE_URL}/tracker/sessions/today?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (!data || !data.success) return;
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    if (sessions.length === 0) {
+      punchInEl.textContent = '—';
+      punchOutEl.textContent = '—';
+      breakStartEl.textContent = '—';
+      breakEndEl.textContent = '—';
+      return;
+    }
+    const latest = sessions[0];
+    punchInEl.textContent = formatTime(latest.startedAt);
+    punchOutEl.textContent = latest.endedAt ? formatTime(latest.endedAt) : '—';
+
+    // Find latest break start and end across today
+    let lastBreakStart = null;
+    let lastBreakEnd = null;
+    for (const s of sessions) {
+      if (Array.isArray(s.breaks)) {
+        for (const b of s.breaks) {
+          if (b.startedAt && (!lastBreakStart || new Date(b.startedAt) > new Date(lastBreakStart))) {
+            lastBreakStart = b.startedAt;
+          }
+          if (b.endedAt && (!lastBreakEnd || new Date(b.endedAt) > new Date(lastBreakEnd))) {
+            lastBreakEnd = b.endedAt;
+          }
+        }
+      }
+    }
+    breakStartEl.textContent = formatTime(lastBreakStart);
+    breakEndEl.textContent = formatTime(lastBreakEnd);
+  } catch (_) { /* silent */ }
+}
+
+function startPolling(email) {
+  if (poller) clearInterval(poller);
+  const run = () => {
+    fetchStats(email);
+    fetchSessions(email);
+  };
+  run();
+  poller = setInterval(run, 30000);
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -65,6 +150,7 @@ form.addEventListener('submit', async (e) => {
 
     setStatus('Connected successfully!');
     setBadge('Connected', 'green');
+    startPolling(email);
   } catch (err) {
     setStatus('Network error. Please try again.', true);
   }
@@ -93,6 +179,8 @@ async function startSession() {
   startTs = Date.now();
   ticker = setInterval(updateTimer, 1000);
   setStatus('Tracking…');
+  punchInEl.textContent = formatTime(new Date());
+  fetchStats(email);
 }
 
 async function stopSession(withGrace = true) {
@@ -107,6 +195,12 @@ async function stopSession(withGrace = true) {
   ticker = null;
   sessionId = null;
   setStatus('Session ended');
+  punchOutEl.textContent = formatTime(new Date());
+  const email = document.getElementById('email').value.trim();
+  if (email) {
+    fetchStats(email);
+    fetchSessions(email);
+  }
 }
 
 async function pushIdle(start, end) {
@@ -121,10 +215,20 @@ async function pushBreak(type, minutes) {
   if (!sessionId) return;
   const now = new Date();
   const end = new Date(now.getTime() + minutes * 60 * 1000);
-  await fetch(`${BASE_URL}/tracker/break`, {
+  // Start break
+  await fetch(`${BASE_URL}/tracker/break/start`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, type, startedAt: now, endedAt: end })
+    body: JSON.stringify({ sessionId, type, startedAt: now })
   });
+  // Immediately end scheduled break
+  await fetch(`${BASE_URL}/tracker/break/end`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, endedAt: end })
+  });
+  breakStartEl.textContent = formatTime(now);
+  breakEndEl.textContent = formatTime(end);
+  const email = document.getElementById('email').value.trim();
+  if (email) fetchStats(email);
 }
 
 // Idle detection: if no mouse/keyboard for 30s, mark idle from 31s onwards

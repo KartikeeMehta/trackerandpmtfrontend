@@ -26,6 +26,19 @@ export default function App() {
   const [startTs, setStartTs] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [screen, setScreen] = useState('welcome'); // welcome | connect | track
+  const [email, setEmail] = useState('');
+
+  // punch/break info + stats
+  const [punchInAt, setPunchInAt] = useState(null);
+  const [punchOutAt, setPunchOutAt] = useState(null);
+  const [breakStartAt, setBreakStartAt] = useState(null);
+  const [breakEndAt, setBreakEndAt] = useState(null);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [todayStats, setTodayStats] = useState({ totalTimeMs: 0, activeTimeMs: 0, idleTimeMs: 0, breaksTimeMs: 0, graceTimeMs: 0 });
+  // live tracking
+  const [localIdleMs, setLocalIdleMs] = useState(0);
+  const [localBreakMs, setLocalBreakMs] = useState(0);
+  const liveActiveMs = Math.max(0, Math.max(0, elapsed) - localIdleMs - localBreakMs);
 
   const emailRef = useRef(null);
   const otpRef = useRef(null);
@@ -50,8 +63,10 @@ export default function App() {
       setStatus('connected');
       setMessage('Connected');
       setScreen('track');
-      try { window.trackerAPI?.setUserEmail(emailRef.current.value.trim()); } catch {}
-      try { localStorage.setItem('pf_tracker_email', emailRef.current.value.trim()); } catch {}
+      const em = emailRef.current.value.trim();
+      setEmail(em);
+      try { window.trackerAPI?.setUserEmail(em); } catch {}
+      try { localStorage.setItem('pf_tracker_email', em); } catch {}
     } catch (e) {
       setMessage(e.message);
     }
@@ -59,58 +74,158 @@ export default function App() {
 
   const start = async () => {
     setMessage('Starting...');
-    const res = await fetch(`${BASE_URL}/tracker/start`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailRef.current.value.trim() })
-    });
-    const data = await res.json();
-    if (!data.success) return setMessage(data.message || 'Failed');
-    setSessionId(data.sessionId);
-    setStartTs(Date.now());
-    setMessage('Tracking');
+    const userEmail = (emailRef.current?.value || email || '').trim();
+    if (!userEmail) { setMessage('Email not set. Please connect first.'); return; }
+    try {
+      const res = await fetch(`${BASE_URL}/tracker/start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setMessage(data.message || 'Failed to start'); return; }
+      setSessionId(data.sessionId);
+      setStartTs(Date.now());
+      setLocalIdleMs(0);
+      setLocalBreakMs(0);
+      setMessage('Tracking');
+      try { await refreshTodayData(userEmail); } catch {}
+    } catch (err) {
+      setMessage('Network error while starting');
+    }
+    setPunchInAt(new Date());
+    setPunchOutAt(null);
   };
 
   const stop = async () => {
     if (!sessionId) return;
     setMessage('Stopping...');
-    await fetch(`${BASE_URL}/tracker/stop`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, graceMs: 7 * 60 * 1000 })
-    });
+    try {
+      const res = await fetch(`${BASE_URL}/tracker/stop`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, graceMs: 7 * 60 * 1000 })
+      });
+      try {
+        const data = await res.json();
+        if (data && data.success) {
+          // reflect totals from server response immediately
+          setTodayStats((prev) => ({ ...prev, totalTimeMs: data.totalTimeMs || prev.totalTimeMs, activeTimeMs: data.activeTimeMs || prev.activeTimeMs }));
+        }
+      } catch {}
+    } catch {}
     setSessionId(null);
     setStartTs(null);
     setElapsed(0);
     setMessage('Ended');
+    setPunchOutAt(new Date());
+    try { await refreshTodayData(); } catch {}
   };
 
   const pushBreak = async (type, minutes) => {
     if (!sessionId) return;
     const now = new Date();
-    await fetch(`${BASE_URL}/tracker/break`, {
+    // Use start/end endpoints to match server API
+    try {
+      await fetch(`${BASE_URL}/tracker/break/start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, type, startedAt: now })
+      });
+    } catch {}
+    setBreakStartAt(now);
+    setIsOnBreak(true);
+    // Auto end after minutes
+    const endAt = new Date(now.getTime() + minutes * 60 * 1000);
+    try {
+      await fetch(`${BASE_URL}/tracker/break/end`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, endedAt: endAt })
+      });
+      setBreakEndAt(endAt);
+      setLocalBreakMs((ms) => ms + Math.max(0, endAt - now));
+    } finally {
+      setIsOnBreak(false);
+      setMessage(`Break recorded: ${type}`);
+      try { await refreshTodayData(); } catch {}
+    }
+  };
+
+  // Manual Break controls (no preset duration)
+  const breakStart = async () => {
+    if (!sessionId) return;
+    const now = new Date();
+    await fetch(`${BASE_URL}/tracker/break/start`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, type, startedAt: now, endedAt: new Date(now.getTime() + minutes * 60 * 1000) })
+      body: JSON.stringify({ sessionId, type: 'manual', startedAt: now })
     });
-    setMessage(`Break recorded: ${type}`);
+    setBreakStartAt(now);
+    setIsOnBreak(true);
+    setMessage('Break started');
+  };
+
+  const breakEnd = async () => {
+    if (!sessionId || !isOnBreak) return;
+    const endAt = new Date();
+    await fetch(`${BASE_URL}/tracker/break/end`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, endedAt: endAt })
+    });
+    setBreakEndAt(endAt);
+    if (breakStartAt) setLocalBreakMs((ms) => ms + Math.max(0, endAt - new Date(breakStartAt)));
+    setIsOnBreak(false);
+    setMessage('Break ended');
   };
 
   // idle detection (31s rule)
   useEffect(() => {
-    let idleSince = Date.now();
+    let lastActivityTs = Date.now();
     let idleTimer = null;
-    const onAct = () => {
+
+    const pushIdleIfNeeded = () => {
       if (!sessionId) return;
-      if (idleSince && Date.now() - idleSince > 31000) {
+      const now = Date.now();
+      if (now - lastActivityTs > 31000) {
+        const started = new Date(lastActivityTs + 31000);
+        const ended = new Date();
         fetch(`${BASE_URL}/tracker/idle`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, startedAt: new Date(idleSince + 31000), endedAt: new Date() })
-        });
+          body: JSON.stringify({ sessionId, startedAt: started, endedAt: ended })
+        }).catch(() => {});
+        setLocalIdleMs((ms) => ms + Math.max(0, ended - started));
+        lastActivityTs = now;
       }
-      idleSince = Date.now();
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {}, 30000);
     };
-    ['mousemove','keydown','mousedown','wheel'].forEach(evt => window.addEventListener(evt, onAct, { passive: true }));
-    return () => ['mousemove','keydown','mousedown','wheel'].forEach(evt => window.removeEventListener(evt, onAct));
+
+    const setIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(pushIdleIfNeeded, 31000);
+    };
+
+    const isModifierKey = (e) => {
+      const k = e.key;
+      return k === 'Shift' || k === 'Control' || k === 'Alt' || k === 'Meta' || k === 'CapsLock';
+    };
+
+    const onKeyDown = (e) => {
+      if (!sessionId) return;
+      if (isModifierKey(e)) return; // ignore modifier-only presses
+      lastActivityTs = Date.now();
+      setIdleTimer();
+    };
+
+    const onMouseDown = () => {
+      if (!sessionId) return;
+      lastActivityTs = Date.now();
+      setIdleTimer();
+    };
+
+    window.addEventListener('keydown', onKeyDown, { passive: true });
+    window.addEventListener('mousedown', onMouseDown, { passive: true });
+    setIdleTimer();
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('mousedown', onMouseDown);
+      if (idleTimer) clearTimeout(idleTimer);
+    };
   }, [sessionId]);
 
   // Tray menu handlers
@@ -126,9 +241,61 @@ export default function App() {
     };
   }, [startTs, sessionId]);
 
+  // Load saved email on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('pf_tracker_email');
+      if (saved) setEmail(saved);
+    } catch {}
+  }, []);
+
+  // Fetch today's stats and latest session/break info
+  const refreshTodayData = async (eml) => {
+    const emailQ = (eml || email || '').trim();
+    if (!emailQ) return;
+    try {
+      const [statsRes, listRes] = await Promise.all([
+        fetch(`${BASE_URL}/tracker/stats/today?email=${encodeURIComponent(emailQ)}`),
+        fetch(`${BASE_URL}/tracker/sessions/today?email=${encodeURIComponent(emailQ)}`)
+      ]);
+      const stats = await statsRes.json();
+      const list = await listRes.json();
+      if (stats?.success) setTodayStats(stats);
+      if (list?.success && Array.isArray(list.sessions) && list.sessions.length) {
+        const latest = list.sessions[0];
+        setPunchInAt(latest.startedAt ? new Date(latest.startedAt) : null);
+        setPunchOutAt(latest.endedAt ? new Date(latest.endedAt) : null);
+        // Break info
+        const breaks = Array.isArray(latest.breaks) ? latest.breaks : [];
+        if (breaks.length) {
+          const lastBr = breaks.reduce((a, b) => (new Date(a.startedAt) > new Date(b.startedAt) ? a : b));
+          setBreakStartAt(lastBr.startedAt ? new Date(lastBr.startedAt) : null);
+          setBreakEndAt(lastBr.endedAt ? new Date(lastBr.endedAt) : null);
+          setIsOnBreak(Boolean(lastBr.isOngoing));
+        } else {
+          setBreakStartAt(null);
+          setBreakEndAt(null);
+          setIsOnBreak(false);
+        }
+        // If the latest session is running, adopt its id for live ops
+        if (latest.status === 'running') setSessionId(latest._id);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (screen !== 'track') return;
+    refreshTodayData();
+    const t = setInterval(() => refreshTodayData(), 30000);
+    return () => clearInterval(t);
+  }, [screen, email]);
+
+  const fmt = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+  const fmtDur = (ms) => (ms ? format(ms) : '00:00:00');
+
   const Welcome = () => (
     <div className="p-8">
-      <h1 className="text-2xl font-semibold mb-2">Welcome to ProjectFlow Tracker</h1>
+      <h1 className="text-2xl font-semibold mb-2">Welcome to ProjectFlow Tracker </h1>
       <p className="text-slate-400 mb-4">Track working hours, breaks, and idle time for accurate reports.</p>
       <ul className="list-disc ml-6 text-slate-400 space-y-1">
         <li>Automatic idle detection after 30 seconds (counted from 31s)</li>
@@ -162,9 +329,13 @@ export default function App() {
   const Track = () => (
     <div className="p-8">
       <div className="text-4xl font-bold tabular-nums tracking-wide">{format(elapsed)}</div>
-      <div className="flex gap-2 mt-3">
+      <div className="flex flex-wrap gap-2 mt-3">
         <button onClick={start} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700">Start</button>
         <button onClick={stop} className="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700">Stop</button>
+        <button onClick={start} className="px-3 py-2 rounded-md bg-emerald-700/40 border border-emerald-800">Punch In</button>
+        <button onClick={stop} className="px-3 py-2 rounded-md bg-rose-700/40 border border-rose-800">Punch Out</button>
+        <button onClick={breakStart} disabled={!sessionId || isOnBreak} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50">Break Start</button>
+        <button onClick={breakEnd} disabled={!sessionId || !isOnBreak} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 disabled:opacity-50">Break End</button>
       </div>
       <div className="flex flex-wrap gap-2 mt-3">
         <button onClick={() => pushBreak('tea15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Tea 15m</button>
@@ -172,6 +343,28 @@ export default function App() {
         <button onClick={() => pushBreak('meeting15', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Meeting 15m</button>
         <button onClick={() => pushBreak('meeting15_2', 15)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Meeting 15m</button>
         <button onClick={() => { const v = Number(prompt('Custom break minutes?', '10')) || 0; if (v > 0) pushBreak('custom', v); }} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700">Custom</button>
+      </div>
+      {/* Read-only info panels */}
+      <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+          <div className="text-sm text-slate-400 mb-2">Punch & Break</div>
+          <div className="space-y-1 text-slate-200 text-sm">
+            <div className="flex justify-between"><span>Punch In</span><span className="tabular-nums">{fmt(punchInAt)}</span></div>
+            <div className="flex justify-between"><span>Punch Out</span><span className="tabular-nums">{fmt(punchOutAt)}</span></div>
+            <div className="flex justify-between"><span>Break Start</span><span className="tabular-nums">{fmt(breakStartAt)}</span></div>
+            <div className="flex justify-between"><span>Break End</span><span className="tabular-nums">{isOnBreak ? 'Ongoing' : fmt(breakEndAt)}</span></div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+          <div className="text-sm text-slate-400 mb-2">Today's Stats</div>
+          <div className="space-y-1 text-slate-200 text-sm">
+            <div className="flex justify-between"><span>Total</span><span className="tabular-nums">{fmtDur(todayStats.totalTimeMs)}</span></div>
+            <div className="flex justify-between"><span>Active</span><span className="tabular-nums">{sessionId ? fmtDur(liveActiveMs) : fmtDur(todayStats.activeTimeMs)}</span></div>
+            <div className="flex justify-between"><span>Idle</span><span className="tabular-nums">{sessionId ? fmtDur(localIdleMs) : fmtDur(todayStats.idleTimeMs)}</span></div>
+            <div className="flex justify-between"><span>Breaks</span><span className="tabular-nums">{fmtDur(todayStats.breaksTimeMs)}</span></div>
+            <div className="flex justify-between"><span>Grace</span><span className="tabular-nums">{fmtDur(todayStats.graceTimeMs)}</span></div>
+          </div>
+        </div>
       </div>
     </div>
   );
