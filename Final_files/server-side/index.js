@@ -65,10 +65,6 @@ app.set("io", io);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Log all requests for debugging
-  console.log(`Request from origin: ${origin}`);
-  console.log(`Allowed origins: ${allowedOrigins}`);
-
   // Allow requests from any of the allowed origins
   if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
@@ -121,6 +117,13 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// Global request logger (debug)
+app.use((req, res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Also serve uploads under base path
 app.use(
@@ -379,7 +382,7 @@ cron.schedule("* * * * *", async () => {
         await sendEmail(
           emp.email,
           "Your new temporary password",
-          `Hi ${emp.name},\n\nA new temporary password has been generated for your account at ${emp.companyName}.\n\nLogin Email: ${emp.email}\nPassword: ${newTemp}\n\nThis password is valid for 30 minutes. Please login here to set your permanent password:\nhttps://project-flow.digiwbs.com/emp-login\n\nIf you have already set your password, please ignore this email.`
+          `Hi ${emp.name},\n\nA new temporary password has been generated for your account at ${emp.companyName}.\n\nLogin Email: ${emp.email}\nPassword: ${newTemp}\n\nThis password is vloid for 30 minutes. Please login here to set your permanent password:\nhttps://project-flow.digiwbs.com/emp-login\n\nIf you have already set your password, please ignore this email.`
         );
       } catch (e) {
         // Do not throw; log and continue to avoid blocking future runs
@@ -623,4 +626,10 @@ io.on("connection", async (socket) => {
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Catch-all 404 logger and JSON response
+app.use((req, res) => {
+  console.warn(`[404] ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ success: false, message: 'Not Found', path: req.originalUrl });
 });

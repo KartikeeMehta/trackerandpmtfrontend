@@ -1,135 +1,92 @@
-// const TrackerSession = require("../models/TrackerSession");
-// const User = require("../models/User");
-
-// exports.startSession = async (req, res) => {
-//   try {
-//     const { email } = req.body;
-//     if (!email) return res.status(400).json({ success: false, message: "Email is required" });
-//     const user = await User.findOne({ email });
-//     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-//     // End any existing running session for safety
-//     await TrackerSession.updateMany(
-//       { userId: user._id, status: "running" },
-//       { $set: { status: "ended", endedAt: new Date() } }
-//     );
-
-//     const session = await TrackerSession.create({
-//       userId: user._id,
-//       email: user.email,
-//       companyId: user.companyID,
-//       companyName: user.companyName,
-//       startedAt: new Date(),
-//       status: "running",
-//     });
-//     res.json({ success: true, sessionId: session._id });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to start session" });
-//   }
-// };
-
-// exports.stopSession = async (req, res) => {
-//   try {
-//     const { sessionId, graceMs = 0 } = req.body;
-//     const session = await TrackerSession.findById(sessionId);
-//     if (!session) return res.status(404).json({ success: false, message: "Session not found" });
-//     if (session.status === "ended") return res.json({ success: true });
-//     session.endedAt = new Date();
-//     session.status = "ended";
-//     session.graceTimeMs += Number(graceMs) || 0;
-//     // total time calculated here
-//     if (session.startedAt) {
-//       session.totalTimeMs = Math.max(0, session.endedAt - session.startedAt);
-//     }
-//     // active time = total - idle - breaks (not below zero) + grace
-//     const grossActive = session.totalTimeMs - (session.idleTimeMs || 0) - (session.breaksTimeMs || 0);
-//     session.activeTimeMs = Math.max(0, grossActive) + (session.graceTimeMs || 0);
-//     await session.save();
-//     res.json({ success: true });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to stop session" });
-//   }
-// };
-
-// exports.pushIdle = async (req, res) => {
-//   try {
-//     const { sessionId, startedAt, endedAt } = req.body;
-//     if (!sessionId || !startedAt || !endedAt)
-//       return res.status(400).json({ success: false, message: "Missing fields" });
-//     const session = await TrackerSession.findById(sessionId);
-//     if (!session) return res.status(404).json({ success: false, message: "Session not found" });
-//     const s = new Date(startedAt);
-//     const e = new Date(endedAt);
-//     session.idlePeriods.push({ startedAt: s, endedAt: e, durationMs: e - s });
-//     session.idleTimeMs += Math.max(0, e - s);
-//     await session.save();
-//     res.json({ success: true });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to record idle" });
-//   }
-// };
-
-// exports.pushBreak = async (req, res) => {
-//   try {
-//     const { sessionId, type, startedAt, endedAt, meta } = req.body;
-//     if (!sessionId || !type || !startedAt || !endedAt)
-//       return res.status(400).json({ success: false, message: "Missing fields" });
-//     const session = await TrackerSession.findById(sessionId);
-//     if (!session) return res.status(404).json({ success: false, message: "Session not found" });
-//     const s = new Date(startedAt);
-//     const e = new Date(endedAt);
-//     const dur = Math.max(0, e - s);
-//     session.breaks.push({ type, startedAt: s, endedAt: e, durationMs: dur, meta });
-//     session.breaksTimeMs += dur;
-//     await session.save();
-//     res.json({ success: true });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to record break" });
-//   }
-// };
-
-// exports.statsToday = async (req, res) => {
-//   try {
-//     const { email } = req.query;
-//     if (!email) return res.status(400).json({ success: false, message: "Email required" });
-//     const start = new Date();
-//     start.setHours(0, 0, 0, 0);
-//     const sessions = await TrackerSession.find({ email, createdAt: { $gte: start } });
-//     const sum = (k) => sessions.reduce((a, s) => a + (s[k] || 0), 0);
-//     res.json({
-//       success: true,
-//       totalTimeMs: sum("totalTimeMs"),
-//       activeTimeMs: sum("activeTimeMs"),
-//       idleTimeMs: sum("idleTimeMs"),
-//       breaksTimeMs: sum("breaksTimeMs"),
-//       graceTimeMs: sum("graceTimeMs"),
-//     });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to get stats" });
-//   }
-// };
-
-// exports.listToday = async (req, res) => {
-//   try {
-//     const { email } = req.query;
-//     if (!email) return res.status(400).json({ success: false, message: "Email required" });
-//     const start = new Date();
-//     start.setHours(0, 0, 0, 0);
-//     const sessions = await TrackerSession.find({ email, createdAt: { $gte: start } })
-//       .sort({ createdAt: -1 })
-//       .lean();
-//     res.json({ success: true, sessions });
-//   } catch (e) {
-//     res.status(500).json({ success: false, message: "Failed to list sessions" });
-//   }
-// };
-
-
-
-
-const TrackerSession = require("../models/TrackerSession");
+const UserTracker = require("../models/TrackerSession");
 const User = require("../models/User");
 const Employee = require("../models/Employee");
+
+// Helper function to recalculate session times
+async function recalculateSessionTimes(session) {
+  const now = new Date();
+  
+  // Calculate total idle time
+  const totalIdleMs = session.idlePeriods.reduce((sum, period) => {
+    if (period.endedAt) {
+      return sum + period.durationMs;
+    } else {
+      // For ongoing idle period, calculate up to now
+      return sum + (now - period.startedAt);
+    }
+  }, 0);
+
+  // Calculate total break time
+  const totalBreakMs = session.breaks.reduce((sum, break_) => {
+    if (break_.endedAt) {
+      return sum + break_.durationMs;
+    } else if (break_.isOngoing) {
+      // For ongoing break, calculate up to now
+      return sum + (now - break_.startedAt);
+    }
+    return sum;
+  }, 0);
+
+  // Calculate total time (if session is running, use current time)
+  const endTime = session.punchOutAt || now;
+  const totalTimeMs = Math.max(0, endTime - session.punchInAt);
+
+  // Active time = total time - idle time - break time + grace time
+  session.totalTimeMs = totalTimeMs;
+  session.idleTimeMs = totalIdleMs;
+  session.breaksTimeMs = totalBreakMs;
+  session.activeTimeMs = Math.max(0, totalTimeMs - totalIdleMs - totalBreakMs) + session.graceTimeMs;
+}
+
+// Helper function to end current session
+async function endCurrentSession(userTracker, graceMs = 0) {
+  const currentSession = userTracker.getCurrentSession();
+  if (!currentSession) return null;
+
+  const now = new Date();
+  currentSession.punchOutAt = now;
+  currentSession.status = "ended";
+  currentSession.graceTimeMs += Number(graceMs) || 0;
+
+  // Calculate final times
+  currentSession.totalTimeMs = Math.max(0, now - currentSession.punchInAt);
+  
+  // End any ongoing idle period
+  const ongoingIdle = currentSession.idlePeriods.find(period => !period.endedAt);
+  if (ongoingIdle) {
+    ongoingIdle.endedAt = now;
+    ongoingIdle.durationMs = now - ongoingIdle.startedAt;
+  }
+
+  // Recalculate session times
+  await recalculateSessionTimes(currentSession);
+
+  // Update user tracker
+  const todayData = userTracker.getTodayData();
+  todayData.currentSessionId = null;
+  todayData.isActive = false;
+  
+  userTracker.currentSession = {
+    sessionId: null,
+    date: null,
+    punchInAt: null,
+    lastActivityAt: null
+  };
+  userTracker.isActive = false;
+  
+  // Update daily totals
+  userTracker.updateDailyTotals();
+
+  await userTracker.save();
+
+  return {
+    totalTimeMs: currentSession.totalTimeMs,
+    activeTimeMs: currentSession.activeTimeMs,
+    idleTimeMs: currentSession.idleTimeMs,
+    breaksTimeMs: currentSession.breaksTimeMs,
+    graceTimeMs: currentSession.graceTimeMs
+  };
+}
 
 // Punch In → start a new session
 exports.punchIn = async (req, res) => {
@@ -142,7 +99,6 @@ exports.punchIn = async (req, res) => {
     let isEmployee = false;
 
     if (!user) {
-      // Try to find employee
       user = await Employee.findOne({ email });
       if (user) {
         isEmployee = true;
@@ -151,31 +107,89 @@ exports.punchIn = async (req, res) => {
       }
     }
 
-    // End any running sessions before starting new one
-    await TrackerSession.updateMany(
-      { userId: user._id, status: "running" },
-      { $set: { status: "ended", endedAt: new Date() } }
-    );
+    // Find or create user tracker document
+    let userTracker = await UserTracker.findOne({ email });
+    
+    if (!userTracker) {
+      // Create new user tracker
+      userTracker = new UserTracker({
+        userId: user._id,
+        email: user.email,
+        companyId: isEmployee ? user.companyName : user.companyID,
+        companyName: user.companyName,
+        dailyData: [],
+        currentSession: {
+          sessionId: null,
+          date: null,
+          punchInAt: null,
+          lastActivityAt: null
+        },
+        settings: {
+          autoIdleDetection: true,
+          idleThresholdSeconds: 31, // 31 seconds (30 + 1)
+          defaultGracePeriod: 7
+        },
+        totalSessions: 0,
+        totalActiveDays: 0,
+        isActive: false
+      });
+    }
 
-    const session = await TrackerSession.create({
-      userId: user._id,
-      email: user.email,
-      companyId: isEmployee ? user.companyName : user.companyID, // Employee uses companyName, User uses companyID
-      companyName: user.companyName,
-      startedAt: new Date(),
+    // End any existing running session
+    if (userTracker.isActive && userTracker.currentSession && userTracker.currentSession.sessionId) {
+      await endCurrentSession(userTracker);
+    }
+
+    // Get today's data
+    const todayData = userTracker.getTodayData();
+    
+    // Create new session
+    const sessionId = userTracker.generateSessionId();
+    const now = new Date();
+    
+    const newSession = {
+      sessionId,
+      punchInAt: now,
+      punchOutAt: null,
       status: "running",
-      idlePeriods: [],
-      breaks: [],
+      totalTimeMs: 0,
+      activeTimeMs: 0,
       idleTimeMs: 0,
       breaksTimeMs: 0,
       graceTimeMs: 0,
-      totalTimeMs: 0,
-      activeTimeMs: 0,
-    });
+      lastActivityAt: now,
+      breaks: [],
+      idlePeriods: []
+    };
 
-    res.json({ success: true, sessionId: session._id });
+    // Add session to today's data
+    todayData.punchSessions.push(newSession);
+    todayData.currentSessionId = sessionId;
+    todayData.isActive = true;
+
+    // Update user tracker
+    userTracker.currentSession = {
+      sessionId: sessionId,
+      date: now,
+      punchInAt: now,
+      lastActivityAt: now
+    };
+    userTracker.isActive = true;
+    userTracker.totalSessions += 1;
+    userTracker.lastActivityDate = now;
+
+    // Update daily totals
+    userTracker.updateDailyTotals();
+
+    await userTracker.save();
+
+    res.json({ 
+      success: true, 
+      sessionId,
+      message: "Punch in successful"
+    });
   } catch (e) {
-    console.error(e);
+    console.error('Punch in error:', e);
     res.status(500).json({ success: false, message: "Failed to punch in" });
   }
 };
@@ -184,172 +198,456 @@ exports.punchIn = async (req, res) => {
 exports.punchOut = async (req, res) => {
   try {
     const { sessionId, graceMs = 0 } = req.body;
-    const session = await TrackerSession.findById(sessionId);
-    if (!session) return res.status(404).json({ success: false, message: "Session not found" });
-    if (session.status === "ended") return res.json({ success: true });
+    if (!sessionId) return res.status(400).json({ success: false, message: "Session ID required" });
 
-    session.endedAt = new Date();
-    session.status = "ended";
-    session.graceTimeMs += Number(graceMs) || 0;
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(404).json({ success: false, message: "Session not found" });
 
-    if (session.startedAt) {
-      session.totalTimeMs = Math.max(0, session.endedAt - session.startedAt);
-    }
-
-    // Active = total - idle - breaks + grace
-    session.activeTimeMs = Math.max(
-      0,
-      session.totalTimeMs - (session.idleTimeMs || 0) - (session.breaksTimeMs || 0)
-    ) + (session.graceTimeMs || 0);
-
-    await session.save();
+    const result = await endCurrentSession(userTracker, graceMs);
+    
     res.json({
       success: true,
-      totalTimeMs: session.totalTimeMs,
-      activeTimeMs: session.activeTimeMs,
+      totalTimeMs: result.totalTimeMs,
+      activeTimeMs: result.activeTimeMs,
+      idleTimeMs: result.idleTimeMs,
+      breaksTimeMs: result.breaksTimeMs,
+      graceTimeMs: result.graceTimeMs,
+      message: "Punch out successful"
     });
   } catch (e) {
-    console.error(e);
+    console.error('Punch out error:', e);
     res.status(500).json({ success: false, message: "Failed to punch out" });
   }
 };
 
-// Break Start
+
+
+// Break Start with enhanced logic
 exports.breakStart = async (req, res) => {
   try {
-    const { sessionId, type = "break", startedAt } = req.body;
-    if (!sessionId || !startedAt)
+    const { sessionId, type = "manual", startedAt, durationMinutes } = req.body;
+    if (!sessionId || !startedAt) {
       return res.status(400).json({ success: false, message: "Missing fields" });
+    }
 
-    const session = await TrackerSession.findById(sessionId);
-    if (!session) return res.status(404).json({ success: false, message: "Session not found" });
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(404).json({ success: false, message: "Session not found" });
 
-    session.breaks.push({ type, startedAt: new Date(startedAt), isOngoing: true });
-    await session.save();
+    const currentSession = userTracker.getCurrentSession();
+    if (!currentSession) {
+      return res.status(404).json({ success: false, message: "Current session not found" });
+    }
 
-    res.json({ success: true });
+    // End any ongoing break first
+    const ongoingBreak = currentSession.breaks.find(b => b.isOngoing);
+    if (ongoingBreak) {
+      ongoingBreak.endedAt = new Date(startedAt);
+      ongoingBreak.durationMs = Math.max(0, ongoingBreak.endedAt - ongoingBreak.startedAt);
+      ongoingBreak.isOngoing = false;
+    }
+
+    // Create new break
+    const breakData = {
+      type,
+      startedAt: new Date(startedAt),
+      endedAt: null,
+      durationMs: 0,
+      durationMinutes: durationMinutes || getDefaultBreakDuration(type),
+      graceMinutes: getGracePeriod(type),
+      isOngoing: true,
+      earlyTermination: false,
+      meta: {
+        originalDuration: durationMinutes || getDefaultBreakDuration(type),
+        gracePeriod: getGracePeriod(type),
+        autoEnd: true
+      }
+    };
+
+    currentSession.breaks.push(breakData);
+    
+    // Recalculate session times
+    await recalculateSessionTimes(currentSession);
+    
+    await userTracker.save();
+
+    res.json({ 
+      success: true, 
+      breakId: breakData._id,
+      durationMinutes: breakData.durationMinutes,
+      graceMinutes: breakData.graceMinutes,
+      message: "Break started"
+    });
   } catch (e) {
-    console.error(e);
+    console.error('Break start error:', e);
     res.status(500).json({ success: false, message: "Failed to start break" });
   }
 };
 
-// Break End
+// Break End with early termination logic
 exports.breakEnd = async (req, res) => {
   try {
-    const { sessionId, endedAt } = req.body;
-    if (!sessionId || !endedAt)
+    const { sessionId, endedAt, earlyTermination = false } = req.body;
+    if (!sessionId || !endedAt) {
       return res.status(400).json({ success: false, message: "Missing fields" });
+    }
 
-    const session = await TrackerSession.findById(sessionId);
-    if (!session) return res.status(404).json({ success: false, message: "Session not found" });
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(404).json({ success: false, message: "Session not found" });
 
-    const ongoingBreak = session.breaks.find((b) => b.isOngoing);
-    if (!ongoingBreak) return res.status(400).json({ success: false, message: "No ongoing break" });
+    const currentSession = userTracker.getCurrentSession();
+    if (!currentSession) {
+      return res.status(404).json({ success: false, message: "Current session not found" });
+    }
+
+    const ongoingBreak = currentSession.breaks.find(b => b.isOngoing);
+    if (!ongoingBreak) {
+      return res.status(400).json({ success: false, message: "No ongoing break" });
+    }
 
     const e = new Date(endedAt);
     ongoingBreak.endedAt = e;
     ongoingBreak.durationMs = Math.max(0, e - ongoingBreak.startedAt);
     ongoingBreak.isOngoing = false;
+    ongoingBreak.earlyTermination = earlyTermination;
 
-    session.breaksTimeMs += ongoingBreak.durationMs;
+    // Calculate actual break time vs expected
+    const expectedDuration = (ongoingBreak.durationMinutes || 0) * 60 * 1000;
+    const actualDuration = ongoingBreak.durationMs;
+    const timeDifference = expectedDuration - actualDuration;
 
-    // Update active time live
-    if (session.startedAt) {
-      const now = session.endedAt || new Date();
-      session.totalTimeMs = Math.max(0, now - session.startedAt);
-      session.activeTimeMs = Math.max(
-        0,
-        session.totalTimeMs - (session.idleTimeMs || 0) - (session.breaksTimeMs || 0)
-      ) + (session.graceTimeMs || 0);
+    // If early termination, add the remaining time as grace
+    if (earlyTermination && timeDifference > 0) {
+      currentSession.graceTimeMs += timeDifference;
+      ongoingBreak.meta = {
+        ...ongoingBreak.meta,
+        earlyTermination: true,
+        savedTime: timeDifference
+      };
     }
 
-    await session.save();
-    res.json({ success: true, breakDuration: ongoingBreak.durationMs, activeTimeMs: session.activeTimeMs });
+    // Recalculate session times
+    await recalculateSessionTimes(currentSession);
+    
+    await userTracker.save();
+
+    res.json({ 
+      success: true, 
+      breakDuration: actualDuration,
+      activeTimeMs: currentSession.activeTimeMs,
+      earlyTermination,
+      savedTime: earlyTermination ? timeDifference : 0,
+      message: "Break ended"
+    });
   } catch (e) {
-    console.error(e);
+    console.error('Break end error:', e);
     res.status(500).json({ success: false, message: "Failed to end break" });
   }
 };
 
-// Idle push
+// Enhanced idle detection with 30-second rule
 exports.pushIdle = async (req, res) => {
   try {
     const { sessionId, startedAt, endedAt } = req.body;
     if (!sessionId || !startedAt || !endedAt)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
-    const session = await TrackerSession.findById(sessionId);
-    if (!session) return res.status(404).json({ success: false, message: "Session not found" });
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(404).json({ success: false, message: "Session not found" });
+
+    const currentSession = userTracker.getCurrentSession();
+    if (!currentSession) {
+      return res.status(404).json({ success: false, message: "Current session not found" });
+    }
 
     const s = new Date(startedAt);
     const e = new Date(endedAt);
     const dur = Math.max(0, e - s);
 
-    session.idlePeriods.push({ startedAt: s, endedAt: e, durationMs: dur });
-    session.idleTimeMs += dur;
-
-    // Update active time live
-    if (session.startedAt) {
-      const now = session.endedAt || new Date();
-      session.totalTimeMs = Math.max(0, now - session.startedAt);
-      session.activeTimeMs = Math.max(
-        0,
-        session.totalTimeMs - (session.idleTimeMs || 0) - (session.breaksTimeMs || 0)
-      ) + (session.graceTimeMs || 0);
+    // Only count idle time if it's more than 30 seconds (31s rule)
+    if (dur >= 31000) {
+      currentSession.idlePeriods.push({ startedAt: s, endedAt: e, durationMs: dur });
     }
 
-    await session.save();
-    res.json({ success: true, activeTimeMs: session.activeTimeMs });
+    // Recalculate session times
+    await recalculateSessionTimes(currentSession);
+    
+    await userTracker.save();
+    res.json({ success: true, activeTimeMs: currentSession.activeTimeMs });
   } catch (e) {
-    console.error(e);
+    console.error('Push idle error:', e);
     res.status(500).json({ success: false, message: "Failed to record idle" });
   }
 };
 
-// Stats Today
+// Activity update endpoint for real-time tracking
+exports.updateActivity = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(200).json({ success: false, isIdle: false, message: "No session id" });
+
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(200).json({ success: false, isIdle: false, message: "Session not found" });
+
+    const now = new Date();
+    const currentSession = userTracker.getCurrentSession();
+    
+    if (!currentSession) {
+      return res.status(200).json({ success: false, isIdle: false, message: "Current session not found" });
+    }
+
+    // Update last activity time
+    currentSession.lastActivityAt = now;
+    userTracker.currentSession.lastActivityAt = now;
+    userTracker.lastActivityDate = now;
+
+    // Check if we need to end any ongoing idle period
+    const ongoingIdle = currentSession.idlePeriods.find(period => !period.endedAt);
+    if (ongoingIdle) {
+      ongoingIdle.endedAt = now;
+      ongoingIdle.durationMs = now - ongoingIdle.startedAt;
+      
+      // Recalculate session times
+      await recalculateSessionTimes(currentSession);
+    }
+
+    await userTracker.save();
+
+    res.json({ 
+      success: true,
+      isIdle: false,
+      message: "Activity updated"
+    });
+  } catch (e) {
+    console.error('Activity update error:', e);
+    res.status(500).json({ success: false, message: "Failed to update activity" });
+  }
+};
+
+// Idle detection - called by desktop app when no activity detected
+exports.detectIdle = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(200).json({ success: false, isIdle: false, message: "No session id" });
+
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(200).json({ success: false, isIdle: false, message: "Session not found" });
+
+    const currentSession = userTracker.getCurrentSession();
+    if (!currentSession) {
+      return res.status(200).json({ success: false, isIdle: false, message: "Current session not found" });
+    }
+
+    const now = new Date();
+    const timeSinceLastActivity = now - currentSession.lastActivityAt;
+    const idleThreshold = userTracker.settings.idleThresholdSeconds * 1000; // 31 seconds
+
+    // Only start idle if we haven't already and it's been more than 31 seconds
+    const ongoingIdle = currentSession.idlePeriods.find(period => !period.endedAt);
+    
+    if (!ongoingIdle && timeSinceLastActivity >= idleThreshold) {
+      // Start new idle period
+      const idleStartTime = new Date(currentSession.lastActivityAt.getTime() + idleThreshold);
+      
+      currentSession.idlePeriods.push({
+        startedAt: idleStartTime,
+        endedAt: null,
+        durationMs: 0
+      });
+
+      // Recalculate session times
+      await recalculateSessionTimes(currentSession);
+      
+      await userTracker.save();
+
+      res.json({ 
+        success: true,
+        isIdle: true,
+        idleStartedAt: idleStartTime,
+        message: "Idle period started"
+      });
+    } else {
+      res.json({ 
+        success: true,
+        isIdle: Boolean(ongoingIdle),
+        message: ongoingIdle ? "Idle period ongoing" : "Not idle yet"
+      });
+    }
+  } catch (e) {
+    console.error('Idle detection error:', e);
+    res.status(500).json({ success: false, message: "Failed to detect idle" });
+  }
+};
+
+// Auto-end break after duration + grace period
+exports.autoEndBreak = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ success: false, message: "Session ID required" });
+
+    const userTracker = await UserTracker.findOne({ "currentSession.sessionId": sessionId });
+    if (!userTracker) return res.status(404).json({ success: false, message: "Session not found" });
+
+    const currentSession = userTracker.getCurrentSession();
+    if (!currentSession) {
+      return res.status(404).json({ success: false, message: "Current session not found" });
+    }
+
+    const ongoingBreak = currentSession.breaks.find(b => b.isOngoing);
+    if (!ongoingBreak) {
+      return res.status(400).json({ success: false, message: "No ongoing break" });
+    }
+
+    const now = new Date();
+    const breakDuration = now - ongoingBreak.startedAt;
+    const expectedDuration = (ongoingBreak.durationMinutes || 0) * 60 * 1000;
+    const gracePeriod = (ongoingBreak.graceMinutes || 0) * 60 * 1000;
+    const totalAllowedTime = expectedDuration + gracePeriod;
+
+    if (breakDuration >= totalAllowedTime) {
+      // Auto-end the break
+      ongoingBreak.endedAt = new Date(ongoingBreak.startedAt.getTime() + expectedDuration);
+      ongoingBreak.durationMs = expectedDuration;
+      ongoingBreak.isOngoing = false;
+      ongoingBreak.meta = {
+        ...ongoingBreak.meta,
+        autoEnded: true,
+        graceTimeUsed: Math.max(0, breakDuration - expectedDuration)
+      };
+
+      // Add grace time if used
+      const graceTimeUsed = Math.max(0, breakDuration - expectedDuration);
+      if (graceTimeUsed > 0) {
+        currentSession.graceTimeMs += graceTimeUsed;
+      }
+
+      // Recalculate session times
+      await recalculateSessionTimes(currentSession);
+      
+      await userTracker.save();
+
+      res.json({ 
+        success: true, 
+        autoEnded: true,
+        breakDuration: expectedDuration,
+        graceTimeUsed,
+        message: "Break auto-ended"
+      });
+    } else {
+      res.json({ success: true, autoEnded: false, message: "Break still ongoing" });
+    }
+  } catch (e) {
+    console.error('Auto-end break error:', e);
+    res.status(500).json({ success: false, message: "Failed to auto-end break" });
+  }
+};
+
+// Get today's stats
 exports.statsToday = async (req, res) => {
   try {
     const { email } = req.query;
     if (!email) return res.status(400).json({ success: false, message: "Email required" });
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const userTracker = await UserTracker.findOne({ email });
+    if (!userTracker) {
+      return res.json({
+        success: true,
+        totalTimeMs: 0,
+        activeTimeMs: 0,
+        idleTimeMs: 0,
+        breaksTimeMs: 0,
+        graceTimeMs: 0,
+      });
+    }
 
-    const sessions = await TrackerSession.find({ email, createdAt: { $gte: start } });
-
-    const sum = (k) => sessions.reduce((a, s) => a + (s[k] || 0), 0);
+    const todayData = userTracker.getTodayData();
+    
+    // If there's an active session, calculate live totals
+    if (todayData.isActive && todayData.currentSessionId) {
+      const currentSession = todayData.punchSessions.find(s => s.sessionId === todayData.currentSessionId);
+      if (currentSession && currentSession.status === "running") {
+        const now = new Date();
+        const sessionDuration = now - currentSession.punchInAt;
+        
+        // Add current session time to today's totals
+        const liveTotals = {
+          totalTimeMs: todayData.totalTimeMs + sessionDuration,
+          activeTimeMs: todayData.activeTimeMs + currentSession.activeTimeMs,
+          idleTimeMs: todayData.idleTimeMs + currentSession.idleTimeMs,
+          breaksTimeMs: todayData.breaksTimeMs + currentSession.breaksTimeMs,
+          graceTimeMs: todayData.graceTimeMs + currentSession.graceTimeMs,
+        };
+        
+        return res.json({
+          success: true,
+          ...liveTotals,
+          isActive: true,
+          currentSessionId: todayData.currentSessionId
+        });
+      }
+    }
 
     res.json({
       success: true,
-      totalTimeMs: sum("totalTimeMs"),
-      activeTimeMs: sum("activeTimeMs"),
-      idleTimeMs: sum("idleTimeMs"),
-      breaksTimeMs: sum("breaksTimeMs"),
-      graceTimeMs: sum("graceTimeMs"),
+      totalTimeMs: todayData.totalTimeMs,
+      activeTimeMs: todayData.activeTimeMs,
+      idleTimeMs: todayData.idleTimeMs,
+      breaksTimeMs: todayData.breaksTimeMs,
+      graceTimeMs: todayData.graceTimeMs,
+      isActive: todayData.isActive,
+      currentSessionId: todayData.currentSessionId
     });
   } catch (e) {
-    console.error(e);
+    console.error('Stats today error:', e);
     res.status(500).json({ success: false, message: "Failed to get stats" });
   }
 };
 
-// List Today
+// Get today's sessions
 exports.listToday = async (req, res) => {
   try {
     const { email } = req.query;
     if (!email) return res.status(400).json({ success: false, message: "Email required" });
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const userTracker = await UserTracker.findOne({ email });
+    if (!userTracker) {
+      return res.json({ success: true, sessions: [] });
+    }
 
-    const sessions = await TrackerSession.find({ email, createdAt: { $gte: start } })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    res.json({ success: true, sessions });
+    const todayData = userTracker.getTodayData();
+    
+    res.json({ 
+      success: true, 
+      sessions: todayData.punchSessions,
+      isActive: todayData.isActive,
+      currentSessionId: todayData.currentSessionId
+    });
   } catch (e) {
-    console.error(e);
+    console.error('List today error:', e);
     res.status(500).json({ success: false, message: "Failed to list sessions" });
   }
 };
+
+// Helper functions
+function getDefaultBreakDuration(type) {
+  const durations = {
+    'tea15': 15,
+    'full45': 45,
+    'meeting15': 15,
+    'meeting15_2': 15,
+    'custom': 10,
+    'manual': 0
+  };
+  return durations[type] || 0;
+}
+
+function getGracePeriod(type) {
+  const gracePeriods = {
+    'tea15': 5,    // 5 minutes grace for 15-minute breaks
+    'full45': 10,  // 10 minutes grace for 45-minute breaks
+    'meeting15': 5,
+    'meeting15_2': 5,
+    'custom': 3,   // 3 minutes grace for custom breaks
+    'manual': 0
+  };
+  return gracePeriods[type] || 0;
+}

@@ -53,6 +53,14 @@ router.delete(
 // Desktop emergency disconnect by email (no auth)
 router.post("/pairing/disconnect-by-email", userController.disconnectByEmail);
 
+// Debug logger for tracker routes
+router.use((req, res, next) => {
+  if (req.path.startsWith("/tracker/")) {
+    console.log(`[TRACKER ROUTE] ${req.method} ${req.originalUrl}`);
+  }
+  next();
+});
+
 // Tracker APIs (desktop app will call these; verifyPairing already pairs)
 // router.post("/tracker/start", trackerController.startSession);
 // router.post("/tracker/stop", trackerController.stopSession);
@@ -61,19 +69,30 @@ router.post("/pairing/disconnect-by-email", userController.disconnectByEmail);
 // router.get("/tracker/stats/today", trackerController.statsToday);
 // router.get("/tracker/sessions/today", trackerController.listToday);
 
+// Ping route to verify routing availability
+router.get("/tracker/ping", (req, res) => {
+  res.json({ ok: true, message: "tracker routes reachable" });
+});
+
 router.post("/tracker/start", trackerController.punchIn);
 
 // Punch Out → end session
 router.post("/tracker/stop", trackerController.punchOut);
 
-// Push Idle periods
-router.post("/tracker/idle", trackerController.pushIdle);
+// Activity update for real-time tracking
+router.post("/tracker/activity", trackerController.updateActivity);
+
+// Idle detection - called by desktop app when no activity detected
+router.post("/tracker/idle", trackerController.detectIdle);
 
 // Break Start
 router.post("/tracker/break/start", trackerController.breakStart);
 
 // Break End
 router.post("/tracker/break/end", trackerController.breakEnd);
+
+// Auto-end break after duration + grace period
+router.post("/tracker/break/auto-end", trackerController.autoEndBreak);
 
 // Stats Today
 router.get("/tracker/stats/today", trackerController.statsToday);
