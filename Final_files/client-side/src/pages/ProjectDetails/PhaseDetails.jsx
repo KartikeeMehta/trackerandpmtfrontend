@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
+import CustomToast from "@/components/CustomToast";
 
 function Toast({ message, type, onClose }) {
   useEffect(() => {
@@ -76,6 +77,8 @@ const PhaseDetails = () => {
   const [toast, setToast] = useState({ message: "", type: "success" });
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const dropdownRef = useRef();
+  const [showEditPhaseModal, setShowEditPhaseModal] = useState(false);
+  const [editPhaseStatus, setEditPhaseStatus] = useState("");
 
   // Get user role for permissions
   const getUserRole = () => {
@@ -107,6 +110,19 @@ const PhaseDetails = () => {
     "manager",
     "teamLead",
   ].includes(userRole?.toLowerCase());
+  const canChangePhase = ["owner", "admin", "manager", "teamLead"].includes(
+    userRole?.toLowerCase()
+  );
+
+  const canEditPhase = (() => {
+    const role = (userRole || "").toLowerCase();
+    if (["owner", "admin", "manager"].includes(role)) return true;
+    if (role === "teamlead") {
+      if (!projectInfo || !currentTeamMemberId) return false;
+      return String(projectInfo.project_lead) === String(currentTeamMemberId);
+    }
+    return false;
+  })();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -322,21 +338,32 @@ const PhaseDetails = () => {
   const handleStatusChange = async (newStatus) => {
     // Check if the new status requires authorization
     if (newStatus === "final_checks" && !canAccessFinalChecks) {
-      alert(
+      CustomToast.error(
         "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
       );
       return;
     }
 
+    const previousStatus = phase?.status;
     setPhase((prev) => ({ ...prev, status: newStatus }));
     // Update phase status via API
     const token = localStorage.getItem("token");
     try {
-      await apiHandler.PostApi(
+      const response = await apiHandler.PostApi(
         api_url.updatePhaseStatus,
         { projectId, phaseId, status: newStatus },
         token
       );
+      if (!response?.success) {
+        if (response?.message) {
+          CustomToast.error(response.message);
+        } else {
+          CustomToast.error("All subtasks are not completed.");
+        }
+        // Revert UI to previous status on failure
+        setPhase((prev) => ({ ...prev, status: previousStatus }));
+        return;
+      }
       // Re-fetch phase details
       const phasesResponse = await apiHandler.GetApi(
         api_url.getPhases + projectId,
@@ -351,6 +378,9 @@ const PhaseDetails = () => {
       setPhase(foundPhase || null);
     } catch (error) {
       console.error("Error updating phase status:", error);
+      CustomToast.error("All subtasks are not completed.");
+      // Revert UI on error
+      setPhase((prev) => ({ ...prev, status: previousStatus }));
     }
   };
 
@@ -622,7 +652,7 @@ const PhaseDetails = () => {
             <button
               onClick={() =>
                 navigate("/ProjectDetails", {
-                  state: { project_id: projectId },
+                  state: { project_id: projectId, activeTab: "phases" },
                 })
               }
               className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -651,29 +681,22 @@ const PhaseDetails = () => {
             >
               {getStatusText(phase.status)}
             </span>
-            <div className="relative" ref={dropdownRef}>
+            <div className="flex items-center gap-2">
               <button
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                // onClick={() =>
-                //   setOpenDropdownId(
-                //     openDropdownId === phase.phase_id ? null : phase.phase_id
-                //   )
-                // }
+                className={`px-3 py-1.5 text-sm rounded-md border border-gray-200 ${
+                  canEditPhase ? "hover:bg-gray-100" : "opacity-60 cursor-not-allowed"
+                }`}
+                onClick={() => {
+                  if (!canEditPhase) {
+                    CustomToast.error("You don't have permission to edit this phase.");
+                    return;
+                  }
+                  setEditPhaseStatus(phase.status);
+                  setShowEditPhaseModal(true);
+                }}
               >
-                {/* <MoreVertical size={16} className="text-gray-500" /> */}
-              </button>
-              {openDropdownId === phase.phase_id && (
-                <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                  <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                    <Edit size={14} />
-                    Edit
+                Edit Phase
                   </button>
-                  <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600">
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -696,6 +719,7 @@ const PhaseDetails = () => {
                       value={phase.status}
                       onChange={(e) => handleStatusChange(e.target.value)}
                       className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!canChangePhase}
                     >
                       {[
                         "Pending",
@@ -1151,6 +1175,100 @@ const PhaseDetails = () => {
                     ) : (
                       "Add Subtask"
                     )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Phase Modal */}
+      {showEditPhaseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Phase</h3>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!canEditPhase) {
+                    CustomToast.error("You don't have permission to edit this phase.");
+                    return;
+                  }
+                  const token = localStorage.getItem("token");
+                  try {
+                    const payload = {
+                      projectId,
+                      phaseId,
+                      title: e.target.elements["phaseTitle"].value,
+                      description: e.target.elements["phaseDescription"].value,
+                      dueDate: e.target.elements["phaseDueDate"].value,
+                    };
+                    const response = await apiHandler.PostApi(
+                      api_url.editPhase,
+                      payload,
+                      token
+                    );
+                    if (response?.success) {
+                      const phasesResponse = await apiHandler.GetApi(
+                        api_url.getPhases + projectId,
+                        token
+                      );
+                      let foundPhase = null;
+                      if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
+                        foundPhase = phasesResponse.phases.find((p) => String(p.phase_id) === String(phaseId));
+                      }
+                      setPhase(foundPhase || null);
+                      setShowEditPhaseModal(false);
+                      CustomToast.success("Phase updated");
+                    } else {
+                      CustomToast.error(response?.message || "Failed to update phase");
+                    }
+                  } catch (err) {
+                    CustomToast.error("Failed to update phase");
+                  }
+                }}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Phase Title</label>
+                    <input
+                      type="text"
+                      name="phaseTitle"
+                      defaultValue={phase?.title || ""}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea
+                      name="phaseDescription"
+                      defaultValue={phase?.description || ""}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <input
+                      type="date"
+                      name="phaseDueDate"
+                      defaultValue={phase?.dueDate || ""}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPhaseModal(false)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Update Phase
                   </button>
                 </div>
               </form>

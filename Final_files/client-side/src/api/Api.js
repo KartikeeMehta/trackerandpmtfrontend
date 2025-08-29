@@ -41,6 +41,7 @@ export const api_url = {
   // --- Added for Phases & Subtasks ---
   addPhase: BASE_URL + "/projects/add-phase", // POST
   updatePhaseStatus: BASE_URL + "/projects/update-phase-status", // POST
+  editPhase: BASE_URL + "/projects/edit-phase", // POST
   deletePhase: BASE_URL + "/projects/delete-phase", // POST (not DELETE)
   getPhases: BASE_URL + "/projects/phases/", // append :projectId (GET)
   getSubtasks: BASE_URL + "/projects/subtasks/", // append :project_id (GET)

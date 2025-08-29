@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -17,6 +17,7 @@ import {
   Shield,
 } from "lucide-react";
 import { api_url } from "@/api/Api";
+import CustomToast from "@/components/CustomToast";
 import { apiHandler } from "@/api/ApiHandler";
 
 const PhasesTab = ({ project }) => {
@@ -36,7 +37,6 @@ const PhasesTab = ({ project }) => {
   });
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [draggedPhase, setDraggedPhase] = useState(null);
-  const dropdownRef = useRef();
 
   // Get user role for permissions
   const getUserRole = () => {
@@ -59,6 +59,9 @@ const PhasesTab = ({ project }) => {
     "manager",
     "teamLead",
   ].includes(userRole?.toLowerCase());
+  const canChangePhase = ["owner", "admin", "manager", "teamLead"].includes(
+    userRole?.toLowerCase()
+  );
 
   // Dynamic columns based on API data - will be populated after fetching phases
   const [columns, setColumns] = useState([
@@ -144,17 +147,10 @@ const PhasesTab = ({ project }) => {
     setColumns(generatedColumns);
   };
 
+  // Close menus when status changes or when reloading data
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpenDropdownId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  }, [phases]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -229,8 +225,13 @@ const PhasesTab = ({ project }) => {
 
     // Check if target status requires authorization
     const targetColumn = columns.find((col) => col.id === targetStatus);
+    if (!canChangePhase) {
+      CustomToast.error("You don't have permission to change phase status.");
+      setDraggedPhase(null);
+      return;
+    }
     if (targetColumn?.requiresAuth && !canAccessFinalChecks) {
-      alert(
+      CustomToast.error(
         "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
       );
       setDraggedPhase(null);
@@ -305,8 +306,12 @@ const PhasesTab = ({ project }) => {
     const token = localStorage.getItem("token");
 
     // Check if the new status requires authorization
+    if (!canChangePhase) {
+      CustomToast.error("You don't have permission to change phase status.");
+      return;
+    }
     if (newStatus === "final_checks" && !canAccessFinalChecks) {
-      alert(
+      CustomToast.error(
         "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
       );
       return;
@@ -338,11 +343,13 @@ const PhasesTab = ({ project }) => {
           "Failed to update phase status:",
           response?.message || "Unknown error"
         );
-        // Optionally show error message to user
+        if (response?.message) {
+          CustomToast.error(response.message);
+        }
       }
     } catch (error) {
       console.error("Error updating phase status:", error);
-      // Optionally show error message to user
+      CustomToast.error("All subtasks are not completed.");
     }
   };
 
@@ -546,10 +553,17 @@ const PhasesTab = ({ project }) => {
                       : (e) => handleDragStart(e, phase)
                   }
                   onDragEnd={handleDragEnd}
-                  onClick={() => handlePhaseClick(phase)}
+                  onClick={(e) => {
+                    // If a dropdown is open on this card, do not navigate
+                    if (openDropdownId === phase.phase_id) {
+                      e.preventDefault();
+                      return;
+                    }
+                    handlePhaseClick(phase);
+                  }}
                 >
                   {/* Phase Header with Better Layout */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="relative flex items-center justify-between mb-4">
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mb-2">
                         {phase.title}
@@ -572,49 +586,18 @@ const PhasesTab = ({ project }) => {
                       </div>
                     </div>
 
-                    {/* Action Menu */}
-                    <div
-                      className="relative ml-3 flex-shrink-0"
-                      ref={dropdownRef}
-                    >
+                    {/* Inline Delete icon; Edit happens inside Phase Details */}
                       <button
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute top-0 right-0 p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 opacity-0 group-hover:opacity-100"
+                      title="Delete phase"
                         onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenDropdownId(
-                            openDropdownId === phase.phase_id
-                              ? null
-                              : phase.phase_id
-                          );
-                        }}
-                      >
-                        <MoreVertical size={16} className="text-gray-500" />
-                      </button>
-                      {openDropdownId === phase.phase_id && (
-                        <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-xl py-2 z-10 min-w-[140px]">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditPhase(phase);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors"
-                          >
-                            <Edit size={14} className="text-gray-600" />
-                            Edit Phase
-                          </button>
-                          <button
-                            onClick={(e) => {
+                        e.preventDefault();
                               e.stopPropagation();
                               handleDeletePhase(phase.phase_id);
                             }}
-                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center gap-3 transition-colors text-red-600 hover:text-red-700"
                           >
-                            <Trash2 size={14} />
-                            Delete
+                      <Trash2 size={16} />
                           </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
                   {/* Phase Meta Information */}

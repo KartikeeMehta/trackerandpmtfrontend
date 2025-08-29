@@ -6,6 +6,7 @@ const projectController = require("../controllers/projectController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { addProjectPhase } = require("../controllers/projectController");
 const { updatePhaseStatus } = require("../controllers/projectController");
+const { editPhaseDetails } = require("../controllers/projectController");
 const { updateSubtaskStatus } = require("../controllers/projectController");
 const { editSubtask } = require("../controllers/projectController");
 const { deleteSubtask } = require("../controllers/projectController");
@@ -27,6 +28,8 @@ router.get(
 ); // ✅ get projects by team member
 router.post("/add-phase", authMiddleware, addProjectPhase); // ✅ add project phase
 router.post("/update-phase-status", authMiddleware, updatePhaseStatus); // ✅ update phase status
+router.post("/edit-phase", authMiddleware, editPhaseDetails); // ✅ edit phase details
+router.post("/phases/edit", authMiddleware, editPhaseDetails); // ✅ alias
 router.get(
   "/phases/:projectId",
   authMiddleware,

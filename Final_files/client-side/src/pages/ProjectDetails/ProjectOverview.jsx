@@ -12,7 +12,7 @@ const ProjectOverview = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
@@ -50,6 +50,13 @@ const ProjectOverview = () => {
 
     fetchProject();
   }, [projectId]);
+
+  // If navigation provides a preferred tab (e.g., from PhaseDetails), honor it
+  useEffect(() => {
+    if (location.state?.activeTab && location.state.activeTab !== activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state?.activeTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {

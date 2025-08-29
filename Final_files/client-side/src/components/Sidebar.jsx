@@ -295,7 +295,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 <li key={p.id}>
                   <button
                     className={`w-full text-left relative flex items-center gap-3 px-2 py-2 rounded-md transition ${
-                      location.pathname === "/ProjectDetails" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200" : "text-slate-700 hover:bg-slate-100"
+                      location.pathname === "/ProjectDetails" && (location.state?.project_id === p.id)
+                        ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                        : "text-slate-700 hover:bg-slate-100"
                     }`}
                     title={p.name}
                     onClick={() => {
@@ -320,7 +322,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                 <li key={p.id}>
                   <button
                     className={`w-full text-left relative flex items-center gap-3 px-2 py-2 rounded-md transition ${
-                      location.pathname === "/ProjectDetails" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200" : "text-slate-700 hover:bg-slate-100"
+                      location.pathname === "/ProjectDetails" && (location.state?.project_id === p.id)
+                        ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                        : "text-slate-700 hover:bg-slate-100"
                     }`}
                     title={p.name}
                     onClick={() => {

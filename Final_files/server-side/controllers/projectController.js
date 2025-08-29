@@ -702,7 +702,16 @@ exports.updatePhaseStatus = async (req, res) => {
       });
     }
 
-    // All roles can update phase status - no restrictions
+    // Role-based restrictions:
+    // - teamMember: cannot update any phase status
+    // - teamLead: can update only for projects they lead
+    // - owner/admin/manager: allowed
+    if (userRole === "teamMember") {
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot update phase status",
+      });
+    }
 
     // Phase matching logic
     let phase;
@@ -717,6 +726,28 @@ exports.updatePhaseStatus = async (req, res) => {
         success: false,
         message: "Phase not found",
       });
+    }
+
+    // Enforce completion rule: cannot mark Completed unless all subtasks are Completed
+    if (status === "Completed") {
+      const subtasks = Array.isArray(phase.subtasks) ? phase.subtasks : [];
+      const allDone = subtasks.length === 0 || subtasks.every((s) => (s.status || "").toLowerCase() === "completed".toLowerCase());
+      if (!allDone) {
+        return res.status(400).json({
+          success: false,
+          message: "All subtasks are not completed.",
+        });
+      }
+    }
+
+    // Team lead check (must be project lead)
+    if (userRole === "teamLead") {
+      if (String(project.project_lead) !== String(userTeamMemberId)) {
+        return res.status(403).json({
+          success: false,
+          message: "Team leads can update phases only for projects they lead",
+        });
+      }
     }
 
     // Update status
@@ -735,6 +766,76 @@ exports.updatePhaseStatus = async (req, res) => {
       message: "Error updating phase status",
       error: error.message,
     });
+  }
+};
+
+// Edit phase details (title, description, dueDate)
+exports.editPhaseDetails = async (req, res) => {
+  try {
+    const { projectId, phaseId, title, description, dueDate } = req.body;
+    const companyName = req.user.companyName;
+    const userRole = req.user.role;
+    const userTeamMemberId = req.user.teamMemberId;
+
+    if (!projectId || !phaseId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "projectId and phaseId are required" });
+    }
+
+    // Find project within company
+    const project = await Project.findOne({ project_id: projectId, companyName });
+    if (!project) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
+    }
+
+    // Role-based access: deny teamMember; teamLead must be project lead
+    if (userRole === "teamMember") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Team members cannot edit project phases" });
+    }
+    if (
+      userRole === "teamLead" &&
+      String(project.project_lead) !== String(userTeamMemberId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Team leads can edit phases only for projects they lead",
+      });
+    }
+
+    // Locate phase
+    const phase = project.phases.find((p) => p.phase_id === phaseId);
+    if (!phase) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Phase not found" });
+    }
+
+    // Apply updates (only provided fields)
+    if (typeof title === "string" && title.trim().length > 0) {
+      phase.title = title.trim();
+    }
+    if (typeof description === "string") {
+      phase.description = description;
+    }
+    if (dueDate !== undefined) {
+      // Keep same format used elsewhere (string or empty)
+      phase.dueDate = dueDate || "";
+    }
+
+    await project.save();
+    return res
+      .status(200)
+      .json({ success: true, message: "Phase updated", phase });
+  } catch (error) {
+    console.error("Error editing phase details:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error editing phase", error: error.message });
   }
 };
 

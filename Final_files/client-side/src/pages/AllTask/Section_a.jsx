@@ -596,12 +596,13 @@ const Section_a = () => {
 
   const handleEditTask = async (e) => {
     e.preventDefault();
-    if (
-      (userRole || "").toLowerCase() === "teammember" &&
+    const isTeamMember = (userRole || "").toLowerCase() === "teammember";
+    const isSelf =
       selectedMember?.teamMemberId &&
       currentEmployee?.teamMemberId &&
-      selectedMember.teamMemberId !== currentEmployee.teamMemberId
-    ) {
+      selectedMember.teamMemberId === currentEmployee.teamMemberId;
+
+    if (isTeamMember && !isSelf) {
       setPermissionToast(
         "You are not allowed to change the status of other members"
       );
@@ -628,7 +629,10 @@ const Section_a = () => {
           token
         );
       }
-      const response = await apiHandler.postApiWithToken(
+      let response = { success: true };
+      // Team members editing their own subtasks: skip non-status edits (backend forbids)
+      if (!(isTeamMember && isSelf)) {
+        response = await apiHandler.postApiWithToken(
         api_url.editSubtask,
         {
           subtask_id: selectedTask.task_id,
@@ -637,13 +641,26 @@ const Section_a = () => {
         },
         token
       );
-      if (
-        response?.success ||
-        response?.message?.toLowerCase().includes("updated")
-      ) {
+      }
+      if (response?.success || response?.message?.toLowerCase?.().includes("updated")) {
         setShowEditTaskModal(false);
         setSelectedTask(null);
+        if (selectedProject) {
+          // Maintain current filters
+          fetchTasksByMemberInProject(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+          fetchTaskHistory(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+        } else {
         fetchOngoingTasks(selectedMember.teamMemberId);
+          fetchTaskHistory(selectedMember.teamMemberId);
+        }
       } else {
         setEditTaskError(response?.message || "Failed to update subtask");
       }
@@ -1937,7 +1954,12 @@ const Section_a = () => {
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-bold mb-4">Edit Subtask</h3>
+            <h3 className="text-lg font-bold mb-1">Edit Subtask</h3>
+            {(userRole || "").toLowerCase() === "teammember" && (
+              <p className="mb-3 text-xs text-gray-500">
+                You can update Status for your own subtasks. Other fields are disabled.
+              </p>
+            )}
             <form onSubmit={handleEditTask} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -1951,6 +1973,7 @@ const Section_a = () => {
                     setEditTask({ ...editTask, title: e.target.value })
                   }
                   required
+                  disabled={(userRole || "").toLowerCase() === "teammember"}
                 />
               </div>
               <div>
@@ -1964,6 +1987,7 @@ const Section_a = () => {
                     setEditTask({ ...editTask, description: e.target.value })
                   }
                   required
+                  disabled={(userRole || "").toLowerCase() === "teammember"}
                 />
               </div>
               <div>
@@ -1993,6 +2017,7 @@ const Section_a = () => {
                   onChange={(e) =>
                     setEditTask({ ...editTask, dueDate: e.target.value })
                   }
+                  disabled={(userRole || "").toLowerCase() === "teammember"}
                 />
               </div>
               {editTaskError && (
