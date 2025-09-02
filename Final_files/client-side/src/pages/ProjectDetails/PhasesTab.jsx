@@ -149,7 +149,7 @@ const PhasesTab = ({ project }) => {
 
   // Close menus when status changes or when reloading data
   useEffect(() => {
-        setOpenDropdownId(null);
+    setOpenDropdownId(null);
   }, [phases]);
 
   useEffect(() => {
@@ -587,17 +587,17 @@ const PhasesTab = ({ project }) => {
                     </div>
 
                     {/* Inline Delete icon; Edit happens inside Phase Details */}
-                      <button
-                      className="absolute top-0 right-0 p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 opacity-0 group-hover:opacity-100"
+                    <button
+                      className="absolute top-0 right-0 hover:bg-red-50 rounded-lg transition-colors text-red-600 opacity-0 group-hover:opacity-100"
                       title="Delete phase"
-                        onClick={(e) => {
+                      onClick={(e) => {
                         e.preventDefault();
-                              e.stopPropagation();
-                              handleDeletePhase(phase.phase_id);
-                            }}
-                          >
+                        e.stopPropagation();
+                        handleDeletePhase(phase.phase_id);
+                      }}
+                    >
                       <Trash2 size={16} />
-                          </button>
+                    </button>
                   </div>
 
                   {/* Phase Meta Information */}

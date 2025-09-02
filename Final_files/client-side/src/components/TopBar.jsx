@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronDown, Download, Link } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import { api_url, image_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import notificationManager from "@/utils/notificationManager";
@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   CalendarClock,
   Bell as BellIcon,
+  Link2Icon,
 } from "lucide-react";
 
 const sampleLogo = <img src="/vite.svg" alt="Logo" className="h-8 w-8" />;
@@ -76,7 +77,6 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
     });
 
     const handleNewNotification = (n) => {
-      console.log("TopBar received notification:", n._id, n.title);
       setUnread((u) => u + 1);
       // Don't add to local notifications state to avoid duplicates
       // The notifications will be fetched fresh when dropdown is opened
@@ -206,7 +206,6 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      console.log("TopBar: No token found");
       return;
     }
 
@@ -218,12 +217,9 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
 
       if (response?.success || response?.user || response?.employee) {
         setUserDetails(response.user || response.employee || response);
-      } else {
-        console.log("TopBar: Invalid response format:", response);
       }
     } catch (error) {
-      console.error("TopBar: Error fetching user data:", error);
-      // Don't logout automatically, just log the error
+      // Error fetching user data
     }
   };
 
@@ -248,10 +244,10 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
         token
       );
       if (res?.deletedCount > 0) {
-        console.log(`Cleaned up ${res.deletedCount} old read notifications`);
+        // Cleaned up old read notifications
       }
     } catch (error) {
-      console.error("Error cleaning up read notifications:", error);
+      // Error cleaning up read notifications
     }
   };
 
@@ -385,27 +381,15 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
         isSidebarCollapsed ? "left-16 right-0" : "left-64 right-0"
       }`}
     >
-      {/* Pairing status badge + Connect/Disconnect controls */}
+      {/* Tracker status temporarily hidden (Launching Soon) */}
       <div className="flex items-center gap-3">
-        <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${pairStatus === "paired" ? "bg-green-100 text-green-700" : pairStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
-          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${pairStatus === "paired" ? "bg-green-600" : pairStatus === "pending" ? "bg-yellow-600" : "bg-gray-500"}`}></span>
-          {pairStatus === "paired" ? "Connected" : pairStatus === "pending" ? "Pending" : "Not Connected"}
-        </div>
         <button
           onClick={handleConnectNow}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white`}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
         >
-          <Link className="h-4 w-4" />
+          <Link2Icon className="h-4 w-4" />
           Connect Now
         </button>
-        {pairStatus === "paired" && (
-          <button
-            onClick={disconnectTracker}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5"
-          >
-            Disconnect
-          </button>
-        )}
       </div>
 
       {/* Notification Bell - moved before company pill */}

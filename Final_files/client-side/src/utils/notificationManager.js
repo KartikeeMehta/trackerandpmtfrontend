@@ -15,8 +15,8 @@ class NotificationManager {
 
   async initWindowsNotifications() {
     // Initialize Windows notifications
-    this.windowsNotificationsEnabled = await windowsNotificationService.requestPermission();
-    console.log('Windows notifications enabled:', this.windowsNotificationsEnabled);
+    this.windowsNotificationsEnabled =
+      await windowsNotificationService.requestPermission();
   }
 
   initialize(token) {
@@ -24,38 +24,33 @@ class NotificationManager {
       return this.socket;
     }
 
-    console.log("NotificationManager: Initializing...");
-    
-    this.socket = io(image_url, { 
-      auth: { token }, 
-      transports: ["websocket", "polling"] 
+    this.socket = io(image_url, {
+      auth: { token },
+      transports: ["websocket", "polling"],
     });
 
     this.socket.on("connect", () => {
-      console.log("NotificationManager: Connected to server");
+      // Connected to server
     });
 
     this.socket.on("notification:new", (notification) => {
-      console.log("NotificationManager: Received notification:", notification._id, notification.title);
-      
-      // Only show toast once per notification
+      // Received notification
       this.notificationCount++;
-      console.log(`NotificationManager: Total notifications received: ${this.notificationCount}`);
-      
+
       const toastMsg = notification.title || notification.message;
-      
-      // Show toast notification (existing functionality)
+
+      // Show toast notification
       CustomToast.info(toastMsg || "New notification");
-      
+
       // Show Windows notification if enabled
       if (this.windowsNotificationsEnabled) {
         try {
           windowsNotificationService.show(notification);
         } catch (error) {
-          console.error('Error showing Windows notification:', error);
+          // Error showing Windows notification
         }
       }
-      
+
       // Notify all registered listeners
       this.notifyListeners("notification:new", notification);
     });
@@ -69,29 +64,27 @@ class NotificationManager {
       this.listeners.set(event, []);
     }
     this.listeners.get(event).push(callback);
-    console.log(`NotificationManager: Added listener for ${event}, total: ${this.listeners.get(event).length}`);
   }
 
   removeListener(event, callback) {
     if (!this.listeners.has(event)) return;
-    
+
     const listeners = this.listeners.get(event);
     const index = listeners.indexOf(callback);
     if (index > -1) {
       listeners.splice(index, 1);
-      console.log(`NotificationManager: Removed listener for ${event}, total: ${listeners.length}`);
     }
   }
 
   notifyListeners(event, data) {
     if (!this.listeners.has(event)) return;
-    
+
     const listeners = this.listeners.get(event);
-    listeners.forEach(callback => {
+    listeners.forEach((callback) => {
       try {
         callback(data);
       } catch (error) {
-        console.error("NotificationManager: Error in listener callback:", error);
+        // Error in listener callback
       }
     });
   }
@@ -103,7 +96,6 @@ class NotificationManager {
     }
     this.isInitialized = false;
     this.listeners.clear();
-    console.log("NotificationManager: Disconnected");
   }
 
   getSocket() {
@@ -112,7 +104,8 @@ class NotificationManager {
 
   // Enable/disable Windows notifications
   async enableWindowsNotifications() {
-    this.windowsNotificationsEnabled = await windowsNotificationService.requestPermission();
+    this.windowsNotificationsEnabled =
+      await windowsNotificationService.requestPermission();
     return this.windowsNotificationsEnabled;
   }
 
@@ -125,7 +118,7 @@ class NotificationManager {
     return {
       enabled: this.windowsNotificationsEnabled,
       supported: windowsNotificationService.isSupported,
-      permission: windowsNotificationService.getPermissionStatus()
+      permission: windowsNotificationService.getPermissionStatus(),
     };
   }
 
@@ -135,7 +128,7 @@ class NotificationManager {
       const testNotification = {
         title: "Test Notification",
         message: "This is a test Windows notification",
-        type: "test"
+        type: "test",
       };
       return windowsNotificationService.show(testNotification);
     }
