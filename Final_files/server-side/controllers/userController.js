@@ -210,7 +210,12 @@ exports.update = async (req, res) => {
     // Handle companyLogo upload
     let companyLogo;
     if (req.file) {
+
+      console.log('File uploaded:', req.file);
       companyLogo = `/uploads/companyLogos/${req.file.filename}`;
+      console.log('Company logo path:', companyLogo);
+    } else {
+      console.log('No file uploaded in request');
     }
 
     const updateFields = {
@@ -231,6 +236,7 @@ exports.update = async (req, res) => {
 
     res.json({ message: "Updated", user: updated });
   } catch (err) {
+    console.error('Update profile error:', err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -448,13 +454,42 @@ exports.verifyPairingOTP = async (req, res) => {
     user.pairingOTP = null;
     user.pairingOTPExpiry = null;
     user.lastPaired = new Date();
+
+    // Issue JWT (same secret/expiry as login)
+    let token = user.token;
+    let isTokenValid = false;
+    if (token) {
+      try {
+        jwt.verify(token, "secret123");
+        isTokenValid = true;
+      } catch (_) {
+        isTokenValid = false;
+      }
+    }
+    if (!isTokenValid) {
+      token = jwt.sign({ id: user._id }, "secret123", { expiresIn: "7d" });
+      user.token = token;
+    }
+
     await user.save();
+
+    // Set httpOnly auth cookie for desktop app
+    try {
+      res.cookie("token", token, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false, // set true when serving over HTTPS
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+    } catch {}
 
     res.json({
       success: true,
       message: "Tracker paired successfully",
       userId: user._id,
       companyName: user.companyName,
+      token, // include for desktop to set Authorization header
     });
   } catch (error) {
     console.error("Error verifying pairing OTP:", error);

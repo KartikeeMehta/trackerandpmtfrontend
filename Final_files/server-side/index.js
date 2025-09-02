@@ -11,6 +11,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const cors = require("cors");
 const cron = require("node-cron");
 const http = require("http");
@@ -25,6 +26,7 @@ const projectRoutes = require("./routes/projectRoutes");
 const otpRoutes = require("./routes/otpRoutes");
 const chatRoutes = require("./routes/chatRoutes"); // NEW
 const notificationRoutes = require("./routes/notificationRoutes");
+const employeeTrackerRoutes = require("./routes/employeeTrackerRoutes");
 const { Project } = require("./models/Project");
 const Activity = require("./models/Activity");
 const Notification = require("./models/Notification");
@@ -124,6 +126,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "uploads");
+const companyLogosDir = path.join(__dirname, "uploads", "companyLogos");
+
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log(`Created uploads directory: ${uploadsDir}`);
+  }
+  if (!fs.existsSync(companyLogosDir)) {
+    fs.mkdirSync(companyLogosDir, { recursive: true });
+    console.log(`Created companyLogos directory: ${companyLogosDir}`);
+  }
+} catch (error) {
+  console.error(`Error creating upload directories: ${error.message}`);
+}
+
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Also serve uploads under base path
 app.use(
@@ -144,11 +163,13 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/chat", chatRoutes); // NEW
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/employee-tracker", employeeTrackerRoutes);
 
 // ROUTES (with base path prefix for cPanel Application Manager Base URL)
 app.use(`${BASE_PATH}/api`, userRoutes);
 app.use(`${BASE_PATH}/api/teams`, teamRoutes);
 app.use(`${BASE_PATH}/api/employees`, employeeRoutes);
+app.use(`${BASE_PATH}/api/employee-tracker`, employeeTrackerRoutes);
 app.use(`${BASE_PATH}/api/projects`, projectRoutes);
 app.use(`${BASE_PATH}/api/otp`, otpRoutes);
 app.use(`${BASE_PATH}/api/chat`, chatRoutes);

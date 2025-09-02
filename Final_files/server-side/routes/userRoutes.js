@@ -1,23 +1,78 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
-const trackerController = require("../controllers/trackerController");
+
 const authMiddleware = require("../middleware/authMiddleware");
 const EmployeeController = require("../controllers/EmployeeController");
 
 // Multer setup for company logo upload
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// Ensure upload directory exists with better error handling
+const uploadDir = path.join(__dirname, "../uploads/companyLogos");
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log(`Created upload directory: ${uploadDir}`);
+  }
+} catch (error) {
+  console.error(`Error creating upload directory: ${error.message}`);
+  // Fallback to temp directory if needed
+  const tempDir = path.join(process.cwd(), "temp_uploads");
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "../uploads/companyLogos"));
+    // Check if directory exists and is writable
+    if (fs.existsSync(uploadDir) && fs.accessSync(uploadDir, fs.constants.W_OK)) {
+      cb(null, uploadDir);
+    } else {
+      console.error(`Upload directory not accessible: ${uploadDir}`);
+      cb(new Error('Upload directory not accessible'));
+    }
   },
   filename: function (req, file, cb) {
+    // Sanitize filename for production
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
+    cb(null, uniqueSuffix + "-" + originalName);
   },
 });
-const upload = multer({ storage });
+
+// Enhanced multer configuration with error handling
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Check file type
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
+
+// Error handling middleware for multer
+const handleUploadError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
+    }
+    return res.status(400).json({ message: 'File upload error: ' + error.message });
+  } else if (error) {
+    console.error('Upload error:', error);
+    return res.status(500).json({ message: 'File upload failed. Please try again.' });
+  }
+  next();
+};
 
 router.post("/register", userController.register);
 router.post("/login", userController.login);
@@ -26,6 +81,7 @@ router.patch(
   "/update",
   authMiddleware,
   upload.single("companyLogo"),
+  handleUploadError,
   userController.update
 );
 router.get("/profile", authMiddleware, userController.getUserProfile);
@@ -52,54 +108,5 @@ router.delete(
 );
 // Desktop emergency disconnect by email (no auth)
 router.post("/pairing/disconnect-by-email", userController.disconnectByEmail);
-
-// Debug logger for tracker routes
-router.use((req, res, next) => {
-  if (req.path.startsWith("/tracker/")) {
-    console.log(`[TRACKER ROUTE] ${req.method} ${req.originalUrl}`);
-  }
-  next();
-});
-
-// Tracker APIs (desktop app will call these; verifyPairing already pairs)
-// router.post("/tracker/start", trackerController.startSession);
-// router.post("/tracker/stop", trackerController.stopSession);
-// router.post("/tracker/idle", trackerController.pushIdle);
-// router.post("/tracker/break", trackerController.pushBreak);
-// router.get("/tracker/stats/today", trackerController.statsToday);
-// router.get("/tracker/sessions/today", trackerController.listToday);
-
-// Ping route to verify routing availability
-router.get("/tracker/ping", (req, res) => {
-  res.json({ ok: true, message: "tracker routes reachable" });
-});
-
-router.post("/tracker/start", trackerController.punchIn);
-
-// Punch Out → end session
-router.post("/tracker/stop", trackerController.punchOut);
-
-// Activity update for real-time tracking
-router.post("/tracker/activity", trackerController.updateActivity);
-
-// Idle detection - called by desktop app when no activity detected
-router.post("/tracker/idle", trackerController.detectIdle);
-
-// Break Start
-router.post("/tracker/break/start", trackerController.breakStart);
-
-// Break End
-router.post("/tracker/break/end", trackerController.breakEnd);
-
-// Auto-end break after duration + grace period
-router.post("/tracker/break/auto-end", trackerController.autoEndBreak);
-
-// Stats Today
-router.get("/tracker/stats/today", trackerController.statsToday);
-
-// List Today's Sessions
-router.get("/tracker/sessions/today", trackerController.listToday);
-
-
 
 module.exports = router;
