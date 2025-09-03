@@ -19,7 +19,12 @@ import { apiHandler } from "@/api/ApiHandler";
 const Sidebar = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
   // Notifications disabled on sidebar per requirements
-  const [badges, setBadges] = useState({ tasks: 0, projects: 0, team: 0, teamMembers: 0 });
+  const [badges, setBadges] = useState({
+    tasks: 0,
+    projects: 0,
+    team: 0,
+    teamMembers: 0,
+  });
   // Organization-wide starred projects (by owner/admin/manager)
   const [orgStarred, setOrgStarred] = useState([]); // [{id,name}]
   // Member-only starred projects for teamLead/teamMember
@@ -58,12 +63,12 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   );
 
   // Debug logging
-  console.log("Sidebar Debug:", {
-    userType,
-    userRole,
-    canAccessTeamMembers,
-    user: localStorage.getItem("user"),
-  });
+  // console.log("Sidebar Debug:", {
+  //   userType,
+  //   userRole,
+  //   canAccessTeamMembers,
+  //   user: localStorage.getItem("user"),
+  // });
 
   const navLinks = [
     {
@@ -91,8 +96,18 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TASKS & PROJECTS",
       items: [
-        { to: "/AllTask", label: "All Task", icon: ListChecks, badgeKey: "tasks" },
-        { to: "/AllProject", label: "My Projects", icon: BookCopy, badgeKey: "projects" },
+        {
+          to: "/AllTask",
+          label: "All Task",
+          icon: ListChecks,
+          badgeKey: "tasks",
+        },
+        {
+          to: "/AllProject",
+          label: "My Projects",
+          icon: BookCopy,
+          badgeKey: "projects",
+        },
         {
           to: "/WorkHistory",
           label: "Work History",
@@ -102,9 +117,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     },
     {
       label: "TIME TRACKING",
-      items: [
-        { to: "/tracker", label: "Tracker", icon: Timer },
-      ],
+      items: [{ to: "/tracker", label: "Tracker", icon: Timer }],
     },
     {
       label: "COMMUNICATION",
@@ -117,13 +130,22 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     const loadStarred = async () => {
       // 1) Load personal starred (fast, per user)
       try {
-        const identity = JSON.parse(localStorage.getItem("employee") || localStorage.getItem("user") || "{}");
-        const personalKey = `personalStarred_${identity?.teamMemberId || identity?._id || identity?.email || "anon"}`;
+        const identity = JSON.parse(
+          localStorage.getItem("employee") ||
+            localStorage.getItem("user") ||
+            "{}"
+        );
+        const personalKey = `personalStarred_${
+          identity?.teamMemberId || identity?._id || identity?.email || "anon"
+        }`;
         const raw = localStorage.getItem(personalKey);
         const ids = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
         const namesMapRaw = localStorage.getItem(`${personalKey}_names`);
         const nameMap = namesMapRaw ? JSON.parse(namesMapRaw) : {};
-        const cachedPersonal = ids.map((id) => ({ id, name: nameMap[id] || id }));
+        const cachedPersonal = ids.map((id) => ({
+          id,
+          name: nameMap[id] || id,
+        }));
         if (cachedPersonal.length) setPersonalStarred(cachedPersonal);
       } catch {}
 
@@ -140,10 +162,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
         // Persist names map for quick subsequent loads for org-starred
         const nameMap = {};
         starredProjects.forEach((p) => (nameMap[p.id] = p.name));
-        localStorage.setItem(
-          "starredProjectsNames",
-          JSON.stringify(nameMap)
-        );
+        localStorage.setItem("starredProjectsNames", JSON.stringify(nameMap));
         localStorage.setItem(
           "starredProjects",
           JSON.stringify(starredProjects.map((p) => p.id))
@@ -154,24 +173,39 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     const handler = (e) => {
       const detail = e?.detail || {};
       const scope = detail.scope || "auto"; // 'org' or 'personal'
-      const list = (detail.projects || []).map((p) => ({ id: p.id, name: p.name || p.id }));
+      const list = (detail.projects || []).map((p) => ({
+        id: p.id,
+        name: p.name || p.id,
+      }));
       if (scope === "org") {
         setOrgStarred(list);
         try {
           const nameMap = {};
           list.forEach((p) => (nameMap[p.id] = p.name));
           localStorage.setItem("starredProjectsNames", JSON.stringify(nameMap));
-          localStorage.setItem("starredProjects", JSON.stringify(list.map((p) => p.id)));
+          localStorage.setItem(
+            "starredProjects",
+            JSON.stringify(list.map((p) => p.id))
+          );
         } catch {}
       } else {
         // personal scope by default
         setPersonalStarred(list);
         try {
-          const identity = JSON.parse(localStorage.getItem("employee") || localStorage.getItem("user") || "{}");
-          const personalKey = `personalStarred_${identity?.teamMemberId || identity?._id || identity?.email || "anon"}`;
+          const identity = JSON.parse(
+            localStorage.getItem("employee") ||
+              localStorage.getItem("user") ||
+              "{}"
+          );
+          const personalKey = `personalStarred_${
+            identity?.teamMemberId || identity?._id || identity?.email || "anon"
+          }`;
           const nameMap = {};
           list.forEach((p) => (nameMap[p.id] = p.name));
-          localStorage.setItem(personalKey, JSON.stringify(list.map((p) => p.id)));
+          localStorage.setItem(
+            personalKey,
+            JSON.stringify(list.map((p) => p.id))
+          );
           localStorage.setItem(`${personalKey}_names`, JSON.stringify(nameMap));
         } catch {}
       }
@@ -183,9 +217,20 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   // Map notification type to sidebar badge key
   const categorizeNotification = (type) => {
     if (["subtask_assigned", "subtask_deadline"].includes(type)) return "tasks";
-    if (["project_created", "project_completed", "project_deadline", "phase_added", "phase_deadline", "project_member_added"].includes(type)) return "projects";
+    if (
+      [
+        "project_created",
+        "project_completed",
+        "project_deadline",
+        "phase_added",
+        "phase_deadline",
+        "project_member_added",
+      ].includes(type)
+    )
+      return "projects";
     if (type === "team_created") return "team";
-    if (type === "team_member_added") return canAccessTeamMembers ? "teamMembers" : "team";
+    if (type === "team_member_added")
+      return canAccessTeamMembers ? "teamMembers" : "team";
     return null;
   };
 
@@ -198,7 +243,11 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   // Disabled: no sidebar notification events
   const toggleCollapsed = () => {
     if (typeof onToggle === "function") {
-      try { onToggle(!collapsed); } catch { onToggle(); }
+      try {
+        onToggle(!collapsed);
+      } catch {
+        onToggle();
+      }
     } else {
       setCollapsed((c) => !c);
     }
@@ -266,18 +315,35 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
                           : "text-slate-800 hover:bg-blue-50 hover:text-blue-700"
                       }`}
                       title={collapsed ? item.label : ""}
-                      onClick={async () => { /* Notifications removed from sidebar */ }}
+                      onClick={async () => {
+                        /* Notifications removed from sidebar */
+                      }}
                     >
-                      <Icon size={collapsed ? 24 : 18} className={`${active ? "text-blue-700" : "text-slate-600 group-hover:text-blue-700"}`} />
-                      {!collapsed && <span className="flex-1 text-[15px] font-medium">{item.label}</span>}
-                      {!collapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
-                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-5 px-1.5 text-[10px] rounded-full bg-rose-600 text-white">
-                          {badges[item.badgeKey]}
+                      <Icon
+                        size={collapsed ? 24 : 18}
+                        className={`${
+                          active
+                            ? "text-blue-700"
+                            : "text-slate-600 group-hover:text-blue-700"
+                        }`}
+                      />
+                      {!collapsed && (
+                        <span className="flex-1 text-[15px] font-medium">
+                          {item.label}
                         </span>
                       )}
-                      {collapsed && item.badgeKey && badges[item.badgeKey] > 0 && (
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-rose-600 rounded-full"></span>
-                      )}
+                      {!collapsed &&
+                        item.badgeKey &&
+                        badges[item.badgeKey] > 0 && (
+                          <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-5 px-1.5 text-[10px] rounded-full bg-rose-600 text-white">
+                            {badges[item.badgeKey]}
+                          </span>
+                        )}
+                      {collapsed &&
+                        item.badgeKey &&
+                        badges[item.badgeKey] > 0 && (
+                          <span className="absolute top-2 right-2 w-2 h-2 bg-rose-600 rounded-full"></span>
+                        )}
                     </Link>
                   </li>
                 );
@@ -289,24 +355,33 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
         {/* Important Projects (org-wide) subsection */}
         {!collapsed && orgStarred.length > 0 && (
           <div className="mt-6">
-            <h4 className="text-[13px] font-semibold text-blue-800 uppercase tracking-wide px-2 mb-2">Important projects</h4>
+            <h4 className="text-[13px] font-semibold text-blue-800 uppercase tracking-wide px-2 mb-2">
+              Important projects
+            </h4>
             <ul className="space-y-1">
               {orgStarred.map((p) => (
                 <li key={p.id}>
                   <button
                     className={`w-full text-left relative flex items-center gap-3 px-2 py-2 rounded-md transition ${
-                      location.pathname === "/ProjectDetails" && (location.state?.project_id === p.id)
+                      location.pathname === "/ProjectDetails" &&
+                      location.state?.project_id === p.id
                         ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
                         : "text-slate-700 hover:bg-slate-100"
                     }`}
                     title={p.name}
                     onClick={() => {
                       // Navigate directly to project details
-                      navigate("/ProjectDetails", { state: { project_id: p.id } });
+                      navigate("/ProjectDetails", {
+                        state: { project_id: p.id },
+                      });
                     }}
                   >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold">★</span>
-                    <span className="flex-1 truncate text-[15px]">{p.name}</span>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                      ★
+                    </span>
+                    <span className="flex-1 truncate text-[15px]">
+                      {p.name}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -316,23 +391,32 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
         {/* Personal Starred Projects for team leads/members */}
         {!collapsed && personalStarred.length > 0 && !canAccessTeamMembers && (
           <div className="mt-6">
-            <h4 className="text-[13px] font-semibold text-blue-800 uppercase tracking-wide px-2 mb-2">Starred Projects</h4>
+            <h4 className="text-[13px] font-semibold text-blue-800 uppercase tracking-wide px-2 mb-2">
+              Starred Projects
+            </h4>
             <ul className="space-y-1">
               {personalStarred.map((p) => (
                 <li key={p.id}>
                   <button
                     className={`w-full text-left relative flex items-center gap-3 px-2 py-2 rounded-md transition ${
-                      location.pathname === "/ProjectDetails" && (location.state?.project_id === p.id)
+                      location.pathname === "/ProjectDetails" &&
+                      location.state?.project_id === p.id
                         ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
                         : "text-slate-700 hover:bg-slate-100"
                     }`}
                     title={p.name}
                     onClick={() => {
-                      navigate("/ProjectDetails", { state: { project_id: p.id } });
+                      navigate("/ProjectDetails", {
+                        state: { project_id: p.id },
+                      });
                     }}
                   >
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold">★</span>
-                    <span className="flex-1 truncate text-[15px]">{p.name}</span>
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
+                      ★
+                    </span>
+                    <span className="flex-1 truncate text-[15px]">
+                      {p.name}
+                    </span>
                   </button>
                 </li>
               ))}

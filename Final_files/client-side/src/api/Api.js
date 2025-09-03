@@ -23,18 +23,7 @@ export const api_url = {
   updateProject: BASE_URL + "/projects/:projectId",
   updateTeam: BASE_URL + "/teams/updateTeam",
   getTeamMember: BASE_URL + "/employees/team-members",
-  createTask: BASE_URL + "/tasks/createTask",
-  getAllTasks: BASE_URL + "/tasks/all",
-  getMyTasks: BASE_URL + "/tasks/my-tasks",
-  getOngoingTasks: BASE_URL + "/tasks/ongoing",
-  getTaskHistory: BASE_URL + "/tasks/history/", // append memberId
-  updateTask: BASE_URL + "/tasks/update/", // append taskId or memberId
-  deleteTask: BASE_URL + "/tasks/delete/", // append taskId or memberId
-  updateTaskById: BASE_URL + "/tasks/updateTask/", // append taskId
-  deleteTaskById: BASE_URL + "/tasks/deleteTask/", // append taskId
-  addTask: BASE_URL + "/tasks/createTask",
   getProjectsByTeamMember: BASE_URL + "/projects/team-member/", // append teamMemberId/projects
-  getTasksByMemberInProject: BASE_URL + "/tasks/", // append teamMemberId/project/projectId
   forget_pass: BASE_URL + "/otp/forgot-password",
   verify_Otp: BASE_URL + "/otp/verify-otp",
   reset_Password: BASE_URL + "/otp/reset-password",
