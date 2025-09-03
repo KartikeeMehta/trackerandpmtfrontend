@@ -594,7 +594,7 @@ employeeTrackerSchema.methods.updateDailySummary = function() {
   }, 0);
   
   dailySummary.totalBreakTime = todaySessions.reduce((total, session) => total + (session.totalBreakTime || 0), 0); // Already in minutes
-  dailySummary.totalIdleTime = todaySessions.reduce((total, session) => total + (session.idleTime || 0), 0); // Already in minutes
+  dailySummary.totalIdleTime = todaySessions.reduce((total, session) => total + this.msToMinutes(session.idleTime || 0), 0); // Convert from ms to minutes
   dailySummary.totalProductiveTime = todaySessions.reduce((total, session) => total + (session.productiveTime || 0), 0); // Already in minutes
   dailySummary.totalKeystrokes = todaySessions.reduce((total, session) => total + (session.totalKeystrokes || 0), 0);
   dailySummary.totalMouseClicks = todaySessions.reduce((total, session) => total + (session.totalMouseClicks || 0), 0);

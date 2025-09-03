@@ -30,8 +30,10 @@ contextBridge.exposeInMainWorld('trackerAPI', {
 
 	punchIn: () => apiRequest('/punch-in', { method: 'POST', body: JSON.stringify({}) }),
 	punchOut: () => apiRequest('/punch-out', { method: 'POST', body: JSON.stringify({}) }),
-	startBreak: () => apiRequest('/break/start', { method: 'POST', body: JSON.stringify({}) }),
-	endBreak: () => apiRequest('/break/end', { method: 'POST', body: JSON.stringify({}) }),
+	startBreak: (payload) => apiRequest('/break/start', { method: 'POST', body: JSON.stringify(payload || {}) }),
+	endBreak: (payload) => apiRequest('/break/end', { method: 'POST', body: JSON.stringify(payload || {}) }),
+	idleStart: (payload) => apiRequest('/idle/start', { method: 'POST', body: JSON.stringify(payload || {}) }),
+	idleEnd: (payload) => apiRequest('/idle/end', { method: 'POST', body: JSON.stringify(payload || {}) }),
 	getStatus: () => apiRequest('/status', { method: 'GET' }),
 	getSettings: () => apiRequest('/settings', { method: 'GET' }),
 	updateSettings: (settings) => apiRequest('/settings', { method: 'PUT', body: JSON.stringify(settings || {}) })

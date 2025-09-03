@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const toMs = (min) => (Math.max(0, Math.round(Number(min) || 0)) * 60 * 1000);
+const toMs = (min) => (Math.max(0, Number(min) || 0) * 60 * 1000);
 const fmtDur = (ms) => {
   const safe = Math.max(0, Number(ms) || 0);
   const s = Math.floor(safe / 1000) % 60;
@@ -31,6 +31,21 @@ const fmtIST = (dateLike) => {
   }).format(date);
 };
 
+// Convert potential IST-as-UTC strings to correct epoch ms
+const toEpochMs = (dateLike) => {
+  if (!dateLike) return NaN;
+  if (typeof dateLike === 'string') {
+    const m = dateLike.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (m) {
+      // Treat the string as IST wall-clock and convert to UTC epoch by subtracting 5.5h
+      const parsed = new Date(dateLike).getTime();
+      if (!Number.isNaN(parsed)) return parsed - (5.5 * 60 * 60 * 1000);
+    }
+  }
+  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+  return d.getTime();
+};
+
 export default function Track({ onStatus }) {
   const [sessionId, setSessionId] = useState(null);
   const [message, setMessage] = useState('');
@@ -46,10 +61,55 @@ export default function Track({ onStatus }) {
   const [totalProductiveTime, setTotalProductiveTime] = useState(0);
   const startRef = useRef(null);
   const tickRef = useRef(null);
+  const optimisticActiveRef = useRef(false);
+  const productiveFrozenRef = useRef(null);
+  const idleRef = useRef({ isIdle: false, lastActivityAt: Date.now(), timer: null, idleStartedAt: null });
+
+  // Break UI state
+  const [breakMode, setBreakMode] = useState(''); // '' (select) | manual | auto | lunch | meeting
+  const [manualReason, setManualReason] = useState('');
+  const [manualReady, setManualReady] = useState(false); // set true after submitting reason
 
   const elapsedNow = () => (startRef.current ? Date.now() - startRef.current : 0);
 
   useEffect(() => () => { if (tickRef.current) clearInterval(tickRef.current); }, []);
+
+  // Idle detection (30s)
+  useEffect(() => {
+    const thresholdMs = 30000;
+    const markActivity = () => {
+      idleRef.current.lastActivityAt = Date.now();
+      if (idleRef.current.isIdle) {
+        // Exit idle immediately on activity
+        window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }).catch(() => {});
+        idleRef.current.isIdle = false;
+        idleRef.current.idleStartedAt = null;
+        setMessage('Idle ended');
+        // Resume productive display
+        productiveFrozenRef.current = null;
+      }
+    };
+    const checkIdle = () => {
+      if (!sessionId) return;
+      if (isOnBreak) return; // break supersedes idle
+      const now = Date.now();
+      if (!idleRef.current.isIdle && now - idleRef.current.lastActivityAt >= thresholdMs) {
+        idleRef.current.isIdle = true;
+        idleRef.current.idleStartedAt = now;
+        setMessage('Idle started');
+        window.trackerAPI?.idleStart?.({ idleType: 'auto', startedAt: new Date().toISOString() }).catch(() => {});
+        // Freeze productive when idle starts
+        productiveFrozenRef.current = baseTotals.productive + elapsed;
+      }
+    };
+    const events = ['mousemove','mousedown','keydown','wheel','touchstart'];
+    events.forEach(ev => window.addEventListener(ev, markActivity, { passive: true }));
+    const t = setInterval(checkIdle, 1000);
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, markActivity));
+      clearInterval(t);
+    };
+  }, [sessionId, isOnBreak]);
 
   const ensureTicker = () => {
     if (tickRef.current) return;
@@ -67,16 +127,27 @@ export default function Track({ onStatus }) {
       const st = res.status || {};
       const cur = st.currentSession || null;
       if (cur && cur.isActive) {
+        optimisticActiveRef.current = false;
         setSessionId((s) => s || cur.sessionId || true);
         const start = cur.startTime ? new Date(cur.startTime).getTime() : Date.now();
         if (!startRef.current) startRef.current = start;
-        setPunchInAt((p) => p || (cur.startTime ? new Date(cur.startTime) : new Date()));
+        // Keep server-provided timestamp as raw string to avoid double IST shift
+        setPunchInAt((p) => p || (cur.startTime ? cur.startTime : new Date()));
         setPunchOutAt(null);
         ensureTicker();
+        // Derive status
+        try {
+          const activeBreak = cur.breaks && cur.breaks.find(b => b && b.isActive);
+          if (activeBreak) setMessage('On break'); else setMessage('Tracking');
+        } catch {}
       } else {
-        setSessionId(null);
-        if (st?.todaySummary?.lastPunchOut) setPunchOutAt(new Date(st.todaySummary.lastPunchOut));
-        startRef.current = null;
+        // Only clear local session state if we're not in an optimistic start
+        if (!optimisticActiveRef.current) {
+          setSessionId(null);
+          if (st?.todaySummary?.lastPunchOut) setPunchOutAt(st.todaySummary.lastPunchOut);
+          startRef.current = null;
+          setMessage('Ended');
+        }
       }
       
       const day = st.todaySummary || {};
@@ -101,13 +172,15 @@ export default function Track({ onStatus }) {
         
         if (activeBreak && activeBreak.startTime) {
           setIsOnBreak(true);
-          setBreakStartAt(new Date(activeBreak.startTime));
+          // Keep as raw string
+          setBreakStartAt(activeBreak.startTime);
           setBreakEndAt(null);
         } else {
           setIsOnBreak(false);
           setBreakStartAt(null);
           if (completedBreaks.length > 0) {
-            setBreakEndAt(new Date(completedBreaks[completedBreaks.length - 1].endTime));
+            // Keep as raw string
+            setBreakEndAt(completedBreaks[completedBreaks.length - 1].endTime);
           }
         }
       } else {
@@ -144,12 +217,20 @@ export default function Track({ onStatus }) {
   const punchIn = async () => {
     setMessage('Starting...');
     if (!startRef.current) startRef.current = Date.now();
+    // Optimistically mark as in-session and force a rerender so timer starts immediately
+    optimisticActiveRef.current = true;
+    setSessionId((s) => s || true);
+    setBaseTotals((t) => ({ ...t }));
     ensureTicker();
     try {
       const res = await window.trackerAPI?.punchIn();
-      if (res?.session?.startTime) setPunchInAt(new Date(res.session.startTime));
+      if (res?.session?.startTime) setPunchInAt(res.session.startTime);
       setSessionId((s) => s || res?.session?.sessionId || true);
       setMessage('Tracking');
+      // Reset break UI on new session
+      setBreakMode('');
+      setManualReason('');
+      setManualReady(false);
       await syncStatus();
     } catch { setMessage('Failed to punch in'); startRef.current = null; }
   };
@@ -157,26 +238,49 @@ export default function Track({ onStatus }) {
   const punchOut = async () => {
     setMessage('Stopping...');
     try {
+      // If idle, close idle span before punch out
+      if (idleRef.current.isIdle) {
+        try { await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }); } catch {}
+        idleRef.current.isIdle = false;
+        idleRef.current.idleStartedAt = null;
+        productiveFrozenRef.current = null;
+      }
       const res = await window.trackerAPI?.punchOut();
       if (res?.endedSession?.endTime) {
-        // endTime returned from server is already IST-stored; format via IST
-        setPunchOutAt(new Date(res.endedSession.endTime));
+        // Keep as raw string
+        setPunchOutAt(res.endedSession.endTime);
       }
       startRef.current = null;
       setSessionId(null);
       await syncStatus();
       setMessage('Ended');
+      // Reset break UI on end
+      setManualReason('');
+      setManualReady(false);
+      setBreakMode('');
     } catch { setMessage('Failed to punch out'); }
   };
 
   const startBreak = async () => {
     setMessage('Starting break...');
     try {
-      const res = await window.trackerAPI?.startBreak();
+      // If currently idle, end idle first
+      if (idleRef.current.isIdle) {
+        try { await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }); } catch {}
+        idleRef.current.isIdle = false;
+        idleRef.current.idleStartedAt = null;
+      }
+      const res = await window.trackerAPI?.startBreak({
+        breakType: breakMode,
+        reason: breakMode === 'manual' ? manualReason.trim() : '',
+      });
       if (res?.success) {
         setIsOnBreak(true);
-        setBreakStartAt(new Date());
+        // Use server response time if available, otherwise use current time
+        setBreakStartAt(res.break?.startTime || new Date());
         setMessage('On break');
+        // Freeze productive display at break start to avoid drift from server rounding
+        productiveFrozenRef.current = baseTotals.productive + elapsed;
       }
       await syncStatus();
     } catch { setMessage('Failed to start break'); }
@@ -185,74 +289,125 @@ export default function Track({ onStatus }) {
   const endBreak = async () => {
     setMessage('Ending break...');
     try {
-      const res = await window.trackerAPI?.endBreak();
+      const res = await window.trackerAPI?.endBreak({
+        breakType: breakMode,
+        reason: breakMode === 'manual' ? manualReason.trim() : '',
+      });
       if (res?.success) {
         setIsOnBreak(false);
         setBreakEndAt(new Date());
         setMessage('Break ended');
+        // Require selecting/saving break type again before next break
+        setManualReady(false);
+        setBreakMode('');
+        productiveFrozenRef.current = null;
       }
       await syncStatus();
     } catch { setMessage('Failed to end break'); }
   };
 
   const elapsed = elapsedNow();
+  const dynamicBreakMs = isOnBreak && breakStartAt ? Math.max(0, Date.now() - toEpochMs(breakStartAt)) : 0;
 
   return (
     <div className="p-8 bg-white">
-      <div className="text-4xl font-bold tabular-nums tracking-wide text-gray-900">{fmtDur(elapsed)}</div>
-      <div className="text-xs text-gray-500 mt-1 min-h-[18px]">{message}</div>
-      <div className="flex flex-wrap gap-2 mt-3">
-        <button type="button" onClick={punchIn} className="px-3 py-2 rounded-md bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700" disabled={!!sessionId}>Punch In</button>
-        <button type="button" onClick={punchOut} className="px-3 py-2 rounded-md bg-rose-600 text-white border border-rose-700 hover:bg-rose-700" disabled={!sessionId}>Punch Out</button>
-      </div>
-      
-      {sessionId && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          <button 
-            type="button" 
-            onClick={startBreak} 
-            className="px-3 py-2 rounded-md bg-amber-500 text-white border border-amber-600 hover:bg-amber-600" 
-            disabled={isOnBreak}
-          >
-            Start Break
-          </button>
-          <button 
-            type="button" 
-            onClick={endBreak} 
-            className="px-3 py-2 rounded-md bg-blue-500 text-white border border-blue-600 hover:bg-blue-600" 
-            disabled={!isOnBreak}
-          >
-            End Break
-          </button>
-        </div>
-      )}
+      <div className="rounded-xl border border-gray-200 shadow-sm bg-white/90">
+        <div className="px-6 py-6">
+          <div className="flex items-end flex-wrap gap-4">
+            <div>
+              <div className="text-5xl font-semibold tabular-nums tracking-tight text-gray-900">{fmtDur(elapsed)}</div>
+              <div className="text-xs text-gray-500 mt-1 min-h-[18px]">{message || (sessionId ? 'Tracking' : 'Ended')}</div>
+            </div>
+            <div className="flex gap-3 mt-1 flex-wrap items-center">
+              <button type="button" onClick={punchIn} className="px-3 py-2 rounded-md bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-sm disabled:opacity-50" disabled={!!sessionId}>Punch In</button>
+              <button type="button" onClick={punchOut} className="px-3 py-2 rounded-md bg-rose-600 text-white border border-rose-700 hover:bg-rose-700 shadow-sm disabled:opacity-50" disabled={!sessionId}>Punch Out</button>
+              {sessionId && (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="border border-gray-300 rounded-md px-2 py-2 bg-white text-sm text-gray-900"
+                    value={breakMode}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setBreakMode(v);
+                      if (v === 'manual') { setManualReady(false); }
+                      else if (v) { setManualReady(true); setManualReason(''); }
+                    }}
+                  >
+                    <option value="">Select Break</option>
+                    <option value="manual">Break: Manual</option>
+                    <option value="auto">Break: Auto</option>
+                    <option value="lunch">Break: Lunch</option>
+                    <option value="meeting">Break: Meeting</option>
+                  </select>
 
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="text-sm text-gray-500 mb-2">Punch & Break</div>
-          <div className="space-y-1 text-gray-900 text-sm">
-            <div className="flex justify-between"><span>Punch In</span><span className="tabular-nums">{fmtIST(punchInAt)}</span></div>
-            <div className="flex justify-between"><span>Punch Out</span><span className="tabular-nums">{fmtIST(punchOutAt)}</span></div>
-            <div className="flex justify-between"><span>Break Start</span><span className="tabular-nums">{fmtIST(breakStartAt)}</span></div>
-            <div className="flex justify-between"><span>Break End</span><span className="tabular-nums">{isOnBreak ? 'Ongoing' : fmtIST(breakEndAt)}</span></div>
-            <div className="flex justify-between border-t border-gray-200 pt-1 mt-2"><span>Elapsed</span><span className="tabular-nums text-emerald-600">{fmtDur(elapsed)}</span></div>
+                  {!isOnBreak && (!manualReady && breakMode === 'manual') && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        className="border border-gray-300 rounded-md px-2 py-2 text-sm w-48 placeholder-gray-500 text-gray-900"
+                        placeholder="Reason"
+                        value={manualReason}
+                        onChange={(e) => setManualReason(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 rounded-md bg-gray-900 text-white shadow-sm disabled:opacity-50"
+                        onClick={() => setManualReady(!!manualReason.trim())}
+                        disabled={!manualReason.trim()}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Start/End Break visibility rules */}
+                  {breakMode && (manualReady || breakMode !== 'manual') && (
+                    <button
+                      type="button"
+                      onClick={startBreak}
+                      className="px-3 py-2 rounded-md bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 shadow-sm disabled:opacity-50"
+                      disabled={isOnBreak}
+                    >
+                      Start Break
+                    </button>
+                  )}
+                  {isOnBreak && (
+                    <button type="button" onClick={endBreak} className="px-3 py-2 rounded-md bg-blue-500 text-white border border-blue-600 hover:bg-blue-600 shadow-sm">End Break</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="text-sm text-gray-500 mb-2">Today's Stats</div>
-          <div className="space-y-1 text-gray-900 text-sm">
-            <div className="flex justify-between"><span>Total</span><span className="tabular-nums">{fmtDur(baseTotals.total + elapsed)}</span></div>
-            <div className="flex justify-between"><span>Active</span><span className="tabular-nums">{fmtDur(baseTotals.productive + elapsed)}</span></div>
-            <div className="flex justify-between"><span>Idle</span><span className="tabular-nums">{fmtDur(baseTotals.idle)}</span></div>
-            <div className="flex justify-between"><span>Breaks</span><span className="tabular-nums">{fmtDur(baseTotals.breaks)}</span></div>
-            <div className="flex justify-between border-t border-gray-200 pt-1 mt-2"><span>Break Count</span><span className="tabular-nums text-blue-600">{breakCount}</span></div>
-            <div className="flex justify-between"><span>Total Work Time</span><span className="tabular-nums text-emerald-600">{fmtDur(totalWorkTime)}</span></div>
-            <div className="flex justify-between"><span>Total Productive</span><span className="tabular-nums text-purple-600">{fmtDur(totalProductiveTime)}</span></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            <div className="rounded-lg border border-gray-200 bg-white p-5">
+              <div className="text-sm font-medium text-gray-800 mb-3">Punch & Break</div>
+              <div className="space-y-1 text-gray-900 text-sm">
+                <div className="flex justify-between"><span>Punch In</span><span className="tabular-nums">{fmtIST(punchInAt)}</span></div>
+                <div className="flex justify-between"><span>Punch Out</span><span className="tabular-nums">{fmtIST(punchOutAt)}</span></div>
+                <div className="flex justify-between"><span>Break Start</span><span className="tabular-nums">{fmtIST(breakStartAt)}</span></div>
+                <div className="flex justify-between"><span>Break End</span><span className="tabular-nums">{isOnBreak ? 'Ongoing' : fmtIST(breakEndAt)}</span></div>
+                <div className="flex justify-between"><span>Break Elapsed</span><span className="tabular-nums text-blue-600">{fmtDur(isOnBreak ? dynamicBreakMs : 0)}</span></div>
+                <div className="flex justify-between"><span>Idle Elapsed</span><span className="tabular-nums text-purple-600">{fmtDur(idleRef.current.isIdle && idleRef.current.idleStartedAt ? (Date.now() - idleRef.current.idleStartedAt) : 0)}</span></div>
+                <div className="flex justify-between border-t border-gray-200 pt-1 mt-2"><span>Elapsed</span><span className="tabular-nums text-emerald-600">{fmtDur(elapsed)}</span></div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white p-5">
+              <div className="text-sm font-medium text-gray-800 mb-3">Today's Stats</div>
+              <div className="space-y-1 text-gray-900 text-sm">
+                <div className="flex justify-between"><span>Total Work Time</span><span className="tabular-nums text-gray-900">{fmtDur(baseTotals.total + elapsed)}</span></div>
+                <div className="flex justify-between"><span>Total Productive</span><span className="tabular-nums text-gray-900">{fmtDur(
+                  ( (isOnBreak || idleRef.current.isIdle) && productiveFrozenRef.current != null )
+                    ? productiveFrozenRef.current
+                    : baseTotals.productive + elapsed
+                )}</span></div>
+                <div className="flex justify-between"><span>Idle</span><span className="tabular-nums text-gray-900">{fmtDur(baseTotals.idle + (idleRef.current.isIdle && idleRef.current.idleStartedAt ? (Date.now() - idleRef.current.idleStartedAt) : 0))}</span></div>
+                <div className="flex justify-between"><span>Breaks</span><span className="tabular-nums text-gray-900">{fmtDur(baseTotals.breaks + dynamicBreakMs)}</span></div>
+                <div className="flex justify-between border-t border-gray-200 pt-1 mt-2"><span>Break Count</span><span className="tabular-nums text-blue-600">{breakCount}</span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-

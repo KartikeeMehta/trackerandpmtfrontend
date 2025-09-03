@@ -85,7 +85,8 @@ router.post("/break/end", employeeTrackerController.endBreak);
 
 // Activity tracking
 router.post("/activity", employeeTrackerController.updateActivity);
-router.post("/idle", employeeTrackerController.addIdleTime);
+router.post("/idle/start", employeeTrackerController.idleStart);
+router.post("/idle/end", employeeTrackerController.idleEnd);
 
 // Screenshot management
 router.post("/screenshot", 

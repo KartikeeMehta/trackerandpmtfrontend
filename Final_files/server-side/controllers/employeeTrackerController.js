@@ -281,6 +281,52 @@ exports.updateActivity = async (req, res) => {
   }
 };
 
+// Idle Start
+exports.idleStart = async (req, res) => {
+  try {
+    const employeeId = req.user._id;
+    const { idleType = 'auto', startedAt } = req.body;
+    const tracker = await EmployeeTracker.findOne({ employeeId });
+    if (!tracker) {
+      return res.status(404).json({ success: false, message: 'Employee tracker not found' });
+    }
+    // Just acknowledge start; duration is accounted on idleEnd
+    tracker._lastIdleStart = startedAt ? new Date(startedAt) : tracker.getISTTime();
+    await tracker.save();
+    res.json({ success: true, message: 'Idle started', idleType, startedAt: tracker._lastIdleStart });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error starting idle' });
+  }
+};
+
+// Idle End
+exports.idleEnd = async (req, res) => {
+  try {
+    const employeeId = req.user._id;
+    const { endedAt } = req.body;
+    const tracker = await EmployeeTracker.findOne({ employeeId });
+    if (!tracker) {
+      return res.status(404).json({ success: false, message: 'Employee tracker not found' });
+    }
+    const endTs = endedAt ? new Date(endedAt) : tracker.getISTTime();
+    let startTs = tracker._lastIdleStart || null;
+    if (!startTs) {
+      // Fallback: treat as small idle (0) to avoid negative
+      startTs = endTs;
+    }
+    const diffMs = Math.max(0, endTs.getTime() - startTs.getTime());
+    tracker.addIdleTime(diffMs);
+    tracker._lastIdleStart = null;
+    tracker.recalculateCurrentSessionTimes();
+    tracker.updateDailySummary();
+    tracker.updateOverallStats();
+    await tracker.save();
+    res.json({ success: true, message: 'Idle ended', addedMs: diffMs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error ending idle' });
+  }
+};
+
 // Add Idle Time
 exports.addIdleTime = async (req, res) => {
   try {
