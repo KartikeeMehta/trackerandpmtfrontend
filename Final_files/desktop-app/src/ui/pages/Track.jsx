@@ -77,11 +77,21 @@ export default function Track({ onStatus }) {
   // Idle detection (30s)
   useEffect(() => {
     const thresholdMs = 30000;
-    const markActivity = () => {
+    const markActivity = async () => {
       idleRef.current.lastActivityAt = Date.now();
       if (idleRef.current.isIdle) {
         // Exit idle immediately on activity
-        window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }).catch(() => {});
+        try {
+          const res = await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() });
+          if (res?.success) {
+            // Don't update local state here - let syncStatus handle it from server
+            // This prevents race conditions with server data
+            // Force immediate sync to get updated idle time from server
+            setTimeout(() => syncStatus(), 100);
+          }
+        } catch (error) {
+          console.error('Failed to end idle:', error);
+        }
         idleRef.current.isIdle = false;
         idleRef.current.idleStartedAt = null;
         setMessage('Idle ended');
@@ -89,7 +99,7 @@ export default function Track({ onStatus }) {
         productiveFrozenRef.current = null;
       }
     };
-    const checkIdle = () => {
+    const checkIdle = async () => {
       if (!sessionId) return;
       if (isOnBreak) return; // break supersedes idle
       const now = Date.now();
@@ -97,9 +107,21 @@ export default function Track({ onStatus }) {
         idleRef.current.isIdle = true;
         idleRef.current.idleStartedAt = now;
         setMessage('Idle started');
-        window.trackerAPI?.idleStart?.({ idleType: 'auto', startedAt: new Date().toISOString() }).catch(() => {});
-        // Freeze productive when idle starts
-        productiveFrozenRef.current = baseTotals.productive + elapsed;
+        try {
+          const res = await window.trackerAPI?.idleStart?.({ 
+            idleType: 'auto', 
+            startedAt: new Date().toISOString() 
+          });
+          if (res?.success) {
+            // Freeze productive when idle starts
+            productiveFrozenRef.current = baseTotals.productive + elapsedNow();
+          }
+        } catch (error) {
+          console.error('Failed to start idle:', error);
+          // Revert idle state if API call failed
+          idleRef.current.isIdle = false;
+          idleRef.current.idleStartedAt = null;
+        }
       }
     };
     const events = ['mousemove','mousedown','keydown','wheel','touchstart'];
@@ -240,7 +262,17 @@ export default function Track({ onStatus }) {
     try {
       // If idle, close idle span before punch out
       if (idleRef.current.isIdle) {
-        try { await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }); } catch {}
+        try { 
+          const idleRes = await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() });
+          if (idleRes?.success) {
+            // Don't update local state here - let syncStatus handle it from server
+            // This prevents race conditions with server data
+            // Force immediate sync to get updated idle time from server
+            setTimeout(() => syncStatus(), 100);
+          }
+        } catch (error) {
+          console.error('Failed to end idle before punch out:', error);
+        }
         idleRef.current.isIdle = false;
         idleRef.current.idleStartedAt = null;
         productiveFrozenRef.current = null;
@@ -266,7 +298,17 @@ export default function Track({ onStatus }) {
     try {
       // If currently idle, end idle first
       if (idleRef.current.isIdle) {
-        try { await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() }); } catch {}
+        try { 
+          const idleRes = await window.trackerAPI?.idleEnd?.({ endedAt: new Date().toISOString() });
+          if (idleRes?.success) {
+            // Don't update local state here - let syncStatus handle it from server
+            // This prevents race conditions with server data
+            // Force immediate sync to get updated idle time from server
+            setTimeout(() => syncStatus(), 100);
+          }
+        } catch (error) {
+          console.error('Failed to end idle before break:', error);
+        }
         idleRef.current.isIdle = false;
         idleRef.current.idleStartedAt = null;
       }
@@ -280,7 +322,7 @@ export default function Track({ onStatus }) {
         setBreakStartAt(res.break?.startTime || new Date());
         setMessage('On break');
         // Freeze productive display at break start to avoid drift from server rounding
-        productiveFrozenRef.current = baseTotals.productive + elapsed;
+        productiveFrozenRef.current = baseTotals.productive + elapsedNow();
       }
       await syncStatus();
     } catch { setMessage('Failed to start break'); }
@@ -398,7 +440,7 @@ export default function Track({ onStatus }) {
                 <div className="flex justify-between"><span>Total Productive</span><span className="tabular-nums text-gray-900">{fmtDur(
                   ( (isOnBreak || idleRef.current.isIdle) && productiveFrozenRef.current != null )
                     ? productiveFrozenRef.current
-                    : baseTotals.productive + elapsed
+                    : Math.max(0, baseTotals.productive + elapsed - (idleRef.current.isIdle && idleRef.current.idleStartedAt ? (Date.now() - idleRef.current.idleStartedAt) : 0))
                 )}</span></div>
                 <div className="flex justify-between"><span>Idle</span><span className="tabular-nums text-gray-900">{fmtDur(baseTotals.idle + (idleRef.current.isIdle && idleRef.current.idleStartedAt ? (Date.now() - idleRef.current.idleStartedAt) : 0))}</span></div>
                 <div className="flex justify-between"><span>Breaks</span><span className="tabular-nums text-gray-900">{fmtDur(baseTotals.breaks + dynamicBreakMs)}</span></div>

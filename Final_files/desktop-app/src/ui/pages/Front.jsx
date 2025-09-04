@@ -1,5 +1,14 @@
 import React from 'react';
 
+function Feature({ title, desc }) {
+  return (
+    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+      <div className="text-sm font-medium text-gray-900">{title}</div>
+      <div className="text-xs text-gray-600 mt-0.5">{desc}</div>
+    </div>
+  );
+}
+
 export default function Front({ onConnect }) {
   return (
     <div className="p-10 bg-white">
@@ -20,15 +29,6 @@ export default function Front({ onConnect }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Feature({ title, desc }) {
-  return (
-    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-      <div className="text-sm font-medium text-gray-900">{title}</div>
-      <div className="text-xs text-gray-600 mt-0.5">{desc}</div>
     </div>
   );
 }

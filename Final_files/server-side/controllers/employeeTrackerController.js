@@ -295,6 +295,7 @@ exports.idleStart = async (req, res) => {
     await tracker.save();
     res.json({ success: true, message: 'Idle started', idleType, startedAt: tracker._lastIdleStart });
   } catch (error) {
+    console.error('Idle start error:', error);
     res.status(500).json({ success: false, message: 'Error starting idle' });
   }
 };

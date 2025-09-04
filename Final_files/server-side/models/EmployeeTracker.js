@@ -269,6 +269,12 @@ const employeeTrackerSchema = new mongoose.Schema({
     }
   },
   
+  // Idle tracking state (not persisted in work sessions)
+  _lastIdleStart: {
+    type: Date,
+    default: null
+  },
+  
   // Settings and preferences
   settings: {
     autoIdleDetection: {
@@ -392,8 +398,10 @@ employeeTrackerSchema.methods.endWorkSession = function() {
   this.currentSession.duration = this.msToMinutes(now.getTime() - this.currentSession.startTime.getTime());
   
   // Calculate productive time (total duration - breaks - idle time)
+  // Convert idle time from milliseconds to minutes to match duration and break time units
+  const idleTimeInMinutes = this.msToMinutes(this.currentSession.idleTime || 0);
   this.currentSession.productiveTime = Math.max(0, 
-    this.currentSession.duration - this.currentSession.totalBreakTime - this.currentSession.idleTime
+    this.currentSession.duration - this.currentSession.totalBreakTime - idleTimeInMinutes
   );
   
   // Calculate activity percentage
@@ -515,7 +523,8 @@ employeeTrackerSchema.methods.updateActivity = function(keystrokes = 0, mouseCli
 // Method to add idle time
 employeeTrackerSchema.methods.addIdleTime = function(idleMilliseconds) {
   if (this.currentSession && this.currentSession.isActive) {
-    this.currentSession.idleTime += this.msToMinutes(idleMilliseconds);
+    // Store idle time in milliseconds (as per schema definition)
+    this.currentSession.idleTime += idleMilliseconds;
   }
 };
 
@@ -538,8 +547,10 @@ employeeTrackerSchema.methods.recalculateCurrentSessionTimes = function() {
     this.recalculateBreakTime();
     
     // Calculate productive time (total duration - breaks - idle time)
+    // Convert idle time from milliseconds to minutes to match duration and break time units
+    const idleTimeInMinutes = this.msToMinutes(this.currentSession.idleTime || 0);
     this.currentSession.productiveTime = Math.max(0, 
-      this.currentSession.duration - this.currentSession.totalBreakTime - this.currentSession.idleTime
+      this.currentSession.duration - this.currentSession.totalBreakTime - idleTimeInMinutes
     );
     
     // Calculate activity percentage
@@ -594,7 +605,7 @@ employeeTrackerSchema.methods.updateDailySummary = function() {
   }, 0);
   
   dailySummary.totalBreakTime = todaySessions.reduce((total, session) => total + (session.totalBreakTime || 0), 0); // Already in minutes
-  dailySummary.totalIdleTime = todaySessions.reduce((total, session) => total + this.msToMinutes(session.idleTime || 0), 0); // Convert from ms to minutes
+  dailySummary.totalIdleTime = todaySessions.reduce((total, session) => total + this.msToMinutes(session.idleTime || 0), 0); // Convert idle time from ms to minutes
   dailySummary.totalProductiveTime = todaySessions.reduce((total, session) => total + (session.productiveTime || 0), 0); // Already in minutes
   dailySummary.totalKeystrokes = todaySessions.reduce((total, session) => total + (session.totalKeystrokes || 0), 0);
   dailySummary.totalMouseClicks = todaySessions.reduce((total, session) => total + (session.totalMouseClicks || 0), 0);
