@@ -23,7 +23,7 @@
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^28.2.0",
+    "electron": "^25.9.0",
     "electron-builder": "^24.9.1",
     "electronmon": "2.0.2",
     "postcss": "^8.4.33",
@@ -32,6 +32,7 @@
     "wait-on": "^7.2.0"
   },
   "dependencies": {
+    "uiohook-napi": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -43,6 +44,9 @@
       "preload.js",
       "renderer/**",
       "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**"
     ],
     "directories": {
       "output": "dist"

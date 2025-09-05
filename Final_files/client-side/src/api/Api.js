@@ -61,6 +61,10 @@ export const api_url = {
   pairing_verify: BASE_URL + "/pairing/verify",
   checkPairingStatus: BASE_URL + "/pairing/status",
   disconnectTracker: BASE_URL + "/pairing/disconnect",
+  // --- Employee Tracker ---
+  employeeTrackerStatus: BASE_URL + "/employee-tracker/status",
+  employeeTrackerDailySummary: BASE_URL + "/employee-tracker/summary/daily",
+  employeeTrackerBreaks: BASE_URL + "/employee-tracker/breaks",
 };
 
 export const Methods = {

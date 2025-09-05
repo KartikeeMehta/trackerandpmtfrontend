@@ -1,41 +1,44 @@
-const { contextBridge, ipcRenderer } = require('electron')
+(() => {
+  // Wrap everything to avoid top-level identifier collisions when sandbox bundles multiple preloads
+  const electron = require("electron");
+  const cb = electron.contextBridge;
+  const ir = electron.ipcRenderer;
 
-let authToken = null
-let baseUrl = 'http://localhost:8000/api/employee-tracker'
+  function safeOn(channel, handler) {
+    try {
+      ir.on(channel, (_event, payload) => {
+        try {
+          handler(payload);
+        } catch (_) {}
+      });
+    } catch (_) {}
+  }
 
-async function apiRequest(path, options = {}) {
-	const headers = Object.assign(
-		{ 'Content-Type': 'application/json' },
-		options.headers || {}
-	)
-	if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-	const res = await fetch(`${baseUrl}${path}`, { credentials: 'include', ...options, headers })
-	let data
-	try { data = await res.json() } catch (_) { data = null }
-	if (!res.ok) {
-		const message = (data && (data.message || data.error)) || `HTTP ${res.status}`
-		throw new Error(message)
-	}
-	return data
-}
+  // Avoid exposing multiple times if the bundle executes twice
+  if (!global.__TRACKER_PRELOAD_EXPOSED__) {
+    try {
+      cb.exposeInMainWorld("tracker", {
+        onActivity(handler) {
+          safeOn("tracker:activity", handler);
+        },
+        onIdleStart(handler) {
+          safeOn("tracker:idle-start", handler);
+        },
+        onIdleEnd(handler) {
+          safeOn("tracker:idle-end", handler);
+        },
+        async getActivityCounts() {
+          return await ir.invoke("get-activity-counts");
+        },
+        async resetActivityCounters() {
+          return await ir.invoke("reset-activity-counters");
+        },
+      });
+      global.__TRACKER_PRELOAD_EXPOSED__ = true;
+    } catch (e) {
+      // If another preload already exposed window.tracker, silently ignore
+    }
+  }
+})();
 
-contextBridge.exposeInMainWorld('trackerAPI', {
-	setUserEmail: (email) => ipcRenderer.send('set-user-email', email),
-	onStart: (cb) => ipcRenderer.on('tracker:start', cb),
-	onStop: (cb) => ipcRenderer.on('tracker:stop', cb),
-
-	// Employee-tracker integration
-	setAuthToken: (token) => { authToken = token || null },
-	setBaseUrl: (url) => { if (url && typeof url === 'string') baseUrl = url },
-
-	punchIn: () => apiRequest('/punch-in', { method: 'POST', body: JSON.stringify({}) }),
-	punchOut: () => apiRequest('/punch-out', { method: 'POST', body: JSON.stringify({}) }),
-	startBreak: (payload) => apiRequest('/break/start', { method: 'POST', body: JSON.stringify(payload || {}) }),
-	endBreak: (payload) => apiRequest('/break/end', { method: 'POST', body: JSON.stringify(payload || {}) }),
-	idleStart: (payload) => apiRequest('/idle/start', { method: 'POST', body: JSON.stringify(payload || {}) }),
-	idleEnd: (payload) => apiRequest('/idle/end', { method: 'POST', body: JSON.stringify(payload || {}) }),
-	getStatus: () => apiRequest('/status', { method: 'GET' }),
-	getSettings: () => apiRequest('/settings', { method: 'GET' }),
-	updateSettings: (settings) => apiRequest('/settings', { method: 'PUT', body: JSON.stringify(settings || {}) })
-})
-
+// Removed duplicate exposure block to avoid collisions in packaged sandbox

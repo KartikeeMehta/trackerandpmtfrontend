@@ -1,92 +1,469 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron')
-const path = require('path')
-const { pathToFileURL } = require('url')
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  powerMonitor,
+  Tray,
+  Menu,
+  nativeImage,
+} = require("electron");
+const path = require("path");
+const { pathToFileURL } = require("url");
+const fs = require("fs");
+
+function resolveIconPath() {
+  const devIcon = path.join(__dirname, "public", "logo_favicon.png");
+  const prodIcon = path.join(
+    process.resourcesPath || __dirname,
+    "public",
+    "logo_favicon.png"
+  );
+  if (fs.existsSync(devIcon)) return devIcon;
+  if (fs.existsSync(prodIcon)) return prodIcon;
+  return devIcon;
+}
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
-    }
-  })
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+      preload: path.join(__dirname, "preload.js"),
+    },
+    icon: resolveIconPath(),
+  });
 
   // Load Parcel-built file during dev; load packaged renderer in prod
   const devUrl = process.env.ELECTRON_START_URL;
   if (!app.isPackaged && devUrl) {
     win.loadURL(devUrl);
   } else {
-    const fileUrl = pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).toString();
-    win.loadURL(fileUrl)
+    const fileUrl = pathToFileURL(
+      path.join(__dirname, "renderer", "index.html")
+    ).toString();
+    win.loadURL(fileUrl);
   }
   // Optional: open devtools in dev
   if (!app.isPackaged) {
-    win.webContents.openDevTools({ mode: 'detach' })
+    win.webContents.openDevTools({ mode: "detach" });
   }
 
-  return win
+  return win;
 }
 
-let tray = null
-let mainWindow = null
-let userEmailForDisconnect = null
-let isQuitting = false
+let mainWindow = null;
+let tray = null;
+let isQuiting = false;
 
 app.whenReady().then(() => {
-  mainWindow = createWindow()
-
-  // Tray setup
-  // Create a tiny tray icon from embedded PNG to avoid missing-file issues
-  const trayPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAIVBMVEX///8AAABGRkYzMzM7Ozs3NzcvLy9hYWFvb28/Pz9QUFBcXFz7mH0aAAAAKElEQVQY02NgQAXGZGBgYGBQwMDA8IEMGBgYwFQGBhYgqAQYB0Q0gAAAPf0ALN9wQyMAAAAASUVORK5CYII='
-  const trayImage = nativeImage.createFromDataURL(`data:image/png;base64,${trayPngBase64}`)
-  tray = new Tray(trayImage)
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Show', click: () => { if (mainWindow) { mainWindow.show() } } },
-    { label: 'Start', click: () => { if (mainWindow) mainWindow.webContents.send('tracker:start') } },
-    { label: 'Stop', click: () => { if (mainWindow) mainWindow.webContents.send('tracker:stop') } },
-    { type: 'separator' },
-    { label: 'Quit', click: async () => {
-        try {
-          if (userEmailForDisconnect) {
-            const fetch = (await import('node-fetch')).default
-            await fetch('http://localhost:8000/api/pairing/disconnect-by-email', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: userEmailForDisconnect })
-            })
+  mainWindow = createWindow();
+  // Create system tray icon
+  try {
+    const iconPath = resolveIconPath();
+    let image = nativeImage.createFromPath(iconPath);
+    if (!image || (typeof image.isEmpty === "function" && image.isEmpty())) {
+      image = nativeImage.createEmpty();
+    }
+    const trayImage = image.isEmpty
+      ? image
+      : image.resize({ width: 16, height: 16, quality: "best" });
+    tray = new Tray(trayImage);
+    tray.setToolTip("ProjectFlow Tracker");
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: "Show",
+        click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show();
+            mainWindow.focus();
           }
-        } catch {}
-        isQuitting = true
-        app.quit()
+        },
+      },
+      { type: "separator" },
+      {
+        label: "Quit",
+        click: () => {
+          isQuiting = true;
+          app.quit();
+        },
+      },
+    ]);
+    tray.setContextMenu(contextMenu);
+    tray.on("click", () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
       }
-    }
-  ])
-  tray.setToolTip('ProjectFlow Tracker')
-  tray.setContextMenu(contextMenu)
+    });
+  } catch (e) {}
 
-  // Minimize to tray behavior
-  mainWindow.on('close', (e) => {
-    if (isQuitting) return
-    e.preventDefault()
-    mainWindow.hide()
-  })
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow()
-    }
-  })
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    if (!isQuitting) return
-    app.quit()
+  // Intercept close -> hide to tray
+  if (mainWindow) {
+    mainWindow.on("close", (e) => {
+      if (!isQuiting) {
+        e.preventDefault();
+        mainWindow.hide();
+      }
+    });
   }
-})
 
-// Receive email from renderer to use on forced quit
-ipcMain.on('set-user-email', (_evt, email) => {
-  userEmailForDisconnect = email || null
-})
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      mainWindow = createWindow();
+    }
+  });
+});
 
+app.on("window-all-closed", () => {
+  // Keep app running in tray on Windows/Linux; macOS stays resident by default
+  if (process.platform !== "darwin" && !tray) {
+    app.quit();
+  }
+});
 
+// Background idle detection using system idle time
+let lastIdleState = false;
+let idleInterval = null;
+const IDLE_THRESHOLD_SECONDS = 30; // align with renderer threshold
+
+// Track recent activity to filter out modifier-only activity
+let recentActivity = [];
+const ACTIVITY_WINDOW_MS = 2000; // 2 second window to check for real activity
+let globalHookActive = false;
+// Keep a strong reference to uIOhook so it doesn't get garbage-collected
+let globalUiohookRef = null;
+
+// Spam detection variables
+let keyPressCounts = new Map(); // Track key press counts
+const SPAM_THRESHOLD = 7; // Number of presses to consider spam
+const SPAM_WINDOW_MS = 3000; // 3 second window to count key presses
+const SPAM_RECOVERY_MS = 3000; // 3 seconds to wait after spam before resuming activity
+let isSpamMode = false;
+let spamRecoveryTimer = null;
+
+// Activity counting variables
+let totalKeystrokes = 0;
+let totalMouseClicks = 0;
+let spamKeystrokes = 0; // Track spam keystrokes separately
+
+// Spam detection helper functions
+function isSpamKey(keycode) {
+  const now = Date.now();
+  const keyData = keyPressCounts.get(keycode) || { count: 0, firstPress: now };
+
+  // Reset count if outside spam window
+  if (now - keyData.firstPress > SPAM_WINDOW_MS) {
+    keyData.count = 1;
+    keyData.firstPress = now;
+  } else {
+    keyData.count++;
+  }
+
+  keyPressCounts.set(keycode, keyData);
+
+  console.log(
+    `Key ${keycode} pressed ${keyData.count} times in ${
+      now - keyData.firstPress
+    }ms`
+  );
+
+  return keyData.count >= SPAM_THRESHOLD;
+}
+
+function enterSpamMode() {
+  if (isSpamMode) return;
+
+  console.log("🚫 SPAM DETECTED - Entering spam mode, starting idle time");
+  isSpamMode = true;
+
+  // Clear any existing recovery timer
+  if (spamRecoveryTimer) {
+    clearTimeout(spamRecoveryTimer);
+  }
+
+  // Send idle start event
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log("🚫 Sending spam idle start event to renderer");
+    mainWindow.webContents.send("tracker:idle-start", {
+      at: Date.now(),
+      source: "spam-detection",
+      reason: "key-spam",
+    });
+  } else {
+    console.log("⚠️ Main window not available to send spam idle event");
+  }
+}
+
+function exitSpamMode() {
+  if (!isSpamMode) return;
+
+  console.log("✅ Exiting spam mode after recovery period");
+  isSpamMode = false;
+
+  // Send idle end event
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log("✅ Sending spam idle end event to renderer");
+    mainWindow.webContents.send("tracker:idle-end", {
+      at: Date.now(),
+      source: "spam-recovery",
+    });
+  } else {
+    console.log("⚠️ Main window not available to send spam idle end event");
+  }
+}
+
+function startSpamRecovery() {
+  if (spamRecoveryTimer) {
+    clearTimeout(spamRecoveryTimer);
+  }
+
+  console.log(`⏳ Starting spam recovery timer (${SPAM_RECOVERY_MS}ms)`);
+  spamRecoveryTimer = setTimeout(() => {
+    exitSpamMode();
+  }, SPAM_RECOVERY_MS);
+}
+
+function resetActivityCounters() {
+  totalKeystrokes = 0;
+  totalMouseClicks = 0;
+  spamKeystrokes = 0;
+  keyPressCounts.clear();
+  console.log("🔄 Activity counters reset");
+}
+
+function startIdleMonitor() {
+  if (idleInterval) return;
+
+  // Try to start global input hook for fine-grained filtering
+  try {
+    console.log("Attempting to load uiohook-napi...");
+    const { uIOhook, UiohookKey } = require("uiohook-napi");
+    console.log("uiohook-napi loaded successfully!");
+    // Keep global reference
+    globalUiohookRef = uIOhook;
+
+    const IGNORE_KEYS = new Set([
+      UiohookKey.CapsLock,
+      UiohookKey.Space,
+      UiohookKey.Shift,
+      UiohookKey.ShiftRight,
+      UiohookKey.Ctrl,
+      UiohookKey.CtrlRight,
+      UiohookKey.Alt,
+      UiohookKey.AltRight,
+      UiohookKey.Meta,
+      UiohookKey.MetaRight,
+    ]);
+
+    const shouldCountKey = (event) => {
+      // Check if the keycode is in our ignore list
+      if (IGNORE_KEYS.has(event.keycode)) {
+        console.log("Key ignored:", event.keycode);
+        return false;
+      }
+      console.log("Key allowed:", event.keycode);
+      return true;
+    };
+
+    const markActivity = (meta) => {
+      const now = Date.now();
+
+      // If we're in spam mode, don't count this as activity
+      if (isSpamMode) {
+        console.log("🚫 Ignoring activity - in spam mode");
+        return;
+      }
+
+      // Count legitimate activity
+      if (meta && meta.keycode) {
+        totalKeystrokes++;
+        console.log(`📊 Total keystrokes: ${totalKeystrokes}`);
+      } else {
+        totalMouseClicks++;
+        console.log(`📊 Total mouse clicks: ${totalMouseClicks}`);
+      }
+
+      recentActivity.push({ timestamp: now, source: "uiohook", ...meta });
+
+      // Clean old activities
+      recentActivity = recentActivity.filter(
+        (activity) => now - activity.timestamp < ACTIVITY_WINDOW_MS
+      );
+
+      if (lastIdleState) {
+        lastIdleState = false;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("tracker:idle-end", {
+            at: Date.now(),
+            source: "uiohook",
+            ...meta,
+          });
+        }
+      } else if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("tracker:activity", {
+          at: Date.now(),
+          source: "uiohook",
+          keystrokes: totalKeystrokes,
+          mouseClicks: totalMouseClicks,
+          spamKeystrokes: spamKeystrokes,
+          ...meta,
+        });
+      }
+    };
+
+    uIOhook.on("keydown", (e) => {
+      console.log("Key pressed:", e.keycode);
+      const shouldCount = shouldCountKey(e);
+      if (shouldCount) {
+        // Check for spam
+        if (isSpamKey(e.keycode)) {
+          spamKeystrokes++;
+          console.log(
+            `🚫 Spam keystroke detected! Total spam: ${spamKeystrokes}`
+          );
+          enterSpamMode();
+          return; // Don't mark as activity
+        }
+
+        // If not spam, mark as normal activity
+        markActivity({ keycode: e.keycode });
+      }
+    });
+
+    uIOhook.on("keyup", (e) => {
+      console.log("Key released:", e.keycode);
+      const shouldCount = shouldCountKey(e);
+      if (shouldCount && isSpamMode) {
+        // User released a key while in spam mode, start recovery timer
+        console.log(
+          "🔑 Key released during spam mode, starting recovery timer"
+        );
+        startSpamRecovery();
+      }
+    });
+
+    uIOhook.on("mousedown", () => {
+      console.log("Mouse click detected");
+      markActivity();
+    });
+
+    uIOhook.on("mousemove", () => {
+      // ignore movement
+    });
+
+    uIOhook.on("wheel", () => {
+      // ignore wheel
+    });
+
+    uIOhook.start();
+    globalHookActive = true;
+    console.log("Global input hook started successfully!");
+  } catch (e) {
+    console.log("Failed to start global input hook:", e.message);
+    console.log("Falling back to powerMonitor-only mode");
+  }
+
+  // PowerMonitor handler with smart filtering
+  try {
+    powerMonitor.on("user-did-activity", () => {
+      console.log(
+        "powerMonitor user-did-activity fired, globalHookActive:",
+        globalHookActive
+      );
+
+      const now = Date.now();
+      recentActivity.push({ timestamp: now, source: "powerMonitor" });
+
+      // Clean old activities
+      recentActivity = recentActivity.filter(
+        (activity) => now - activity.timestamp < ACTIVITY_WINDOW_MS
+      );
+
+      if (globalHookActive) {
+        // When global hook is active, only end idle if we have recent real activity
+        const hasRecentRealActivity = recentActivity.some(
+          (activity) =>
+            activity.source === "uiohook" &&
+            activity.keycode &&
+            activity.timestamp > now - 1000 // Within last 1 second
+        );
+
+        if (hasRecentRealActivity && lastIdleState) {
+          lastIdleState = false;
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            console.log(
+              "Sending idle-end from powerMonitor (has real activity)"
+            );
+            mainWindow.webContents.send("tracker:idle-end", {
+              at: Date.now(),
+              source: "user-did-activity",
+            });
+          }
+        } else {
+          console.log(
+            "Ignoring powerMonitor event - no real activity or not idle"
+          );
+        }
+        return;
+      }
+
+      // Fallback when global hook is not available
+      if (lastIdleState) {
+        lastIdleState = false;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("tracker:idle-end", {
+            at: Date.now(),
+            source: "user-did-activity",
+          });
+        }
+      }
+    });
+  } catch (e) {}
+  idleInterval = setInterval(() => {
+    try {
+      const idleSecs = powerMonitor.getSystemIdleTime();
+      const isIdle = idleSecs >= IDLE_THRESHOLD_SECONDS;
+      if (isIdle !== lastIdleState) {
+        lastIdleState = isIdle;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(
+            isIdle ? "tracker:idle-start" : "tracker:idle-end",
+            { idleSeconds: idleSecs, at: Date.now() }
+          );
+        }
+      }
+    } catch (e) {}
+  }, 1000);
+}
+
+function stopIdleMonitor() {
+  if (idleInterval) {
+    clearInterval(idleInterval);
+    idleInterval = null;
+  }
+}
+
+// IPC handlers for activity tracking
+ipcMain.handle("get-activity-counts", () => {
+  return {
+    keystrokes: totalKeystrokes,
+    mouseClicks: totalMouseClicks,
+    spamKeystrokes: spamKeystrokes,
+  };
+});
+
+ipcMain.handle("reset-activity-counters", () => {
+  resetActivityCounters();
+  return { success: true };
+});
+
+app.whenReady().then(() => {
+  startIdleMonitor();
+});
+
+app.on("before-quit", () => {
+  stopIdleMonitor();
+});

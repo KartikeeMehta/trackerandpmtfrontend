@@ -1,36 +1,87 @@
-import React from 'react';
-
-function Feature({ title, desc }) {
-  return (
-    <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-      <div className="text-sm font-medium text-gray-900">{title}</div>
-      <div className="text-xs text-gray-600 mt-0.5">{desc}</div>
-    </div>
-  );
-}
+import React from "react";
 
 export default function Front({ onConnect }) {
   return (
-    <div className="p-10 bg-white">
-      <div className="rounded-xl border border-gray-200 shadow-sm bg-white/90">
-        <div className="px-6 py-8">
-          <h1 className="text-3xl font-semibold mb-3 text-gray-900 tracking-tight">Welcome to ProjectFlow Tracker</h1>
-          <p className="text-gray-600 mb-8 max-w-2xl">Track working hours, breaks, and idle time with beautiful reports your team will actually use.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <Feature title="Smart idle detection" desc="Auto-detects after 30 seconds" />
-            <Feature title="One-click breaks" desc="Tea, lunch, meeting presets" />
-            <Feature title="Graceful stops" desc="7 min grace after ending" />
-          </div>
-          <button
-            onClick={onConnect}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-          >
-            Connect to Dashboard
-          </button>
+    <div className="p-10 bg-gradient-to-br from-sky-50 to-emerald-50 animate-fade-in">
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-100 text-sky-700 text-xs border border-sky-200 animate-pop">
+          <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
+          ProjectFlow Desktop Tracker
         </div>
+
+        <h1 className="mt-4 text-3xl sm:text-4xl font-semibold text-gray-900 tracking-tight">
+          Focus on work, we’ll handle the tracking
+        </h1>
+        <p className="mt-3 text-gray-600 leading-relaxed">
+          Automatic working, active, and idle time tracking with real-time sync
+          to your ProjectFlow dashboard. Punch in to start, punch out to finish
+          — everything else is calculated for you.
+        </p>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <FeatureCard
+            title="Total Time"
+            desc="From punch in to punch out"
+            color="sky"
+          />
+          <FeatureCard
+            title="Active Time"
+            desc="Keyboard + clicks only"
+            color="emerald"
+          />
+          <FeatureCard
+            title="Idle Time"
+            desc=":30s inactivity triggers"
+            color="rose"
+          />
+        </div>
+
+        <button
+          onClick={onConnect}
+          className="mt-10 px-6 py-3 rounded-xl bg-gray-900 text-white shadow-lg shadow-gray-900/10 hover:bg-black transition-transform duration-200 active:scale-[0.98] animate-rise"
+        >
+          Connect to Dashboard
+        </button>
       </div>
     </div>
   );
 }
 
+function FeatureCard({ title, desc, color }) {
+  const colorMap = {
+    sky: {
+      ring: "ring-sky-200",
+      dot: "bg-sky-500",
+      bg: "bg-white",
+    },
+    emerald: {
+      ring: "ring-emerald-200",
+      dot: "bg-emerald-500",
+      bg: "bg-white",
+    },
+    rose: {
+      ring: "ring-rose-200",
+      dot: "bg-rose-500",
+      bg: "bg-white",
+    },
+  }[color || "sky"];
 
+  return (
+    <div
+      className={`rounded-2xl border border-gray-200 ${colorMap.bg} shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-5 animate-rise`}
+    >
+      <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${colorMap.dot} animate-pulse`}
+        />
+        {title}
+      </div>
+      <div className="mt-1 text-xs text-gray-500">{desc}</div>
+      <div className={`mt-4 rounded-xl ring-1 ${colorMap.ring} p-4 text-left`}>
+        <div className="h-2 w-3/4 rounded bg-gray-100" />
+        <div className="mt-2 h-2 w-1/2 rounded bg-gray-100" />
+        <div className="mt-2 h-2 w-2/3 rounded bg-gray-100" />
+      </div>
+    </div>
+  );
+}
