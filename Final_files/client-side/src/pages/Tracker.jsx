@@ -1,21 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-
 export default function TrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [status, setStatus] = useState(null);
   const [breaksData, setBreaksData] = useState({
     date: "",
     breaks: [],
     totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
   });
+
   const [selectedDate, setSelectedDate] = useState("");
   const [dateSummary, setDateSummary] = useState(null);
   const tickRef = useRef(null);
-
+  // Force-refresh tick for Input Intensity every 15s
+  const [intensityTick, setIntensityTick] = useState(0);
   const minToMs = (min) => Math.max(0, Number(min) || 0) * 60 * 1000;
   const formatIST = (dateLike) => {
     try {
@@ -37,13 +37,13 @@ export default function TrackerPage() {
     try {
       if (!dateLike) return "—";
       const d = new Date(dateLike);
-
       // Extract only time from the timestamp without timezone conversion
       const time = new Intl.DateTimeFormat("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
         hour12: true,
+
         timeZone: "UTC",
       }).format(d);
 
@@ -52,12 +52,14 @@ export default function TrackerPage() {
       return "—";
     }
   };
+
   const fmt = (ms) => {
     const safe = Math.max(0, Number(ms) || 0);
     const s = Math.floor(safe / 1000) % 60;
     const m = Math.floor(safe / (1000 * 60)) % 60;
     const h = Math.floor(safe / (1000 * 60 * 60));
     const pad = (n) => String(n).padStart(2, "0");
+
     return `${pad(h)}:${pad(m)}:${pad(s)}`;
   };
 
@@ -92,6 +94,7 @@ export default function TrackerPage() {
         `${api_url.employeeTrackerBreaks}${qs}`,
         token
       );
+
       if (res?.success) {
         setBreaksData({
           date: res.date || dateStr,
@@ -124,8 +127,10 @@ export default function TrackerPage() {
       const qs = dateStr ? `?date=${encodeURIComponent(dateStr)}` : "";
       const res = await apiHandler.GetApi(
         `${api_url.employeeTrackerDailySummary}${qs}`,
+
         token
       );
+
       if (res?.success) {
         setDateSummary(res.summary || null);
       } else {
@@ -140,6 +145,12 @@ export default function TrackerPage() {
     fetchStatus(true); // Initial load with loading state
     const poll = setInterval(() => fetchStatus(false), 15000); // Subsequent loads without loading state
     return () => clearInterval(poll);
+  }, []);
+
+  // Independent 15s refresh to ensure Input Intensity card updates like others
+  useEffect(() => {
+    const id = setInterval(() => setIntensityTick((t) => t + 1), 15000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -163,6 +174,7 @@ export default function TrackerPage() {
         ", trying next day:",
         nextDayStr
       );
+
       fetchBreaks(nextDayStr);
     }
   }, [selectedDate, breaksData.breaks.length]);
@@ -172,30 +184,28 @@ export default function TrackerPage() {
       clearInterval(tickRef.current);
       tickRef.current = null;
     }
+
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
   }, [status?.currentSession?.isActive]);
 
   const cards = useMemo(() => {
-    const day = status?.formatted?.todaySummary || {};
-    const raw = status?.todaySummary || {};
-    // Use only persisted values; no live accumulation
-    const totalMs = day?.totalWorkTimeHMS ? 0 : minToMs(raw.totalWorkTime || 0);
-    const breakMs = day?.totalBreakTimeHMS
-      ? 0
-      : minToMs(raw.totalBreakTime || 0);
-    const idleMs = day?.totalIdleTimeHMS ? 0 : minToMs(raw.totalIdleTime || 0);
-    const productiveMs = day?.totalProductiveTimeHMS
-      ? 0
-      : minToMs(raw.totalProductiveTime || 0);
-    const activity = Number.isFinite(raw.averageActivityPercentage)
-      ? Math.round(raw.averageActivityPercentage)
-      : totalMs > 0
-      ? Math.round((productiveMs / totalMs) * 100)
-      : 0;
+    // Build cards strictly from the selected date summary
+    const ds = dateSummary || {};
+    const totalMs = minToMs(ds.totalWorkTime || 0);
+    const breakMs = minToMs(ds.totalBreakTime || 0);
+    const idleMs = minToMs(ds.totalIdleTime || 0);
+    const productiveMs = minToMs(ds.totalProductiveTime || 0);
+    const activity =
+      (ds.totalWorkTime || 0) > 0
+        ? Math.round(
+            ((ds.totalProductiveTime || 0) / (ds.totalWorkTime || 0)) * 100
+          )
+        : 0;
+
     return { totalMs, productiveMs, idleMs, breakMs, activity };
-  }, [status]);
+  }, [dateSummary]);
 
   const activeBreak = useMemo(() => {
     const cur = status?.currentSession;
@@ -225,6 +235,7 @@ export default function TrackerPage() {
       ...sessions.flatMap((s) => (Array.isArray(s?.breaks) ? s.breaks : [])),
       ...curBreaks,
     ];
+
     return list.sort(
       (a, b) =>
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
@@ -232,18 +243,21 @@ export default function TrackerPage() {
   }, [status]);
 
   // Calculate daily productivity trends for the last 7 days
+
   const dailyProductivityData = useMemo(() => {
     if (!status?.workSessions || !Array.isArray(status.workSessions)) {
       return [];
     }
 
-    // Get the last 7 days in IST
-    const today = new Date();
+    // Get the last 7 days in IST ending at selectedDate
+    const end = selectedDate ? new Date(selectedDate) : new Date();
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
+      const date = new Date(end);
       date.setDate(date.getDate() - i);
+
       // Convert to IST date string
+
       const istDate = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Kolkata",
         year: "numeric",
@@ -280,12 +294,10 @@ export default function TrackerPage() {
       // Calculate totals for the day (sessions already store times in minutes)
       let totalProductiveTime = 0;
       let totalWorkTime = 0;
-
       daySessions.forEach((session) => {
         // Sessions already store times in minutes, convert to ms for display
         const productiveMs = minToMs(session.productiveTime || 0);
         const workMs = minToMs(session.duration || 0);
-
         totalProductiveTime += productiveMs;
         totalWorkTime += workMs;
       });
@@ -303,19 +315,110 @@ export default function TrackerPage() {
         totalTimeFormatted: fmt(totalWorkTime),
       };
     });
-  }, [status?.workSessions]);
+  }, [status?.workSessions, selectedDate]);
 
-  const staticHourlyHeatmap = useMemo(() => {
-    // minutes of productive time per hour (0-23) averaged over recent days
-    // keys 0..6 => Sun..Sat
-    return {
-      1: { 9: 42, 10: 48, 11: 40, 12: 20, 13: 18, 14: 35, 15: 38, 16: 25 },
-      2: { 9: 45, 10: 50, 11: 46, 12: 22, 13: 20, 14: 36, 15: 40, 16: 28 },
-      3: { 9: 30, 10: 44, 11: 50, 12: 18, 13: 15, 14: 34, 15: 42, 16: 30 },
-      4: { 9: 35, 10: 46, 11: 48, 12: 16, 13: 18, 14: 37, 15: 41, 16: 29 },
-      5: { 9: 25, 10: 40, 11: 45, 12: 15, 13: 14, 14: 30, 15: 36, 16: 20 },
+  const dynamicHourlyHeatmap = useMemo(() => {
+    // Build minutes of productive time per hour (0-23) for each weekday (0..6 => Sun..Sat)
+    // Approximation: distribute each session's productiveTime across the hours overlapped by the session
+
+    const result = Array.from({ length: 7 }, () => ({})); // each entry: { [hour]: minutes }
+
+    const IST_OFFSET_MIN = 330; // +05:30
+    const toISTDate = (date) => new Date(date.getTime() + IST_OFFSET_MIN * 60 * 1000);
+
+    const getISTDayHour = (date) => {
+      const d = toISTDate(date);
+      // use UTC getters on shifted date to emulate IST clock
+      const day = d.getUTCDay(); // 0..6 Sun..Sat
+      const hour = d.getUTCHours(); // 0..23
+      return { day, hour };
     };
-  }, []);
+
+    const minutesBetween = (a, b) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
+
+    const distributeProductiveMinutes = (startUtc, endUtc, productiveMinutes) => {
+      try {
+        if (!startUtc || !endUtc) return;
+        const start = new Date(startUtc);
+        const end = new Date(endUtc);
+        if (isNaN(start) || isNaN(end)) return;
+        if (end <= start) return;
+        const spanMin = minutesBetween(start, end);
+        if (spanMin <= 0) return;
+
+        // Iterate hour windows in IST
+        let cursor = new Date(start);
+        while (cursor < end) {
+          const { day, hour } = getISTDayHour(cursor);
+          // end of current IST hour window
+          const istCursor = toISTDate(cursor);
+          const hourEndIST = new Date(
+            Date.UTC(
+              istCursor.getUTCFullYear(),
+              istCursor.getUTCMonth(),
+              istCursor.getUTCDate(),
+              istCursor.getUTCHours() + 1,
+              0,
+              0,
+              0
+            )
+          );
+          // convert hourEnd back to UTC baseline (reverse shift)
+          const hourEndUTC = new Date(hourEndIST.getTime() - IST_OFFSET_MIN * 60 * 1000);
+          const windowEnd = hourEndUTC < end ? hourEndUTC : end;
+          const overlapMin = minutesBetween(cursor, windowEnd);
+          if (overlapMin > 0) {
+            const alloc = (productiveMinutes * overlapMin) / spanMin;
+            const bucket = result[day];
+            bucket[hour] = (bucket[hour] || 0) + alloc;
+          }
+          cursor = windowEnd;
+        }
+      } catch {}
+    };
+
+    // Process past sessions
+    const sessions = Array.isArray(status?.workSessions) ? status.workSessions : [];
+    sessions.forEach((s) => {
+      try {
+        const start = s?.startTime ? new Date(s.startTime) : null;
+        let end = null;
+        if (s?.endTime) {
+          end = new Date(s.endTime);
+        } else if (s?.duration) {
+          end = start ? new Date(start.getTime() + Number(s.duration) * 60000) : null;
+        }
+        const productive = Math.max(0, Number(s?.productiveTime) || 0);
+        if (start && end && productive > 0) {
+          distributeProductiveMinutes(start, end, productive);
+        }
+      } catch {}
+    });
+
+    // Include current session (live)
+    try {
+      const cur = status?.currentSession;
+      if (cur?.startTime) {
+        const start = new Date(cur.startTime);
+        const end = cur?.endTime ? new Date(cur.endTime) : new Date();
+        const productive = Math.max(0, Number(cur?.productiveTime) || 0);
+        if (end > start && productive > 0) {
+          distributeProductiveMinutes(start, end, productive);
+        }
+      }
+    } catch {}
+
+    // Round values to whole minutes and clamp to [0, 60]
+    for (let d = 0; d < 7; d++) {
+      const row = result[d];
+      Object.keys(row).forEach((h) => {
+        const v = Math.round(row[h]);
+        row[h] = Math.max(0, Math.min(60, v));
+      });
+    }
+
+    return result;
+  }, [status?.workSessions, status?.currentSession]);
 
   // Calculate break pattern analysis for the last 7 days
   const breakPatternData = useMemo(() => {
@@ -553,49 +656,62 @@ export default function TrackerPage() {
     );
   };
 
-  // ===== Idle Visualizations (static) =====
-  const staticIdleTrend = useMemo(
-    () => [
-      {
-        date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 40,
-      },
-      {
-        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 55,
-      },
-      {
-        date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 30,
-      },
-      {
-        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 60,
-      },
-      {
-        date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 35,
-      },
-      {
-        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        idleMin: 45,
-      },
-      { date: new Date().toISOString().slice(0, 10), idleMin: 50 },
-    ],
-    []
-  );
+  // ===== Idle Visualizations (dynamic) =====
+  const idleTrendData = useMemo(() => {
+    if (!status?.workSessions || !Array.isArray(status.workSessions)) {
+      return [];
+    }
+
+    // Last 7 days (IST) ending at selectedDate
+    const end = selectedDate ? new Date(selectedDate) : new Date();
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(end);
+      date.setDate(date.getDate() - i);
+      const istDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+      last7Days.push(istDate);
+    }
+
+    // Aggregate idle minutes per day
+    return last7Days.map((date) => {
+      const sessionsForDay = status.workSessions.filter((s) => {
+        const sessionDate = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(s.startTime));
+        return sessionDate === date;
+      });
+
+      // Include current session if it belongs to this day
+      try {
+        const cur = status.currentSession;
+        if (cur && cur.startTime) {
+          const curDate = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(cur.startTime));
+          if (curDate === date) {
+            sessionsForDay.push(cur);
+          }
+        }
+      } catch {}
+
+      const idleMin = sessionsForDay.reduce(
+        (sum, s) => sum + (Number(s.idleTime) || 0),
+        0
+      );
+      return { date, idleMin: Math.max(0, Math.round(idleMin)) };
+    });
+  }, [status?.workSessions, status?.currentSession, selectedDate]);
 
   const IdleTrend = ({ days }) => {
     const chartHeight = 160;
@@ -691,64 +807,63 @@ export default function TrackerPage() {
       return [];
     }
 
-    // Get the last 7 days in IST
-    const today = new Date();
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      // Convert to IST date string
-      const istDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(date);
-      last7Days.push(istDate);
-    }
-
-    // Process each day's data
-    return last7Days.map((date) => {
-      // Find sessions for this IST date
-      const daySessions = status.workSessions.filter((session) => {
-        const sessionDate = new Intl.DateTimeFormat("en-CA", {
+    // Compute strictly for the selected date (IST)
+    const target = selectedDate
+      ? selectedDate
+      : new Intl.DateTimeFormat("en-CA", {
           timeZone: "Asia/Kolkata",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
-        }).format(new Date(session.startTime));
-        return sessionDate === date;
-      });
+        }).format(new Date());
 
-      if (daySessions.length === 0) {
-        return {
-          date,
-          keystrokes: 0,
-          clicks: 0,
-          activeMin: 0,
-        };
+    // Find sessions for the selected IST date
+    const daySessions = status.workSessions.filter((session) => {
+      const sessionDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(session.startTime));
+
+      return sessionDate === target;
+    });
+
+    // Include the current active session if it belongs to the selected day (for live refresh)
+    try {
+      if (status.currentSession && status.currentSession.startTime) {
+        const curDate = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(status.currentSession.startTime));
+        if (curDate === target) {
+          daySessions.push(status.currentSession);
+        }
       }
+    } catch {}
 
-      // Calculate totals for the day
-      let totalKeystrokes = 0;
-      let totalMouseClicks = 0;
-      let totalActiveMin = 0;
+    // Calculate totals for the selected day
+    let totalKeystrokes = 0;
+    let totalMouseClicks = 0;
+    let totalActiveMin = 0;
 
-      daySessions.forEach((session) => {
-        totalKeystrokes += session.totalKeystrokes || 0;
-        totalMouseClicks += session.totalMouseClicks || 0;
-        // Convert productive time from minutes to minutes for active time
-        totalActiveMin += session.productiveTime || 0;
-      });
+    daySessions.forEach((session) => {
+      totalKeystrokes += session.totalKeystrokes || 0;
+      totalMouseClicks += session.totalMouseClicks || 0;
+      totalActiveMin += session.productiveTime || 0; // minutes
+    });
 
-      return {
-        date,
+    return [
+      {
+        date: target,
         keystrokes: totalKeystrokes,
         clicks: totalMouseClicks,
         activeMin: totalActiveMin,
-      };
-    });
-  }, [status?.workSessions]);
+      },
+    ];
+  }, [status?.workSessions, intensityTick, selectedDate]);
 
   const InputIntensityCard = ({ days }) => {
     const totals = days.reduce(
@@ -760,18 +875,80 @@ export default function TrackerPage() {
       },
       { keystrokes: 0, clicks: 0, activeMin: 0 }
     );
+
+    const totalInputs = (totals.keystrokes || 0) + (totals.clicks || 0);
+    const kPct = totalInputs
+      ? Math.round((totals.keystrokes / totalInputs) * 100)
+      : 0;
+    const mPct = totalInputs ? 100 - kPct : 0;
     const kpm = totals.activeMin ? totals.keystrokes / totals.activeMin : 0;
     const cpm = totals.activeMin ? totals.clicks / totals.activeMin : 0;
     const peak = days
+
       .map((d) => ({
         date: d.date,
         kpm: d.activeMin ? d.keystrokes / d.activeMin : 0,
         cpm: d.activeMin ? d.clicks / d.activeMin : 0,
       }))
+
       .reduce(
         (best, cur) => (cur.kpm + cur.cpm > best.kpm + best.cpm ? cur : best),
         { date: days[0]?.date, kpm: 0, cpm: 0 }
       );
+
+    // Compute approximate peak hour window for selected day using lastActivity/startTime
+    const findPeakHourLabel = () => {
+      try {
+        const dayStr = selectedDate || new Date().toISOString().slice(0, 10);
+        const sessions = Array.isArray(status?.workSessions)
+          ? status.workSessions
+          : [];
+        const inDay = sessions.filter((s) => {
+          const d = new Date(s.startTime);
+          const ist = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(d);
+          return ist === dayStr;
+        });
+        // include current session if on selected day
+        if (status?.currentSession?.startTime) {
+          const curIst = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(status.currentSession.startTime));
+          if (curIst === dayStr) inDay.push(status.currentSession);
+        }
+        const counts = new Map();
+        inDay.forEach((s) => {
+          const stamp = s.lastActivity || s.endTime || new Date();
+          const dt = new Date(stamp);
+          const hour = dt.getHours();
+          counts.set(hour, (counts.get(hour) || 0) + 1);
+        });
+        if (counts.size === 0) return null;
+        let bestHour = 0;
+        let bestCount = -1;
+        counts.forEach((v, k) => {
+          if (v > bestCount) {
+            bestCount = v;
+            bestHour = k;
+          }
+        });
+        const pad = (n) => String(n).padStart(2, "0");
+        const next = (bestHour + 1) % 24;
+        return `${pad(bestHour)}:00–${pad(next)}:00`;
+      } catch {
+        return null;
+      }
+    };
+
+    const peakHourLabel = findPeakHourLabel();
+
     return (
       <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -779,56 +956,67 @@ export default function TrackerPage() {
             ⌨️
           </span>
           <div className="text-lg font-semibold text-gray-700">
-            Input Intensity (7 days)
+            Input Intensity
           </div>
+          {peakHourLabel && (
+            <span
+              className="ml-2 text-xs text-gray-500 px-2 py-0.5 rounded-full bg-gray-100"
+              title={`Most active: ${peakHourLabel}`}
+            >
+              Most active: {peakHourLabel}
+            </span>
+          )}
         </div>
+
         <div className="grid grid-cols-2 gap-6">
           <div className="rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 p-4 border border-white/60">
-            <div className="text-xs text-gray-500 mb-1">Keystrokes</div>
-            <div className="text-2xl font-bold text-violet-700 tabular-nums">
+            <div className="text-base font-medium text-gray-600 mb-1">Keystrokes</div>
+            <div className="text-4xl font-bold text-violet-700 tabular-nums">
               {totals.keystrokes.toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600 mt-1">
-              {kpm.toFixed(1)} per minute
-            </div>
+
+            {/* removed per-minute display as requested */}
           </div>
+
           <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 border border-white/60">
-            <div className="text-xs text-gray-500 mb-1">Mouse Clicks</div>
-            <div className="text-2xl font-bold text-cyan-700 tabular-nums">
+            <div className="text-base font-medium text-gray-600 mb-1">Mouse Clicks</div>
+
+            <div className="text-4xl font-bold text-cyan-700 tabular-nums">
               {totals.clicks.toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600 mt-1">
-              {cpm.toFixed(1)} per minute
-            </div>
+
+            {/* removed per-minute display as requested */}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-gray-700">
-          <span className="px-2 py-1 rounded-full bg-gray-100">
-            Active time: {totals.activeMin} min
+
+        {/* keyboard vs mouse ratio chips + most active in unified style */}
+        <div className="mt-3 text-sm text-gray-600 flex items-center gap-3 flex-wrap">
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 shadow-sm">
+            Keyboard: {kPct}%
           </span>
-          <span className="px-2 py-1 rounded-full bg-violet-100 text-violet-700">
-            Peak day:{" "}
-            {new Date(peak.date).toLocaleDateString("en-US", {
-              weekday: "short",
-            })}
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 shadow-sm">
+            Mouse: {mPct}%
           </span>
-          <span className="px-2 py-1 rounded-full bg-violet-50 text-violet-700">
-            Keystrokes: {peak.kpm.toFixed(1)}/min
-          </span>
-          <span className="px-2 py-1 rounded-full bg-cyan-50 text-cyan-700">
-            Clicks: {peak.cpm.toFixed(1)}/min
-          </span>
+          {peakHourLabel && (
+            <span
+              className="inline-flex items-center px-3 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200 shadow-sm"
+              title={`Most active: ${peakHourLabel}`}
+            >
+              Most active: {peakHourLabel}
+            </span>
+          )}
         </div>
+        {/* removed stats chips below the card as requested */}
       </div>
     );
   };
 
   const Donut = ({ data }) => {
     const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
-
     const colors = ["#22c55e", "#f59e0b", "#3b82f6"];
     const keys = Object.keys(data);
     let acc = 0;
+
     return (
       <svg viewBox="0 0 42 42" className="w-44 h-44">
         <circle
@@ -839,6 +1027,7 @@ export default function TrackerPage() {
           stroke="#E5E7EB"
           strokeWidth="6"
         />
+
         {keys.map((k, i) => {
           const val = data[k];
           const frac = val / total;
@@ -875,12 +1064,15 @@ export default function TrackerPage() {
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
               📈
             </span>
+
             <div className="text-lg font-semibold text-gray-700">
               Daily Productivity Trends
             </div>
           </div>
+
           <div className="text-center py-8 text-gray-500">
             <div className="text-lg font-medium mb-2">No data available</div>
+
             <div className="text-sm">
               Start tracking to see your productivity trends
             </div>
@@ -895,14 +1087,17 @@ export default function TrackerPage() {
       data.reduce((sum, d) => sum + d.productivity, 0) / data.length;
 
     // Calculate trend
+
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
     const secondHalf = data.slice(Math.floor(data.length / 2));
     const firstAvg =
       firstHalf.reduce((sum, d) => sum + d.productivity, 0) / firstHalf.length;
+
     const secondAvg =
       secondHalf.reduce((sum, d) => sum + d.productivity, 0) /
       secondHalf.length;
     const trend = secondAvg - firstAvg;
+
     const trendText =
       trend > 2
         ? `Trending up ${Math.round(trend)}%`
@@ -936,9 +1131,11 @@ export default function TrackerPage() {
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
             📈
           </span>
+
           <div className="text-lg font-semibold text-gray-700">
             Daily Productivity Trends
           </div>
+
           <div className="ml-auto text-sm text-gray-500">
             Last {data.length} days
           </div>
@@ -965,6 +1162,7 @@ export default function TrackerPage() {
                     strokeWidth="1"
                     strokeDasharray="2,2"
                   />
+
                   <text
                     x={padding - 10}
                     y={y + 4}
@@ -978,6 +1176,7 @@ export default function TrackerPage() {
             })}
 
             {/* Area fill */}
+
             <path
               d={areaData}
               fill="url(#productivityGradient)"
@@ -985,6 +1184,7 @@ export default function TrackerPage() {
             />
 
             {/* Line */}
+
             <path
               d={pathData}
               fill="none"
@@ -995,6 +1195,7 @@ export default function TrackerPage() {
             />
 
             {/* Data points */}
+
             {points.map((point, i) => (
               <g key={i}>
                 <circle
@@ -1018,6 +1219,7 @@ export default function TrackerPage() {
                     {"\n"}Total Time: {point.data.totalTimeFormatted}
                   </title>
                 </circle>
+
                 <text
                   x={point.x}
                   y={padding + innerHeight + 20}
@@ -1032,6 +1234,7 @@ export default function TrackerPage() {
             ))}
 
             {/* Gradient definition */}
+
             <defs>
               <linearGradient
                 id="productivityGradient"
@@ -1041,6 +1244,7 @@ export default function TrackerPage() {
                 y2="100%"
               >
                 <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
               </linearGradient>
             </defs>
@@ -1048,19 +1252,24 @@ export default function TrackerPage() {
         </div>
 
         {/* Stats */}
+
         <div className="mt-4 grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-2xl font-bold text-emerald-600">
               {Math.round(avgProductivity)}%
             </div>
+
             <div className="text-xs text-gray-500">Average</div>
           </div>
+
           <div>
             <div className="text-2xl font-bold text-blue-600">
               {Math.round(maxProductivity)}%
             </div>
+
             <div className="text-xs text-gray-500">Best Day</div>
           </div>
+
           <div>
             <div
               className={`text-2xl font-bold ${
@@ -1074,6 +1283,7 @@ export default function TrackerPage() {
               {trend > 0 ? "+" : ""}
               {Math.round(trend)}%
             </div>
+
             <div className="text-xs text-gray-500">Trend</div>
           </div>
         </div>
@@ -1084,6 +1294,7 @@ export default function TrackerPage() {
   return (
     <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Header Section */}
+
       <div className="relative mb-8">
         <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl px-6 py-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -1091,6 +1302,7 @@ export default function TrackerPage() {
               <h1 className="text-3xl md:text-4xl text-gray-800 drop-shadow-sm font-display font-bold">
                 Time Tracker
               </h1>
+
               <p className="text-base text-gray-700/80 mt-1">
                 Track your productivity and work sessions for {selectedDate}
               </p>
@@ -1098,14 +1310,17 @@ export default function TrackerPage() {
 
             <div className="flex flex-col items-end gap-3">
               {/* Auto-refresh notice moved here above date picker */}
+
               <div className="inline-flex items-center gap-2 text-sm text-emerald-800 bg-gradient-to-r from-emerald-50 to-emerald-100/70 border border-emerald-200 rounded-full px-4 py-2 shadow-md ring-1 ring-emerald-200/60">
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700">
                   ⟳
                 </span>
+
                 <span className="font-semibold">
                   Dashboard data auto-refreshes every 5 minutes
                 </span>
               </div>
+
               <div className="relative">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
                 <div className="relative bg-white/80 backdrop-blur-sm rounded-xl border border-white/60 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -1115,11 +1330,15 @@ export default function TrackerPage() {
                     value={selectedDate}
                     onChange={(e) => {
                       const d = e.target.value;
+
                       setSelectedDate(d);
+
                       fetchDailySummary(d);
+
                       fetchBreaks(d);
                     }}
                   />
+
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                     <svg
                       className="w-4 h-4 text-gray-500"
@@ -1137,6 +1356,7 @@ export default function TrackerPage() {
                   </div>
                 </div>
               </div>
+
               {error && (
                 <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 text-red-700 text-sm border border-red-200 shadow-lg backdrop-blur-sm">
                   {error}
@@ -1145,6 +1365,7 @@ export default function TrackerPage() {
             </div>
           </div>
         </div>
+
         <div className="h-px mt-3 bg-gradient-to-r from-transparent via-indigo-300/50 to-transparent"></div>
       </div>
 
@@ -1162,6 +1383,7 @@ export default function TrackerPage() {
                 </div>
               );
             }
+
             if (!dateSummary) {
               return (
                 <div className="rounded-xl border bg-white p-6 shadow-sm text-sm text-gray-500">
@@ -1169,6 +1391,7 @@ export default function TrackerPage() {
                 </div>
               );
             }
+
             return (
               <>
                 {/* Summary Cards */}
@@ -1179,10 +1402,12 @@ export default function TrackerPage() {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-700">
                           ⏱️
                         </span>
+
                         <p className="font-semibold text-gray-700">
                           Total Time
                         </p>
                       </div>
+
                       <p className="text-2xl font-bold text-gray-800 tabular-nums">
                         {fmt(cards.totalMs)}
                       </p>
@@ -1195,10 +1420,12 @@ export default function TrackerPage() {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-100 text-green-700">
                           ✅
                         </span>
+
                         <p className="font-semibold text-gray-700">
                           Productive
                         </p>
                       </div>
+
                       <p className="text-2xl font-bold text-gray-800 tabular-nums">
                         {fmt(cards.productiveMs)}
                       </p>
@@ -1211,8 +1438,10 @@ export default function TrackerPage() {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-700">
                           🛌
                         </span>
+
                         <p className="font-semibold text-gray-700">Idle Time</p>
                       </div>
+
                       <p className="text-2xl font-bold text-gray-800 tabular-nums">
                         {fmt(cards.idleMs)}
                       </p>
@@ -1225,8 +1454,10 @@ export default function TrackerPage() {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-sky-100 text-sky-700">
                           ☕
                         </span>
+
                         <p className="font-semibold text-gray-700">Breaks</p>
                       </div>
+
                       <p className="text-2xl font-bold text-gray-800 tabular-nums">
                         {fmt(cards.breakMs)}
                       </p>
@@ -1239,68 +1470,45 @@ export default function TrackerPage() {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700">
                           📈
                         </span>
-                        <p className="font-semibold text-gray-700">Activity</p>
+
+                        <p className="font-semibold text-gray-700">
+                          Productivity
+                        </p>
                       </div>
+
                       <p className="text-2xl font-bold text-gray-800">
                         {cards.activity}%
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex border rounded bg-gradient-to-br from-violet-50 to-violet-100 py-4 px-4 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm bg-white/60 border-white/60">
-                    <div className="w-full">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 text-violet-700">
-                          ⌨️
-                        </span>
-                        <p className="font-semibold text-gray-700">
-                          Keystrokes
-                        </p>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-800 tabular-nums">
-                        {currentActivity.keystrokes.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex border rounded bg-gradient-to-br from-cyan-50 to-cyan-100 py-4 px-4 w-full sm:w-[48%] md:w-[31%] xl:w-[18%] shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm bg-white/60 border-white/60">
-                    <div className="w-full">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-100 text-cyan-700">
-                          🖱️
-                        </span>
-                        <p className="font-semibold text-gray-700">
-                          Mouse Clicks
-                        </p>
-                      </div>
-                      <p className="text-2xl font-bold text-gray-800 tabular-nums">
-                        {currentActivity.mouseClicks.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
+                  {/* Removed Keystrokes and Mouse Clicks summary cards as requested */}
                 </div>
               </>
             );
           })()}
 
           {/* Dynamic Analytics Cards Above Trends */}
+
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
             <ProductivityTrends data={dailyProductivityData} />
             <BreakPatternCard days={breakPatternData} />
           </div>
 
           {/* Idle Overview */}
+
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
             <InputIntensityCard days={inputIntensityData} />
-            <IdleTrend days={staticIdleTrend} />
+            <IdleTrend days={idleTrendData} />
           </div>
 
-          {/* Hourly Productive Heatmap (Static for now) */}
+          {/* Hourly Productive Heatmap (Dynamic) */}
+
           <div className="mb-8">
-            <Heatmap data={staticHourlyHeatmap} />
+            <Heatmap data={dynamicHourlyHeatmap} />
           </div>
-
           {/* Analytics and Session Panels */}
+
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
             {/* Distribution Chart */}
             <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6 flex items-center gap-6">
@@ -1311,23 +1519,28 @@ export default function TrackerPage() {
                   breaks: cards.breakMs,
                 }}
               />
+
               <div className="text-sm">
                 <div className="text-gray-700 font-medium mb-3 text-lg">
                   Time Distribution
                 </div>
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <span
                       className="w-3 h-3 rounded-full"
                       style={{ background: "#22c55e" }}
                     ></span>
+
                     <span className="text-gray-600 font-medium">
                       Productive
                     </span>
+
                     <span className="ml-auto px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 tabular-nums font-semibold">
                       {fmt(cards.productiveMs)}
                     </span>
                   </div>
+
                   <div className="flex items-center gap-3">
                     <span
                       className="w-3 h-3 rounded-full"
@@ -1343,6 +1556,7 @@ export default function TrackerPage() {
                       className="w-3 h-3 rounded-full"
                       style={{ background: "#3b82f6" }}
                     ></span>
+
                     <span className="text-gray-600 font-medium">Breaks</span>
                     <span className="ml-auto px-3 py-1 rounded-full bg-sky-50 text-sky-700 tabular-nums font-semibold">
                       {fmt(cards.breakMs)}
@@ -1353,6 +1567,7 @@ export default function TrackerPage() {
             </div>
 
             {/* Current Session */}
+
             <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700">
@@ -1362,6 +1577,7 @@ export default function TrackerPage() {
                   Current Session
                 </div>
               </div>
+
               {status?.currentSession?.isActive ? (
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -1380,81 +1596,80 @@ export default function TrackerPage() {
             </div>
 
             {/* Punch Details */}
+
             <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 text-purple-700">
                   📋
                 </span>
+
                 <div className="text-lg text-gray-700 font-semibold">
                   Punch Details
                 </div>
               </div>
+
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500 font-medium">
                     First Punch In
                   </span>
+
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {dateSummary?.firstPunchInIST ||
                       formatISTDate(dateSummary?.firstPunchIn) ||
                       "—"}
                   </span>
                 </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500 font-medium">
                     Last Punch Out
                   </span>
+
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {dateSummary?.lastPunchOutIST ||
                       formatISTDate(dateSummary?.lastPunchOut) ||
                       "—"}
                   </span>
                 </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500 font-medium">
                     Breaks Taken
                   </span>
+
                   <span className="text-sm font-semibold text-gray-900">
                     {dateSummary?.breaksCount || 0}
                   </span>
                 </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500 font-medium">
                     Sessions
                   </span>
+
                   <span className="text-sm font-semibold text-gray-900">
                     {dateSummary?.sessionsCount || 0}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    Keystrokes
-                  </span>
-                  <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                    {(dateSummary?.totalKeystrokes || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    Mouse Clicks
-                  </span>
-                  <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                    {(dateSummary?.totalMouseClicks || 0).toLocaleString()}
-                  </span>
-                </div>
+
+                {/* Removed keystrokes and mouse clicks details from Punch Details */}
               </div>
             </div>
           </div>
 
           {/* Breaks Table */}
+
           <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sky-100 text-sky-700">
                 ☕
               </span>
+
               <div className="text-lg font-semibold text-gray-700">
                 Break History
               </div>
+
               <div className="text-sm text-gray-500 ml-auto">
                 Date:{" "}
                 {breaksData.date ||

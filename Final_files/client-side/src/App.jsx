@@ -28,6 +28,7 @@ import NotificationWrapper from "./components/NotificationWrapper";
 import DownloadApp from "./components/DownloadApp";
 import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
+import OverallStatsPage from "./pages/OverallStats";
 
 // Main App component
 
@@ -223,6 +224,16 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <TrackerPage />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/overall-stats"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <OverallStatsPage />
                 </MainLayout>
               </ProtectedRoute>
             }

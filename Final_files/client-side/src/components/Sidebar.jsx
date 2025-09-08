@@ -117,7 +117,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     },
     {
       label: "TIME TRACKING",
-      items: [{ to: "/tracker", label: "Tracker", icon: Timer }],
+      items: [
+        { to: "/tracker", label: "Tracker", icon: Timer },
+        { to: "/overall-stats", label: "Overall Stats", icon: Timer },
+      ],
     },
     {
       label: "COMMUNICATION",
