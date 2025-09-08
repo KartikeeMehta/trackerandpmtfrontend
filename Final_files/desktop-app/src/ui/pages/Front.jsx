@@ -18,23 +18,7 @@ export default function Front({ onConnect }) {
           — everything else is calculated for you.
         </p>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <FeatureCard
-            title="Total Time"
-            desc="From punch in to punch out"
-            color="sky"
-          />
-          <FeatureCard
-            title="Active Time"
-            desc="Keyboard + clicks only"
-            color="emerald"
-          />
-          <FeatureCard
-            title="Idle Time"
-            desc=":30s inactivity triggers"
-            color="rose"
-          />
-        </div>
+        {/* Removed the informational cards for Total Time, Active Time, and Idle Time */}
 
         <button
           onClick={onConnect}

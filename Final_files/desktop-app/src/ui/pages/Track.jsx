@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// Feature flag to control visibility of the Activity Statistics card in UI only
+const SHOW_ACTIVITY_STATS = false;
+
 const Track = () => {
   // Essential state only
   const [isActive, setIsActive] = useState(false);
@@ -188,6 +191,13 @@ const Track = () => {
       if (!data || data.success === false) return;
 
       const st = data.status || {};
+      // Prefer employeeInfo.name from status payload if available
+      if (st && st.employeeInfo && st.employeeInfo.name) {
+        setUserName(st.employeeInfo.name);
+        try {
+          localStorage.setItem("pf_user_name", st.employeeInfo.name);
+        } catch {}
+      }
       const cur = st.currentSession || null;
 
       if (cur && cur.isActive) {
@@ -473,12 +483,70 @@ const Track = () => {
         credentials: "include",
       });
       const data = await res.json();
-      if (data.success && data.user) {
-        setUserName(data.user.name || data.user.email || "User");
+      if (data && data.success) {
+        const resolvedName =
+          (data.employeeInfo && data.employeeInfo.name) || "";
+        if (resolvedName) {
+          setUserName(resolvedName);
+          try {
+            localStorage.setItem("pf_user_name", resolvedName);
+          } catch {}
+        } else {
+          // If API didn't include employeeInfo, try resolve by email
+          await resolveNameByEmailFallback();
+        }
+      } else {
+        // Try resolve by email as primary fallback
+        const resolved = await resolveNameByEmailFallback();
+        if (!resolved) {
+          // Fallback to stored user info if available
+          try {
+            const storedName = localStorage.getItem("pf_user_name");
+            const storedEmail = localStorage.getItem("pf_user_email");
+            setUserName(storedName || storedEmail || "User");
+          } catch {}
+        }
       }
     } catch (e) {
       console.error("Profile load error:", e);
+      // Attempt email-based resolution on error
+      const resolved = await resolveNameByEmailFallback();
+      if (!resolved) {
+        try {
+          const storedEmail = localStorage.getItem("pf_user_email");
+          const storedName = localStorage.getItem("pf_user_name");
+          setUserName(storedName || storedEmail || "User");
+        } catch {}
+      }
     }
+  };
+
+  // Try to resolve the employee name by fetching employees and matching email
+  const resolveNameByEmailFallback = async () => {
+    try {
+      const storedEmail = localStorage.getItem("pf_user_email");
+      if (!storedEmail) return false;
+      const res = await fetch(
+        "http://localhost:8000/api/employees/all",
+        { method: "GET", headers: getAuthHeaders(), credentials: "include" }
+      );
+      if (!res.ok) return false;
+      const list = await res.json();
+      if (!Array.isArray(list)) return false;
+      const found = list.find(
+        (emp) => (emp.email || "").toLowerCase() === storedEmail.toLowerCase()
+      );
+      if (found && found.name) {
+        setUserName(found.name);
+        try {
+          localStorage.setItem("pf_user_name", found.name);
+        } catch {}
+        return true;
+      }
+    } catch (err) {
+      console.error("Failed to resolve name by email:", err);
+    }
+    return false;
   };
 
   // Global activity monitoring (works even when app is minimized/in tray)
@@ -721,35 +789,35 @@ const Track = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen p-2">
+      <div className="mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-3">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
             Time Tracker
           </h1>
-          <p className="text-gray-600">Welcome, {userName}</p>
+          <p className="text-sm text-gray-600">Welcome, {userName || "User"}</p>
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {/* Punch In/Out Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">
                 {isActive ? "Currently Working" : "Ready to Start"}
               </h3>
               {!isActive ? (
                 <button
                   onClick={punchIn}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                 >
                   Punch In
                 </button>
               ) : (
                 <button
                   onClick={punchOut}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                  className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                 >
                   Punch Out
                 </button>
@@ -759,61 +827,61 @@ const Track = () => {
 
           {/* Total Time Card - Only show when active */}
           {isActive && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-semibold text-gray-900">
                   Total Time
                 </h3>
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></div>
               </div>
-              <div className="text-3xl sm:text-4xl font-bold text-blue-600 font-mono">
+              <div className="text-2xl font-bold text-blue-600 font-mono">
                 {formatTime(totalTime)}
               </div>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-1">
                 From punch in to punch out
               </p>
             </div>
           )}
 
-          {/* Activity Statistics Card - Only show when active */}
-          {isActive && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          {/* Activity Statistics Card - Only show when active (UI hidden via flag) */}
+          {isActive && SHOW_ACTIVITY_STATS && (
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">
                 Activity Statistics
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-xl font-bold text-blue-600">
                     {activityCounts.keystrokes}
                   </div>
-                  <div className="text-sm text-gray-500">Keystrokes</div>
+                  <div className="text-xs text-gray-500">Keystrokes</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-xl font-bold text-green-600">
                     {activityCounts.mouseClicks}
                   </div>
-                  <div className="text-sm text-gray-500">Mouse Clicks</div>
+                  <div className="text-xs text-gray-500">Mouse Clicks</div>
                 </div>
               </div>
               {activityCounts.spamKeystrokes > 0 && (
-                <div className="mt-4 p-3 bg-red-50 rounded-lg">
+                <div className="mt-3 p-2.5 bg-red-50 rounded-lg">
                   <div className="text-center">
-                    <div className="text-lg font-bold text-red-600">
+                    <div className="text-base font-bold text-red-600">
                       {activityCounts.spamKeystrokes}
                     </div>
-                    <div className="text-sm text-red-500">
+                    <div className="text-xs text-red-500">
                       Spam Keystrokes (Excluded)
                     </div>
                   </div>
                 </div>
               )}
               {isSpamMode && (
-                <div className="mt-4 p-3 bg-red-100 border-2 border-red-300 rounded-lg">
+                <div className="mt-3 p-2.5 bg-red-100 border border-red-300 rounded-lg">
                   <div className="text-center">
-                    <div className="text-lg font-bold text-red-700">
+                    <div className="text-base font-bold text-red-700">
                       🚫 SPAM MODE ACTIVE
                     </div>
-                    <div className="text-sm text-red-600">
+                    <div className="text-xs text-red-600">
                       Idle time is being calculated
                     </div>
                   </div>
@@ -824,21 +892,21 @@ const Track = () => {
 
           {/* Break Management Card - Only show when active */}
           {isActive && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+              <h3 className="text-base font-semibold text-gray-900 mb-3">
                 Break Management
               </h3>
 
               {!isOnBreak ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
                       Break Type
                     </label>
                     <select
                       value={selectedBreakType}
                       onChange={(e) => setSelectedBreakType(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                     >
                       <option value="select">Select Break Type</option>
                       {Object.entries(breakTypes).map(([key, config]) => (
@@ -852,7 +920,7 @@ const Track = () => {
 
                   {selectedBreakType === "manual" && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
                         Reason
                       </label>
                       <input
@@ -860,7 +928,7 @@ const Track = () => {
                         value={customBreakReason}
                         onChange={(e) => setCustomBreakReason(e.target.value)}
                         placeholder="Enter break reason"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
                       />
                     </div>
                   )}
@@ -868,18 +936,18 @@ const Track = () => {
                   <button
                     onClick={startBreak}
                     disabled={!isActive || selectedBreakType === "select"}
-                    className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                    className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                   >
                     Start Break
                   </button>
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm font-medium mb-4">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium mb-3">
+                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></div>
                     On {breakTypes[breakType]?.label || "Break"}
                   </div>
-                  <div className="text-2xl font-bold text-orange-600 font-mono mb-4">
+                  <div className="text-xl font-bold text-orange-600 font-mono mb-3">
                     {formatTime(
                       breakStartTime
                         ? Date.now() - new Date(breakStartTime).getTime()
@@ -887,14 +955,14 @@ const Track = () => {
                     )}
                   </div>
                   {autoEndCountdown && (
-                    <div className="text-sm text-orange-500 mb-2">
+                    <div className="text-xs text-orange-500 mb-1.5">
                       Auto-ends in: {Math.floor(autoEndCountdown / 60)}:
                       {(autoEndCountdown % 60).toString().padStart(2, "0")}
                     </div>
                   )}
                   <button
                     onClick={endBreak}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                   >
                     End Break
                   </button>

@@ -25,8 +25,11 @@ function resolveIconPath() {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1200,
-    height: 900,
+    width: 450,
+    height: 650,
+    resizable: false,
+    fullscreenable: false,
+    maximizable: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
