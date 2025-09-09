@@ -266,80 +266,8 @@ export default function TrackerPage() {
     );
   }, [status]);
 
-  // Calculate daily productivity trends for the last 7 days
-
-  const dailyProductivityData = useMemo(() => {
-    if (!status?.workSessions || !Array.isArray(status.workSessions)) {
-      return [];
-    }
-
-    // Get the last 7 days in IST ending at selectedDate
-    const end = selectedDate ? new Date(selectedDate) : new Date();
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(end);
-      date.setDate(date.getDate() - i);
-
-      // Convert to IST date string
-
-      const istDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(date);
-      last7Days.push(istDate);
-    }
-
-    // Process each day's data
-    return last7Days.map((date) => {
-      // Find sessions for this IST date
-      const daySessions = status.workSessions.filter((session) => {
-        const sessionDate = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date(session.startTime));
-        return sessionDate === date;
-      });
-
-      if (daySessions.length === 0) {
-        return {
-          date,
-          productivity: 0,
-          productiveTime: 0,
-          totalTime: 0,
-          productiveTimeFormatted: "0h 0m",
-          totalTimeFormatted: "0h 0m",
-        };
-      }
-
-      // Calculate totals for the day (sessions already store times in minutes)
-      let totalProductiveTime = 0;
-      let totalWorkTime = 0;
-      daySessions.forEach((session) => {
-        // Sessions already store times in minutes, convert to ms for display
-        const productiveMs = minToMs(session.productiveTime || 0);
-        const workMs = minToMs(session.duration || 0);
-        totalProductiveTime += productiveMs;
-        totalWorkTime += workMs;
-      });
-
-      // Calculate productivity percentage
-      const productivity =
-        totalWorkTime > 0 ? (totalProductiveTime / totalWorkTime) * 100 : 0;
-
-      return {
-        date,
-        productivity: Math.round(productivity),
-        productiveTime: totalProductiveTime,
-        totalTime: totalWorkTime,
-        productiveTimeFormatted: fmt(totalProductiveTime),
-        totalTimeFormatted: fmt(totalWorkTime),
-      };
-    });
-  }, [status?.workSessions, selectedDate]);
+  // Calculate daily productivity trends moved to Overall Stats
+  const dailyProductivityData = [];
 
   const dynamicHourlyHeatmap = useMemo(() => {
     // Build minutes of productive time per hour (0-23) for each weekday (0..6 => Sun..Sat)
@@ -456,86 +384,8 @@ export default function TrackerPage() {
     return result;
   }, [status?.workSessions, status?.currentSession]);
 
-  // Calculate break pattern analysis for the last 7 days
-  const breakPatternData = useMemo(() => {
-    if (!status?.workSessions || !Array.isArray(status.workSessions)) {
-      console.log("No workSessions data available:", status);
-      return [];
-    }
-
-    console.log(
-      "Processing workSessions for break pattern:",
-      status.workSessions
-    );
-
-    // Get the last 7 days in IST
-    const today = new Date();
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      // Convert to IST date string
-      const istDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(date);
-      last7Days.push(istDate);
-    }
-
-    // Process each day's break data
-    return last7Days.map((date) => {
-      // Find sessions for this IST date
-      const daySessions = status.workSessions.filter((session) => {
-        const sessionDate = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date(session.startTime));
-        return sessionDate === date;
-      });
-
-      // Aggregate breaks by type for this day
-      const breakTypes = {
-        manual: 0,
-        tea_break: 0,
-        lunch_break: 0,
-        meeting_break: 0,
-      };
-
-      daySessions.forEach((session) => {
-        if (session.breaks && Array.isArray(session.breaks)) {
-          console.log(
-            `Processing breaks for session ${session.sessionId}:`,
-            session.breaks
-          );
-          session.breaks.forEach((breakItem) => {
-            const duration = breakItem.duration || 0; // duration is in minutes
-            const breakType = breakItem.breakType || "manual";
-            console.log(`Break: ${breakType}, Duration: ${duration} minutes`);
-            if (breakTypes.hasOwnProperty(breakType)) {
-              breakTypes[breakType] += duration;
-            } else {
-              breakTypes.manual += duration; // Default to manual
-            }
-          });
-        }
-      });
-
-      const result = {
-        date,
-        manual: Math.round(breakTypes.manual),
-        tea_break: Math.round(breakTypes.tea_break),
-        lunch_break: Math.round(breakTypes.lunch_break),
-        meeting_break: Math.round(breakTypes.meeting_break),
-      };
-
-      console.log(`Break pattern for ${date}:`, result);
-      return result;
-    });
-  }, [status?.workSessions]);
+  // Break pattern analysis moved to Overall Stats
+  const breakPatternData = [];
 
   const Heatmap = ({ data }) => {
     const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -548,8 +398,8 @@ export default function TrackerPage() {
       return `rgba(16,185,129,${alpha.toFixed(2)})`;
     };
     return (
-      <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl pl-3.5 pr-6 pt-3.5 pb-6">
+        <div className="flex items-center gap-3 mb-3.5">
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
             ⏳
           </span>
@@ -603,8 +453,8 @@ export default function TrackerPage() {
       meeting_break: "#ef4444", // Red
     };
     return (
-      <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 min-h-[200px]">
+        <div className="flex items-center gap-3 mb-3.5">
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sky-100 text-sky-700">
             ☕
           </span>
@@ -749,93 +599,7 @@ export default function TrackerPage() {
     });
   }, [status?.workSessions, status?.currentSession, selectedDate]);
 
-  const IdleTrend = ({ days }) => {
-    const chartHeight = 160;
-    const chartWidth = 420;
-    const padding = 32;
-    const innerWidth = chartWidth - padding * 2;
-    const innerHeight = chartHeight - padding * 2;
-    const max = Math.max(60, ...days.map((d) => d.idleMin));
-    const points = days.map((d, i) => {
-      const x = padding + (i / (days.length - 1)) * innerWidth;
-      const y = padding + (1 - d.idleMin / max) * innerHeight;
-      return { x, y, d };
-    });
-    const path = points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-      .join(" ");
-    const area = `${path} L ${points[points.length - 1].x} ${
-      padding + innerHeight
-    } L ${padding} ${padding + innerHeight} Z`;
-    return (
-      <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 text-gray-700">
-            🧭
-          </span>
-          <div className="text-lg font-semibold text-gray-700">
-            Idle Trend (7 days)
-          </div>
-        </div>
-        <svg
-          width="100%"
-          height={chartHeight}
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="overflow-visible"
-        >
-          {[0, 20, 40, 60].map((v) => {
-            const y = padding + (1 - v / max) * innerHeight;
-            return (
-              <g key={v}>
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={padding + innerWidth}
-                  y2={y}
-                  stroke="#e5e7eb"
-                  strokeWidth="1"
-                  strokeDasharray="2,2"
-                />
-                <text
-                  x={padding - 8}
-                  y={y + 4}
-                  textAnchor="end"
-                  className="text-[10px] fill-gray-500"
-                >
-                  {v}m
-                </text>
-              </g>
-            );
-          })}
-          <path d={area} fill="#6b7280" opacity="0.12" />
-          <path
-            d={path}
-            fill="none"
-            stroke="#6b7280"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-          {points.map((p, i) => (
-            <g key={i}>
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r="3.5"
-                fill="#6b7280"
-                stroke="#fff"
-                strokeWidth="1.5"
-              >
-                <title>
-                  {new Date(p.d.date).toLocaleDateString()}\nIdle: {p.d.idleMin}{" "}
-                  min
-                </title>
-              </circle>
-            </g>
-          ))}
-        </svg>
-      </div>
-    );
-  };
+  // Idle Trend component moved to Overall Stats
 
   // Input Intensity Data (dynamic from work sessions)
   const inputIntensityData = useMemo(() => {
@@ -986,22 +750,15 @@ export default function TrackerPage() {
     const peakHourLabel = findPeakHourLabel();
 
     return (
-      <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 min-h-[200px]">
+        <div className="flex items-center gap-3 mb-3.5">
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-fuchsia-100 text-fuchsia-700">
             ⌨️
           </span>
           <div className="text-lg font-semibold text-gray-700">
             Input Intensity
           </div>
-          {peakHourLabel && (
-            <span
-              className="ml-2 text-xs text-gray-500 px-2 py-0.5 rounded-full bg-gray-100"
-              title={`Most active: ${peakHourLabel}`}
-            >
-              Most active: {peakHourLabel}
-            </span>
-          )}
+          
         </div>
 
         <div className="grid grid-cols-2 gap-6">
@@ -1030,7 +787,7 @@ export default function TrackerPage() {
         </div>
 
         {/* keyboard vs mouse ratio chips + most active in unified style */}
-        <div className="mt-3 text-sm text-gray-600 flex items-center gap-3 flex-wrap">
+        <div className="mt-3.5 text-sm text-gray-600 flex items-center gap-3 flex-wrap">
           <span className="inline-flex items-center px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 shadow-sm">
             Keyboard: {kPct}%
           </span>
@@ -1051,14 +808,73 @@ export default function TrackerPage() {
     );
   };
 
-  const Donut = ({ data }) => {
+  const TimeDistributionCard = () => {
+    const totalMs = (cards.productiveMs || 0) + (cards.idleMs || 0) + (cards.breakMs || 0);
+    const productivePct = totalMs > 0 ? Math.round((cards.productiveMs / totalMs) * 100) : 0;
+    return (
+      <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-full min-h-[200px]">
+        <div className="flex items-center gap-3 mb-3.5">
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">🕒</span>
+          <div className="text-lg font-semibold text-gray-700">Time Distribution</div>
+          <span className="ml-auto text-xs text-gray-500">Today</span>
+        </div>
+        <div className="flex items-center justify-center gap-8 mx-auto">
+          <div className="relative w-40 h-40 shrink-0">
+            <Donut
+              size="w-40 h-40"
+              data={{
+                productive: cards.productiveMs,
+                idle: cards.idleMs,
+                breaks: cards.breakMs,
+              }}
+            />
+          </div>
+          <div className="pl-2">
+            <div className="grid grid-cols-[150px_1fr] items-center gap-x-4 gap-y-4">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#22c55e" }}></span>
+                <span className="text-gray-700 font-medium">Productive</span>
+              </div>
+              <div>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 tabular-nums font-semibold text-sm shadow-sm border border-emerald-100">
+                  {fmt(cards.productiveMs)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }}></span>
+                <span className="text-gray-700 font-medium">Idle</span>
+              </div>
+              <div>
+                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 tabular-nums font-semibold text-sm shadow-sm border border-amber-100">
+                  {fmt(cards.idleMs)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#3b82f6" }}></span>
+                <span className="text-gray-700 font-medium">Breaks</span>
+              </div>
+              <div>
+                <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 tabular-nums font-semibold text-sm shadow-sm border border-sky-100">
+                  {fmt(cards.breakMs)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const Donut = ({ data, size = "w-44 h-44" }) => {
     const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
     const colors = ["#22c55e", "#f59e0b", "#3b82f6"];
     const keys = Object.keys(data);
     let acc = 0;
 
     return (
-      <svg viewBox="0 0 42 42" className="w-44 h-44">
+      <svg viewBox="0 0 42 42" className={size}>
         <circle
           cx="21"
           cy="21"
@@ -1360,7 +1176,7 @@ export default function TrackerPage() {
   }
 
   return (
-    <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Header Section */}
 
       <div className="relative mb-8">
@@ -1556,88 +1372,11 @@ export default function TrackerPage() {
             );
           })()}
 
-          {/* Dynamic Analytics Cards Above Trends */}
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-            <ProductivityTrends data={dailyProductivityData} />
-            <BreakPatternCard days={breakPatternData} />
-          </div>
-
-          {/* Idle Overview */}
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-            <InputIntensityCard days={inputIntensityData} />
-            <IdleTrend days={idleTrendData} />
-          </div>
-
-          {/* Hourly Productive Heatmap (Dynamic) */}
-
-          <div className="mb-8">
-            <Heatmap data={dynamicHourlyHeatmap} />
-          </div>
-          {/* Analytics and Session Panels */}
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-            {/* Distribution Chart */}
-            <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6 flex items-center gap-6">
-              <Donut
-                data={{
-                  productive: cards.productiveMs,
-                  idle: cards.idleMs,
-                  breaks: cards.breakMs,
-                }}
-              />
-
-              <div className="text-sm">
-                <div className="text-gray-700 font-medium mb-3 text-lg">
-                  Time Distribution
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: "#22c55e" }}
-                    ></span>
-
-                    <span className="text-gray-600 font-medium">
-                      Productive
-                    </span>
-
-                    <span className="ml-auto px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 tabular-nums font-semibold">
-                      {fmt(cards.productiveMs)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: "#f59e0b" }}
-                    ></span>
-                    <span className="text-gray-600 font-medium">Idle</span>
-                    <span className="ml-auto px-3 py-1 rounded-full bg-amber-50 text-amber-700 tabular-nums font-semibold">
-                      {fmt(cards.idleMs)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: "#3b82f6" }}
-                    ></span>
-
-                    <span className="text-gray-600 font-medium">Breaks</span>
-                    <span className="ml-auto px-3 py-1 rounded-full bg-sky-50 text-sky-700 tabular-nums font-semibold">
-                      {fmt(cards.breakMs)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+          {/* Session and Punch Details (moved above and styled like cards) */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
             {/* Current Session */}
-
-            <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-[220px] overflow-hidden">
+              <div className="flex items-center gap-3 mb-3.5">
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700">
                   ⏰
                 </span>
@@ -1645,7 +1384,6 @@ export default function TrackerPage() {
                   Current Session
                 </div>
               </div>
-
               {status?.currentSession?.isActive ? (
                 <div>
                   <div className="flex items-center gap-3">
@@ -1669,44 +1407,30 @@ export default function TrackerPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-                  <span className="text-base text-gray-500">
-                    No Active Session
-                  </span>
+                  <span className="text-base text-gray-500">No Active Session</span>
                 </div>
               )}
             </div>
 
             {/* Punch Details */}
-
-            <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-[220px] overflow-hidden">
+              <div className="flex items-center gap-3 mb-3.5">
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 text-purple-700">
                   📋
                 </span>
-
-                <div className="text-lg text-gray-700 font-semibold">
-                  Punch Details
+                <div className="text-lg text-gray-700 font-semibold">Punch Details</div>
                 </div>
-              </div>
-
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    First Punch In
-                  </span>
-
+                  <span className="text-sm text-gray-500 font-medium">First Punch In</span>
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {dateSummary?.firstPunchInIST ||
                       formatISTDate(dateSummary?.firstPunchIn) ||
                       "—"}
                   </span>
                 </div>
-
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    Last Punch Out
-                  </span>
-
+                  <span className="text-sm text-gray-500 font-medium">Last Punch Out</span>
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {status?.currentSession?.isActive
                       ? "—"
@@ -1715,36 +1439,36 @@ export default function TrackerPage() {
                         "—"}
                   </span>
                 </div>
-
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    Breaks Taken
-                  </span>
-
-                  <span className="text-sm font-semibold text-gray-900">
-                    {dateSummary?.breaksCount || 0}
-                  </span>
+                  <span className="text-sm text-gray-500 font-medium">Breaks Taken</span>
+                  <span className="text-sm font-semibold text-gray-900">{dateSummary?.breaksCount || 0}</span>
                 </div>
-
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">
-                    Sessions
-                  </span>
-
-                  <span className="text-sm font-semibold text-gray-900">
-                    {dateSummary?.sessionsCount || 0}
-                  </span>
+                  <span className="text-sm text-gray-500 font-medium">Sessions</span>
+                  <span className="text-sm font-semibold text-gray-900">{dateSummary?.sessionsCount || 0}</span>
                 </div>
-
-                {/* Removed keystrokes and mouse clicks details from Punch Details */}
               </div>
             </div>
           </div>
 
+          {/* Dynamic Analytics Cards moved to Overall Stats */}
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            <TimeDistributionCard />
+            <InputIntensityCard days={inputIntensityData} />
+          </div>
+
+          {/* Hourly Productive Heatmap (Dynamic) */}
+
+          <div className="mb-8">
+            <Heatmap data={dynamicHourlyHeatmap} />
+          </div>
+          {/* Analytics and Session Panels (moved cards above) */}
+
           {/* Breaks Table */}
 
-          <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-6">
+          <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5">
+            <div className="flex items-center gap-3 mb-3.5">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sky-100 text-sky-700">
                 ☕
               </span>
