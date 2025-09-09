@@ -10,6 +10,8 @@ import {
   Timer,
   ChevronLeft,
   ChevronRight,
+  PanelLeftOpen,
+  PanelLeftClose,
   MessageCircle,
 } from "lucide-react";
 // import notificationManager from "@/utils/notificationManager";
@@ -286,13 +288,6 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             <img src="./final_orbit_logo.png" alt="WorkOrbit" />
           )}
         </div>
-        <button
-          onClick={toggleCollapsed}
-          className="text-slate-600 w-6 h-6 hover:text-blue-600 transition-colors p-1.5 rounded-md hover:bg-slate-100"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
       </div>
       <nav className={`${collapsed ? "px-2" : "px-3"} py-3`}>
         {navLinks.map((section, index) => (
@@ -427,6 +422,18 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           </div>
         )}
       </nav>
+      <div className="mt-auto px-3 py-3">
+        <div className="h-[2px] w-full bg-slate-300 mb-2" />
+        <div className={`flex ${collapsed ? "justify-center" : "justify-end"}`}>
+          <button
+            onClick={toggleCollapsed}
+            className="text-slate-600 w-7 h-7 hover:text-blue-600 transition-colors p-1.5 rounded-md hover:bg-slate-100"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
+          </button>
+        </div>
+      </div>
     </aside>
   );
 };

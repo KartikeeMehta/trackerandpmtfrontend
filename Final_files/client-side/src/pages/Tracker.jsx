@@ -86,18 +86,33 @@ export default function TrackerPage() {
     }
   };
 
+  // Guard against overlapping fetches and enforce IST date normalization
+  const breaksRequestRef = useRef(0);
+  const toISTDate = (dateLike) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(dateLike ? new Date(dateLike) : new Date());
+
   const fetchBreaks = async (dateStr) => {
     try {
+      const reqId = ++breaksRequestRef.current;
       const token = localStorage.getItem("token");
-      const qs = dateStr ? `?date=${encodeURIComponent(dateStr)}` : "";
+      const istDate = toISTDate(dateStr || new Date());
+      const qs = `?date=${encodeURIComponent(istDate)}`;
       const res = await apiHandler.GetApi(
         `${api_url.employeeTrackerBreaks}${qs}`,
         token
       );
 
+      // Drop stale responses
+      if (reqId !== breaksRequestRef.current) return;
+
       if (res?.success) {
         setBreaksData({
-          date: res.date || dateStr,
+          date: res.date || istDate,
           breaks: Array.isArray(res.breaks) ? res.breaks : [],
           totals: res.totals || {
             count: 0,
@@ -107,14 +122,14 @@ export default function TrackerPage() {
         });
       } else {
         setBreaksData({
-          date: dateStr,
+          date: istDate,
           breaks: [],
           totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
         });
       }
     } catch {
       setBreaksData({
-        date: dateStr,
+        date: toISTDate(dateStr || new Date()),
         breaks: [],
         totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
       });
@@ -185,23 +200,7 @@ export default function TrackerPage() {
     return () => clearInterval(id);
   }, [selectedDate]);
 
-  // Also fetch breaks for the IST date (next day) if the current date doesn't have breaks
-  useEffect(() => {
-    if (selectedDate && breaksData.breaks.length === 0) {
-      // Try the next day in IST (since breaks might be stored as next day in IST)
-      const nextDay = new Date(selectedDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const nextDayStr = nextDay.toISOString().slice(0, 10);
-      console.log(
-        "No breaks found for",
-        selectedDate,
-        ", trying next day:",
-        nextDayStr
-      );
-
-      fetchBreaks(nextDayStr);
-    }
-  }, [selectedDate, breaksData.breaks.length]);
+  // Remove next-day fallback to avoid racey overwrites; stick to selected IST date
 
   useEffect(() => {
     if (tickRef.current) {

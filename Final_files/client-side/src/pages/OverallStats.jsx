@@ -913,7 +913,7 @@ export default function OverallStatsPage() {
                           <div className="text-2xl font-bold text-indigo-700 tabular-nums">{avgHours.toFixed(2)}h</div>
                           <div className="text-xs text-gray-600 mt-1">Across worked days</div>
                         </div>
-                      </div>
+            </div>
                     );
                   })()}
                 </div>
