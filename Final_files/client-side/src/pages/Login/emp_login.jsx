@@ -4,7 +4,6 @@ import { apiHandler } from "@/api/ApiHandler";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 
-
 const EmpLogin = () => {
   const [form, setForm] = useState({
     email: "",
@@ -20,9 +19,6 @@ const EmpLogin = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-
-
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -33,11 +29,11 @@ const EmpLogin = () => {
     setLoading(true);
     setMessage("");
     setError("");
-      if (form.newPassword !== form.confirmPassword) {
-    setError("New password and confirm password do not match");
-    setLoading(false);
-    return;
-  }
+    if (form.newPassword !== form.confirmPassword) {
+      setError("New password and confirm password do not match");
+      setLoading(false);
+      return;
+    }
     try {
       const response = await apiHandler.PostApi(
         api_url.employeeFirstLogin,
@@ -47,8 +43,7 @@ const EmpLogin = () => {
         setMessage(response.message);
         setTimeout(() => {
           navigate("/Login");
-        }, 1000)
-
+        }, 1000);
       } else {
         const msg = response?.message || "Login failed";
         if (
@@ -93,7 +88,7 @@ const EmpLogin = () => {
             />
           </svg>
           <span className="text-xl font-bold text-blue-700 tracking-tight">
-            ProjectFlow
+            WorkOrbit
           </span>
         </div>
         <h2 className="text-2xl font-bold mb-4 text-gray-800 text-center">

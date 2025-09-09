@@ -375,21 +375,34 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
     navigate(targetRoute);
   };
 
+  const isPaired = pairStatus === "paired";
+
   return (
     <header
       className={`h-[76px] bg-white shadow flex items-center justify-end gap-2 px-8 fixed top-0 z-10 transition-all duration-300 ${
         isSidebarCollapsed ? "left-16 right-0" : "left-64 right-0"
       }`}
     >
-      {/* Tracker status temporarily hidden (Launching Soon) */}
+      {/* Tracker status button */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={handleConnectNow}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
-        >
-          <Link2Icon className="h-4 w-4" />
-          Connect Now
-        </button>
+        {isPaired ? (
+          <button
+            onClick={handleConnectNow}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+            title="View tracker connection"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Connected
+          </button>
+        ) : (
+          <button
+            onClick={handleConnectNow}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white"
+          >
+            <Link2Icon className="h-4 w-4" />
+            Connect Now
+          </button>
+        )}
       </div>
 
       {/* Notification Bell - moved before company pill */}
@@ -795,11 +808,18 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
             src={
               userDetails?.companyLogo
                 ? image_url + userDetails?.companyLogo
-                : "/vite.svg"
+                : undefined
             }
             alt="Company Logo"
-            className="h-8 w-8 rounded-full border object-cover"
+            className={`h-8 w-8 rounded-full border object-cover ${
+              userDetails?.companyLogo ? "block" : "hidden"
+            }`}
           />
+          {!userDetails?.companyLogo && (
+            <div className="h-8 w-8 rounded-full border bg-gray-50 flex items-center justify-center">
+              <User className="h-4 w-4 text-gray-600" />
+            </div>
+          )}
           <span className="font-semibold text-sm">
             {userDetails?.firstName && userDetails?.lastName
               ? `${userDetails.firstName} ${userDetails.lastName}`
@@ -842,14 +862,6 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
           >
             <Settings className="w-4 h-4 text-gray-500 group-hover:text-blue-500 transition-colors duration-200" />
             <span className="group-hover:text-blue-500">Settings</span>
-          </div>
-
-          <div
-            onClick={handleDownloadApp}
-            className="group flex items-center gap-2 px-0 py-2 hover:bg-blue-50 cursor-pointer text-gray-800 text-sm font-medium rounded-md transition"
-          >
-            <Download className="w-4 h-4 text-gray-500 group-hover:text-blue-500 transition-colors duration-200" />
-            <span className="group-hover:text-blue-500">Download App</span>
           </div>
 
           <div

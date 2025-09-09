@@ -1,22 +1,23 @@
 {
-  "name": "projectflow-desktop",
+  "name": "workorbit-desktop",
   "version": "0.1.0",
   "private": true,
   "main": "main.js",
-  "description": "Desktop app for ProjectFlow",
+  "description": "Desktop app for WorkOrbit",
   "author": "",
   "scripts": {
     "dev": "concurrently \"vite\" \"cross-env VITE_DESKTOP=1 ELECTRON_START_URL=http://localhost:5175 electron .\"",
     "build:renderer": "vite build",
-    "build": "npm run build:renderer && electron-builder -mwl",
+    "prebuild": "node script.js",
+    "build": "npm run build:renderer && npm run prebuild && electron-builder -mwl",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build:mac": "electron-builder --mac dmg",
     "build:mac:both": "electron-builder --mac dmg --x64 --arm64",
-    "build:win": "electron-builder --win nsis",
-    "build:win:x64": "electron-builder --win nsis --x64",
-    "build:win:ia32": "electron-builder --win nsis --ia32",
-    "build:all": "electron-builder -mwl"
+    "build:win": "npm run build:renderer && npm run prebuild && electron-builder --win nsis",
+    "build:win:x64": "npm run build:renderer && npm run prebuild && electron-builder --win nsis --x64",
+    "build:win:ia32": "npm run build:renderer && npm run prebuild && electron-builder --win nsis --ia32",
+    "build:all": "npm run build:renderer && npm run prebuild && electron-builder -mwl"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -26,23 +27,28 @@
     "electron": "^25.9.0",
     "electron-builder": "^24.9.1",
     "electronmon": "2.0.2",
+    "jimp": "^0.22.12",
+    "png-to-ico": "^2.1.8",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.3",
     "vite": "^5.3.4",
     "wait-on": "^7.2.0"
   },
   "dependencies": {
-    "uiohook-napi": "^1.5.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "uiohook-napi": "^1.5.4"
   },
   "build": {
-    "appId": "com.projectflow.app",
-    "productName": "ProjectFlow",
+    "appId": "com.workorbit.app",
+    "productName": "WorkOrbit",
     "files": [
       "main.js",
       "preload.js",
       "renderer/**",
+      "public/**",
+      "script.js",
+      "build/icon.ico",
       "package.json"
     ],
     "asarUnpack": [
@@ -58,6 +64,7 @@
       "category": "public.app-category.productivity"
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -66,12 +73,14 @@
           ]
         }
       ],
-      "publisherName": "ProjectFlow"
+      "publisherName": "WorkOrbit"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "installerSidebar": "public/installerSidebar.bmp",
+      "installerHeader": "public/installerHeader.bmp"
     }
   }
 }

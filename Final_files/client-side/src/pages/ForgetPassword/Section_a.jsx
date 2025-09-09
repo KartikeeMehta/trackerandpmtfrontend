@@ -26,8 +26,11 @@ const Section_a = () => {
       return;
     }
     try {
-      const obj = { email: email }
-      const response = await apiHandler.PostApiWithoutToken(api_url.forget_pass, obj);
+      const obj = { email: email };
+      const response = await apiHandler.PostApiWithoutToken(
+        api_url.forget_pass,
+        obj
+      );
       if (response?.message === "OTP sent to email") {
         setMessage("OTP sent to your email.");
         navigate("/Verification", { state: { email } });
@@ -40,7 +43,6 @@ const Section_a = () => {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#dbeafe] px-4 py-10 font-sans relative">
@@ -71,7 +73,7 @@ const Section_a = () => {
             />
           </svg>
           <span className="text-xl font-bold text-blue-700 tracking-tight">
-            ProjectFlow
+            WorkOrbit
           </span>
         </div>
 
@@ -109,10 +111,11 @@ const Section_a = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full font-semibold py-2 px-4 rounded-md transition ${loading
-              ? "bg-blue-300 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
+            className={`w-full font-semibold py-2 px-4 rounded-md transition ${
+              loading
+                ? "bg-blue-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
           >
             {loading ? "Sending..." : "Send OTP"}
           </button>

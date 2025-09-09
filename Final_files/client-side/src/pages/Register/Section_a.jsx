@@ -7,7 +7,6 @@ import { Eye, EyeOff } from "lucide-react";
 import CustomLoader from "@/components/CustomLoader";
 import CustomToast from "@/components/CustomToast";
 
-
 const Section_a = () => {
   useAuthRedirect();
   const [form, setForm] = useState({
@@ -50,12 +49,12 @@ const Section_a = () => {
     if (!form.password.trim()) newErrors.password = "Required";
     if (!form.confirmPassword.trim()) newErrors.confirmPassword = "Required";
     else if (form.password !== form.confirmPassword)
-      newErrors.confirmPassword = "Passwords and confirm Password  do not match";
+      newErrors.confirmPassword =
+        "Passwords and confirm Password  do not match";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
 
   const handleSubmit = async (e) => {
     setLoading(true);
@@ -66,7 +65,6 @@ const Section_a = () => {
     setTimeout(() => {
       registerHandler(form);
     }, 500);
-
   };
 
   const registerHandler = async (form) => {
@@ -105,7 +103,6 @@ const Section_a = () => {
     }
   };
 
-
   return (
     <>
       {loading && <CustomLoader />}
@@ -136,13 +133,12 @@ const Section_a = () => {
               />
             </svg>
             <span className="text-xl font-bold text-blue-700 tracking-tight">
-              ProjectFlow
+              WorkOrbit
             </span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-12">
             Register Your Company
           </h2>
-
 
           <form onSubmit={handleSubmit} className="space-y-6 w-full">
             <InputField
@@ -211,7 +207,6 @@ const Section_a = () => {
               value={form.founded_year}
               onChange={handleChange}
               error={errors.founded_year}
-
             />
 
             {/* Password with Eye Toggle */}
@@ -254,11 +249,8 @@ const Section_a = () => {
             </p>
           </form>
         </div>
-
       </div>
-
     </>
-
   );
 };
 
@@ -286,8 +278,9 @@ const InputField = ({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className={`mt-1 block w-full rounded-md border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${error ? "border-red-400" : "border-gray-300"
-          } bg-white/80 text-gray-900`}
+        className={`mt-1 block w-full rounded-md border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          error ? "border-red-400" : "border-gray-300"
+        } bg-white/80 text-gray-900`}
       />
       {showToggle && (
         <button

@@ -6,17 +6,41 @@ const {
   Tray,
   Menu,
   nativeImage,
+  screen,
+  systemPreferences,
+  dialog,
 } = require("electron");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const fs = require("fs");
 
+// Ensure single instance
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      } else {
+        // If for some reason the window isn't available, recreate it
+        mainWindow = createWindow();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    } catch (_) {}
+  });
+}
+
 function resolveIconPath() {
-  const devIcon = path.join(__dirname, "public", "logo_favicon.png");
+  const devIcon = path.join(__dirname, "public", "for_tray.png");
   const prodIcon = path.join(
     process.resourcesPath || __dirname,
     "public",
-    "logo_favicon.png"
+    "for_tray.png"
   );
   if (fs.existsSync(devIcon)) return devIcon;
   if (fs.existsSync(prodIcon)) return prodIcon;
@@ -30,6 +54,7 @@ function createWindow() {
     resizable: false,
     fullscreenable: false,
     maximizable: false,
+    autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -38,6 +63,11 @@ function createWindow() {
     },
     icon: resolveIconPath(),
   });
+
+  try {
+    Menu.setApplicationMenu(null);
+    win.setMenuBarVisibility(false);
+  } catch (_) {}
 
   // Load Parcel-built file during dev; load packaged renderer in prod
   const devUrl = process.env.ELECTRON_START_URL;
@@ -61,6 +91,26 @@ let mainWindow = null;
 let tray = null;
 let isQuiting = false;
 
+function sendForcePunchOut() {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("tracker:force-punch-out", {
+        at: Date.now(),
+      });
+    }
+  } catch (e) {}
+}
+
+async function gracefulQuit() {
+  if (isQuiting) return;
+  isQuiting = true;
+  // Ask renderer to punch out
+  sendForcePunchOut();
+  // Give renderer a brief moment to finish network call
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  app.quit();
+}
+
 app.whenReady().then(() => {
   mainWindow = createWindow();
   // Create system tray icon
@@ -70,11 +120,14 @@ app.whenReady().then(() => {
     if (!image || (typeof image.isEmpty === "function" && image.isEmpty())) {
       image = nativeImage.createEmpty();
     }
+
+    // Fixed 48x48 size for tray icon
     const trayImage = image.isEmpty
       ? image
-      : image.resize({ width: 16, height: 16, quality: "best" });
+      : image.resize({ width: 48, height: 48, quality: "best" });
+
     tray = new Tray(trayImage);
-    tray.setToolTip("ProjectFlow Tracker");
+    tray.setToolTip("WorkOrbit Tracker");
     const contextMenu = Menu.buildFromTemplate([
       {
         label: "Show",
@@ -89,8 +142,7 @@ app.whenReady().then(() => {
       {
         label: "Quit",
         click: () => {
-          isQuiting = true;
-          app.quit();
+          gracefulQuit();
         },
       },
     ]);
@@ -116,9 +168,41 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
 });
+
+app.on("before-quit", () => {
+  // try to punch out once more if quit initiated elsewhere
+  sendForcePunchOut();
+  stopIdleMonitor();
+});
+
+// Handle system power events to force punch out
+try {
+  powerMonitor.on("shutdown", (e) => {
+    try {
+      // Attempt to punch out before OS shutdown
+      sendForcePunchOut();
+      // Delay shutdown very briefly to allow network call
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      setTimeout(() => {
+        app.quit();
+      }, 800);
+    } catch (_) {}
+  });
+
+  powerMonitor.on("suspend", () => {
+    sendForcePunchOut();
+  });
+
+  powerMonitor.on("lock-screen", () => {
+    sendForcePunchOut();
+  });
+} catch (e) {}
 
 app.on("window-all-closed", () => {
   // Keep app running in tray on Windows/Linux; macOS stays resident by default
@@ -141,7 +225,7 @@ let globalUiohookRef = null;
 
 // Spam detection variables
 let keyPressCounts = new Map(); // Track key press counts
-const SPAM_THRESHOLD = 7; // Number of presses to consider spam
+const SPAM_THRESHOLD = 15; // Number of presses to consider spam
 const SPAM_WINDOW_MS = 3000; // 3 second window to count key presses
 const SPAM_RECOVERY_MS = 3000; // 3 seconds to wait after spam before resuming activity
 let isSpamMode = false;
@@ -242,32 +326,36 @@ function startIdleMonitor() {
 
   // Try to start global input hook for fine-grained filtering
   try {
+    // On macOS, request/verify Accessibility permission before loading the hook
+    if (process.platform === "darwin") {
+      const trusted =
+        typeof systemPreferences?.isTrustedAccessibilityClient === "function"
+          ? systemPreferences.isTrustedAccessibilityClient(true)
+          : true;
+      if (!trusted) {
+        console.log(
+          "Accessibility permission not granted. Skipping uiohook startup on macOS."
+        );
+        try {
+          dialog.showMessageBox({
+            type: "info",
+            message:
+              "Please enable Accessibility and Input Monitoring for WorkOrbit in System Settings → Privacy & Security, then relaunch the app.",
+            buttons: ["OK"],
+          });
+        } catch (_) {}
+        throw new Error("macOS accessibility permission not granted");
+      }
+    }
+
     console.log("Attempting to load uiohook-napi...");
-    const { uIOhook, UiohookKey } = require("uiohook-napi");
+    const { uIOhook } = require("uiohook-napi");
     console.log("uiohook-napi loaded successfully!");
     // Keep global reference
     globalUiohookRef = uIOhook;
 
-    const IGNORE_KEYS = new Set([
-      UiohookKey.CapsLock,
-      UiohookKey.Space,
-      UiohookKey.Shift,
-      UiohookKey.ShiftRight,
-      UiohookKey.Ctrl,
-      UiohookKey.CtrlRight,
-      UiohookKey.Alt,
-      UiohookKey.AltRight,
-      UiohookKey.Meta,
-      UiohookKey.MetaRight,
-    ]);
-
-    const shouldCountKey = (event) => {
-      // Check if the keycode is in our ignore list
-      if (IGNORE_KEYS.has(event.keycode)) {
-        console.log("Key ignored:", event.keycode);
-        return false;
-      }
-      console.log("Key allowed:", event.keycode);
+    // Count ALL keys; do not ignore modifiers or function keys
+    const shouldCountKey = (_event) => {
       return true;
     };
 
@@ -465,8 +553,4 @@ ipcMain.handle("reset-activity-counters", () => {
 
 app.whenReady().then(() => {
   startIdleMonitor();
-});
-
-app.on("before-quit", () => {
-  stopIdleMonitor();
 });

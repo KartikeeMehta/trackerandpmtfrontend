@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { API } from "../../utils/api_desktop";
 
 export default function Connect({ onDone, onBack }) {
   const [email, setEmail] = useState("");
@@ -6,12 +7,19 @@ export default function Connect({ onDone, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("pf_user_email");
+      if (savedEmail) setEmail(savedEmail);
+    } catch (_) {}
+  }, []);
+
   const verify = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/pairing/verify", {
+      const res = await fetch(`${API.base}/pairing/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, pairingOTP: otp }),
@@ -27,6 +35,7 @@ export default function Connect({ onDone, onBack }) {
         localStorage.setItem("pf_user_email", email);
         if (data?.companyName)
           localStorage.setItem("pf_company", data.companyName);
+        localStorage.setItem("pf_route", "track");
       } catch {}
       onDone?.();
     } catch (e) {
@@ -37,7 +46,7 @@ export default function Connect({ onDone, onBack }) {
   };
 
   return (
-    <div className="p-10 animate-fade-in">
+    <div className="p-10 animate-fade-in bg-gradient-to-br from-sky-50 to-emerald-50 flex items-center justify-center h-full">
       <div className="max-w-md mx-auto">
         <button
           onClick={onBack}

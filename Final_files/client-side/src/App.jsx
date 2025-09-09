@@ -25,7 +25,6 @@ import Verification from "./pages/Verification";
 import ResetPassword from "./pages/ResetPassword";
 import Messaging from "./pages/Message/Messaging";
 import NotificationWrapper from "./components/NotificationWrapper";
-import DownloadApp from "./components/DownloadApp";
 import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
 import OverallStatsPage from "./pages/OverallStats";
@@ -194,16 +193,6 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <Settings />
-                </MainLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/download-app"
-            element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <DownloadApp />
                 </MainLayout>
               </ProtectedRoute>
             }

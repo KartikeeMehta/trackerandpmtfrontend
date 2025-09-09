@@ -2,11 +2,11 @@ import React from "react";
 
 export default function Front({ onConnect }) {
   return (
-    <div className="p-10 bg-gradient-to-br from-sky-50 to-emerald-50 animate-fade-in">
+    <div className="p-10 animate-fade-in h-full flex justify-center items-center bg-gradient-to-br from-sky-50 to-emerald-50">
       <div className="max-w-2xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-100 text-sky-700 text-xs border border-sky-200 animate-pop">
           <span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse" />
-          ProjectFlow Desktop Tracker
+          WorkOrbit Desktop Tracker
         </div>
 
         <h1 className="mt-4 text-3xl sm:text-4xl font-semibold text-gray-900 tracking-tight">
@@ -14,8 +14,8 @@ export default function Front({ onConnect }) {
         </h1>
         <p className="mt-3 text-gray-600 leading-relaxed">
           Automatic working, active, and idle time tracking with real-time sync
-          to your ProjectFlow dashboard. Punch in to start, punch out to finish
-          — everything else is calculated for you.
+          to your WorkOrbit dashboard. Punch in to start, punch out to finish —
+          everything else is calculated for you.
         </p>
 
         {/* Removed the informational cards for Total Time, Active Time, and Idle Time */}

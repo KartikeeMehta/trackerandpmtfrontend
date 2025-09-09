@@ -255,8 +255,12 @@ exports.updateProject = async (req, res) => {
       const existing = (project.team_members || []).map(String);
       const inferredAdds = incoming.filter((id) => !existing.includes(id));
       const inferredRemovals = existing.filter((id) => !incoming.includes(id));
-      if (inferredAdds.length > 0) add_members = [...new Set([...(add_members || []), ...inferredAdds])];
-      if (inferredRemovals.length > 0) remove_members = [...new Set([...(remove_members || []), ...inferredRemovals])];
+      if (inferredAdds.length > 0)
+        add_members = [...new Set([...(add_members || []), ...inferredAdds])];
+      if (inferredRemovals.length > 0)
+        remove_members = [
+          ...new Set([...(remove_members || []), ...inferredRemovals]),
+        ];
     }
 
     // 🔍 Validate and add members
@@ -323,7 +327,10 @@ exports.updateProject = async (req, res) => {
       const companyName = req.user.companyName;
       // If project completed, notify all members
       if (project.project_status === "completed") {
-        const recipients = [project.project_lead, ...project.team_members].filter(Boolean);
+        const recipients = [
+          project.project_lead,
+          ...project.team_members,
+        ].filter(Boolean);
         await sendNotification({
           io,
           companyName,
@@ -614,7 +621,9 @@ exports.addProjectPhase = async (req, res) => {
     // Notify project members about new phase
     try {
       const io = req.app.get("io");
-      const recipients = [project.project_lead, ...project.team_members].filter(Boolean);
+      const recipients = [project.project_lead, ...project.team_members].filter(
+        Boolean
+      );
       await sendNotification({
         io,
         companyName,
@@ -731,7 +740,11 @@ exports.updatePhaseStatus = async (req, res) => {
     // Enforce completion rule: cannot mark Completed unless all subtasks are Completed
     if (status === "Completed") {
       const subtasks = Array.isArray(phase.subtasks) ? phase.subtasks : [];
-      const allDone = subtasks.length === 0 || subtasks.every((s) => (s.status || "").toLowerCase() === "completed".toLowerCase());
+      const allDone =
+        subtasks.length === 0 ||
+        subtasks.every(
+          (s) => (s.status || "").toLowerCase() === "completed".toLowerCase()
+        );
       if (!allDone) {
         return res.status(400).json({
           success: false,
@@ -780,11 +793,17 @@ exports.editPhaseDetails = async (req, res) => {
     if (!projectId || !phaseId) {
       return res
         .status(400)
-        .json({ success: false, message: "projectId and phaseId are required" });
+        .json({
+          success: false,
+          message: "projectId and phaseId are required",
+        });
     }
 
     // Find project within company
-    const project = await Project.findOne({ project_id: projectId, companyName });
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName,
+    });
     if (!project) {
       return res
         .status(404)
@@ -795,7 +814,10 @@ exports.editPhaseDetails = async (req, res) => {
     if (userRole === "teamMember") {
       return res
         .status(403)
-        .json({ success: false, message: "Team members cannot edit project phases" });
+        .json({
+          success: false,
+          message: "Team members cannot edit project phases",
+        });
     }
     if (
       userRole === "teamLead" &&
@@ -835,7 +857,11 @@ exports.editPhaseDetails = async (req, res) => {
     console.error("Error editing phase details:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Error editing phase", error: error.message });
+      .json({
+        success: false,
+        message: "Error editing phase",
+        error: error.message,
+      });
   }
 };
 
@@ -1377,13 +1403,18 @@ exports.editSubtask = async (req, res) => {
 
     // Notify new assignee if changed
     try {
-      if (assigned_member && assigned_member !== currentSubtask.assigned_member) {
+      if (
+        assigned_member &&
+        assigned_member !== currentSubtask.assigned_member
+      ) {
         const io = req.app.get("io");
         await sendNotification({
           io,
           companyName,
           type: "subtask_assigned",
-          title: `Subtask assigned: ${subtask_title || currentSubtask.subtask_title}`,
+          title: `Subtask assigned: ${
+            subtask_title || currentSubtask.subtask_title
+          }`,
           message: `You have been assigned a subtask in project ${project.project_name}.`,
           link: `/projects/${project.project_id}`,
           projectId: project.project_id,
@@ -1686,7 +1717,8 @@ exports.addSubtask = async (req, res) => {
         "phases.phase_id": phase_id,
         companyName,
       });
-      if (!project) return res.status(404).json({ message: "Project not found" });
+      if (!project)
+        return res.status(404).json({ message: "Project not found" });
       phase = project.phases.find((p) => p.phase_id === phase_id);
       if (!phase) return res.status(404).json({ message: "Phase not found" });
     }
@@ -1839,14 +1871,27 @@ exports.addSubtask = async (req, res) => {
       const assignerRole = userRole;
       let allowed = false;
       if (assignerRole === "owner" && assigned_member) {
-        const assignee = await Employee.findOne({ teamMemberId: assigned_member, companyName });
-        allowed = assignee && (assignee.role === "admin" || assignee.role === "manager");
+        const assignee = await Employee.findOne({
+          teamMemberId: assigned_member,
+          companyName,
+        });
+        allowed =
+          assignee &&
+          (assignee.role === "admin" || assignee.role === "manager");
       } else if (assignerRole === "admin" && assigned_member) {
-        const assignee = await Employee.findOne({ teamMemberId: assigned_member, companyName });
+        const assignee = await Employee.findOne({
+          teamMemberId: assigned_member,
+          companyName,
+        });
         allowed = assignee && assignee.role === "manager";
       }
       if (!allowed) {
-        return res.status(403).json({ success: false, message: "Not allowed to assign general subtasks to this role" });
+        return res
+          .status(403)
+          .json({
+            success: false,
+            message: "Not allowed to assign general subtasks to this role",
+          });
       }
 
       // save general subtask to employee document
@@ -1862,7 +1907,9 @@ exports.addSubtask = async (req, res) => {
         }
       );
       if (result.modifiedCount === 0) {
-        return res.status(500).json({ message: "Failed to add general subtask" });
+        return res
+          .status(500)
+          .json({ message: "Failed to add general subtask" });
       }
     }
 
@@ -1881,8 +1928,12 @@ exports.addSubtask = async (req, res) => {
           companyName,
           type: "subtask_assigned",
           title: `New subtask assigned: ${subtask_title}`,
-          message: phase_id && project ? `You have been assigned a subtask in project ${project.project_name}.` : `You have been assigned a general subtask.`,
-          link: phase_id && project ? `/projects/${project.project_id}` : `/tasks`,
+          message:
+            phase_id && project
+              ? `You have been assigned a subtask in project ${project.project_name}.`
+              : `You have been assigned a general subtask.`,
+          link:
+            phase_id && project ? `/projects/${project.project_id}` : `/tasks`,
           projectId: project ? project.project_id : undefined,
           phaseId: phase_id,
           subtaskId: subtask_id,

@@ -119,7 +119,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
       label: "TIME TRACKING",
       items: [
         { to: "/tracker", label: "Tracker", icon: Timer },
-        { to: "/overall-stats", label: "Overall Stats", icon: Timer },
+        // { to: "/overall-stats", label: "Overall Stats", icon: Timer },
       ],
     },
     {
@@ -264,26 +264,10 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     >
       <div className="flex items-center justify-between px-3 py-3 mt-2">
         <div className="flex items-center gap-2">
-          <svg
-            width="30"
-            height="30"
-            viewBox="0 0 44 44"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect width="44" height="44" rx="8" fill="#2563EB" />
-            <path
-              d="M13 29L22 15L31 29"
-              stroke="#fff"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {!collapsed && (
-            <span className="text-blue-800 font-extrabold text-[20px] tracking-tight">
-              Project Flow
-            </span>
+          {collapsed ? (
+            <img src="./colaspe_logo.png" alt="Logo" className="h-8 w-8" />
+          ) : (
+            <img src="./final_orbit_logo.png" alt="WorkOrbit" />
           )}
         </div>
         <button

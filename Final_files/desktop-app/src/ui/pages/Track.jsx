@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { API } from "../../utils/api_desktop";
 
 // Feature flag to control visibility of the Activity Statistics card in UI only
 const SHOW_ACTIVITY_STATS = false;
@@ -22,6 +23,10 @@ const Track = () => {
     spamKeystrokes: 0,
   });
   const [isSpamMode, setIsSpamMode] = useState(false);
+  const [isPunchingIn, setIsPunchingIn] = useState(false);
+  const [isPunchingOut, setIsPunchingOut] = useState(false);
+  const [isStartingBreak, setIsStartingBreak] = useState(false);
+  const [isEndingBreak, setIsEndingBreak] = useState(false);
 
   // Essential refs only
   const tickRef = useRef(null);
@@ -37,7 +42,7 @@ const Track = () => {
 
   // Break type configurations - must match server-side BREAK_DURATION_LIMITS
   const breakTypes = {
-    tea_break: { label: "Tea Break", duration: 1, color: "bg-orange-500" }, // 1 minute for testing
+    tea_break: { label: "Tea Break", duration: 15, color: "bg-orange-500" },
     lunch_break: {
       label: "Lunch/Dinner Break",
       duration: 45,
@@ -117,16 +122,40 @@ const Track = () => {
     }
   };
 
+  // Disconnect handler
+  const disconnect = async () => {
+    try {
+      const token = localStorage.getItem("pf_auth_token");
+      if (token) {
+        await fetch(`${API.base}/pairing/disconnect`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: "include",
+        });
+      }
+    } catch (_) {}
+    try {
+      localStorage.removeItem("pf_auth_token");
+      localStorage.setItem("pf_route", "connect");
+    } catch (_) {}
+    // Optionally, reload to force App.jsx to re-evaluate route
+    location.reload();
+  };
+
   // Start status polling to check for break auto-end
   const startStatusPolling = () => {
     if (statusPollRef.current) return;
     console.log("🔄 Starting status polling for break auto-end detection");
     statusPollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(
-          "http://localhost:8000/api/employee-tracker/status",
-          { method: "GET", headers: getAuthHeaders(), credentials: "include" }
-        );
+        const res = await fetch(`${API.base}/employee-tracker/status`, {
+          method: "GET",
+          headers: getAuthHeaders(),
+          credentials: "include",
+        });
         const data = await res.json();
         if (data && data.success && data.status) {
           const st = data.status;
@@ -183,10 +212,11 @@ const Track = () => {
   // Simple status check
   const checkStatus = async () => {
     try {
-      const res = await fetch(
-        "http://localhost:8000/api/employee-tracker/status",
-        { method: "GET", headers: getAuthHeaders(), credentials: "include" }
-      );
+      const res = await fetch(`${API.base}/employee-tracker/status`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       const data = await res.json();
       if (!data || data.success === false) return;
 
@@ -294,15 +324,14 @@ const Track = () => {
   };
 
   const punchIn = async () => {
+    if (isPunchingIn) return;
+    setIsPunchingIn(true);
     try {
-      const res = await fetch(
-        "http://localhost:8000/api/employee-tracker/punch-in",
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          credentials: "include",
-        }
-      );
+      const res = await fetch(`${API.base}/employee-tracker/punch-in`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         await checkStatus();
@@ -331,10 +360,14 @@ const Track = () => {
       }
     } catch (e) {
       console.error("Punch in error:", e);
+    } finally {
+      setIsPunchingIn(false);
     }
   };
 
   const punchOut = async () => {
+    if (isPunchingOut) return;
+    setIsPunchingOut(true);
     try {
       // Send final activity counts before punching out
       if (window.tracker && window.tracker.getActivityCounts) {
@@ -345,33 +378,27 @@ const Track = () => {
               "📊 Sending final activity counts on punch out:",
               counts
             );
-            await fetch(
-              "http://localhost:8000/api/employee-tracker/activity/update",
-              {
-                method: "POST",
-                headers: getAuthHeaders(),
-                credentials: "include",
-                body: JSON.stringify({
-                  keystrokes: counts.keystrokes,
-                  mouseClicks: counts.mouseClicks,
-                  spamKeystrokes: counts.spamKeystrokes,
-                }),
-              }
-            );
+            await fetch(`${API.base}/employee-tracker/activity/update`, {
+              method: "POST",
+              headers: getAuthHeaders(),
+              credentials: "include",
+              body: JSON.stringify({
+                keystrokes: counts.keystrokes,
+                mouseClicks: counts.mouseClicks,
+                spamKeystrokes: counts.spamKeystrokes,
+              }),
+            });
           }
         } catch (e) {
           console.error("Error sending final activity counts:", e);
         }
       }
 
-      const res = await fetch(
-        "http://localhost:8000/api/employee-tracker/punch-out",
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          credentials: "include",
-        }
-      );
+      const res = await fetch(`${API.base}/employee-tracker/punch-out`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         await checkStatus();
@@ -381,6 +408,8 @@ const Track = () => {
       }
     } catch (e) {
       console.error("Punch out error:", e);
+    } finally {
+      setIsPunchingOut(false);
     }
   };
 
@@ -394,19 +423,18 @@ const Track = () => {
       return;
     }
 
+    if (isStartingBreak) return;
+    setIsStartingBreak(true);
     try {
-      const res = await fetch(
-        "http://localhost:8000/api/employee-tracker/break/start",
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          credentials: "include",
-          body: JSON.stringify({
-            breakType: selectedBreakType,
-            reason: selectedBreakType === "manual" ? customBreakReason : "",
-          }),
-        }
-      );
+      const res = await fetch(`${API.base}/employee-tracker/break/start`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          breakType: selectedBreakType,
+          reason: selectedBreakType === "manual" ? customBreakReason : "",
+        }),
+      });
       const data = await res.json();
       if (data.success) {
         setIsOnBreak(true);
@@ -426,19 +454,20 @@ const Track = () => {
       }
     } catch (e) {
       console.error("Start break error:", e);
+    } finally {
+      setIsStartingBreak(false);
     }
   };
 
   const endBreak = async () => {
+    if (isEndingBreak) return;
+    setIsEndingBreak(true);
     try {
-      const res = await fetch(
-        "http://localhost:8000/api/employee-tracker/break/end",
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          credentials: "include",
-        }
-      );
+      const res = await fetch(`${API.base}/employee-tracker/break/end`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         // Clear auto-end timer and countdown
@@ -472,12 +501,14 @@ const Track = () => {
       }
     } catch (e) {
       console.error("End break error:", e);
+    } finally {
+      setIsEndingBreak(false);
     }
   };
 
   const loadProfile = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/profile", {
+      const res = await fetch(`${API.base}/profile`, {
         method: "GET",
         headers: getAuthHeaders(),
         credentials: "include",
@@ -526,10 +557,11 @@ const Track = () => {
     try {
       const storedEmail = localStorage.getItem("pf_user_email");
       if (!storedEmail) return false;
-      const res = await fetch(
-        "http://localhost:8000/api/employees/all",
-        { method: "GET", headers: getAuthHeaders(), credentials: "include" }
-      );
+      const res = await fetch(`${API.base}/employees/all`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (!res.ok) return false;
       const list = await res.json();
       if (!Array.isArray(list)) return false;
@@ -585,7 +617,7 @@ const Track = () => {
       if (activityRef.current.idle) {
         try {
           console.log("🟢 Ending idle time - calling API");
-          fetch("http://localhost:8000/api/employee-tracker/idle/end", {
+          fetch(`${API.base}/employee-tracker/idle/end`, {
             method: "POST",
             headers: getAuthHeaders(),
             credentials: "include",
@@ -637,7 +669,7 @@ const Track = () => {
       const idleType = reason === "key-spam" ? "spam" : "auto";
       console.log(`🟡 Sending idle start to backend with type: ${idleType}`);
 
-      fetch("http://localhost:8000/api/employee-tracker/idle/start", {
+      fetch(`${API.base}/employee-tracker/idle/start`, {
         method: "POST",
         headers: getAuthHeaders(),
         credentials: "include",
@@ -687,7 +719,7 @@ const Track = () => {
 
       // Notify backend
       console.log("🟢 Sending idle end to backend");
-      fetch("http://localhost:8000/api/employee-tracker/idle/end", {
+      fetch(`${API.base}/employee-tracker/idle/end`, {
         method: "POST",
         headers: getAuthHeaders(),
         credentials: "include",
@@ -721,6 +753,20 @@ const Track = () => {
     };
   }, [isActive, isOnBreak]); // Keep dependencies for useEffect
 
+  // Listen for force punch-out from main (quit/shutdown)
+  useEffect(() => {
+    if (!window.tracker) return;
+    const handler = async () => {
+      try {
+        if (isActiveRef.current) {
+          console.log("⚠️ Force punch-out signal received from main");
+          await punchOut();
+        }
+      } catch (e) {}
+    };
+    window.tracker.onForcePunchOut(handler);
+  }, []);
+
   // Fetch activity counts and send to backend periodically
   useEffect(() => {
     if (!isActiveRef.current) return;
@@ -734,19 +780,16 @@ const Track = () => {
           // Send activity counts to backend if there's any activity
           if (counts.keystrokes > 0 || counts.mouseClicks > 0) {
             console.log("📊 Sending activity counts to backend:", counts);
-            fetch(
-              "http://localhost:8000/api/employee-tracker/activity/update",
-              {
-                method: "POST",
-                headers: getAuthHeaders(),
-                credentials: "include",
-                body: JSON.stringify({
-                  keystrokes: counts.keystrokes,
-                  mouseClicks: counts.mouseClicks,
-                  spamKeystrokes: counts.spamKeystrokes,
-                }),
-              }
-            )
+            fetch(`${API.base}/employee-tracker/activity/update`, {
+              method: "POST",
+              headers: getAuthHeaders(),
+              credentials: "include",
+              body: JSON.stringify({
+                keystrokes: counts.keystrokes,
+                mouseClicks: counts.mouseClicks,
+                spamKeystrokes: counts.spamKeystrokes,
+              }),
+            })
               .then((response) => response.json())
               .then((data) => {
                 console.log("📊 Activity update response:", data);
@@ -789,14 +832,18 @@ const Track = () => {
   }, []);
 
   return (
-    <div className="min-h-screen p-2">
+    <div className="min-h-screen p-2 bg-gradient-to-br from-sky-50 to-emerald-50">
       <div className="mx-auto">
         {/* Header */}
-        <div className="text-center mb-3">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            Time Tracker
-          </h1>
-          <p className="text-sm text-gray-600">Welcome, {userName || "User"}</p>
+        <div className="flex items-start justify-between mb-3">
+          <div className="text-center w-full">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              Time Tracker
+            </h1>
+            <p className="text-sm text-gray-600">
+              Welcome, {userName || "User"}
+            </p>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -810,16 +857,18 @@ const Track = () => {
               {!isActive ? (
                 <button
                   onClick={punchIn}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
+                  disabled={isPunchingIn}
+                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                 >
-                  Punch In
+                  {isPunchingIn ? "Punching In…" : "Punch In"}
                 </button>
               ) : (
                 <button
                   onClick={punchOut}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
+                  disabled={isPunchingOut}
+                  className="w-full bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                 >
-                  Punch Out
+                  {isPunchingOut ? "Punching Out…" : "Punch Out"}
                 </button>
               )}
             </div>
@@ -935,10 +984,14 @@ const Track = () => {
 
                   <button
                     onClick={startBreak}
-                    disabled={!isActive || selectedBreakType === "select"}
+                    disabled={
+                      !isActive ||
+                      selectedBreakType === "select" ||
+                      isStartingBreak
+                    }
                     className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                   >
-                    Start Break
+                    {isStartingBreak ? "Starting…" : "Start Break"}
                   </button>
                 </div>
               ) : (
@@ -962,9 +1015,10 @@ const Track = () => {
                   )}
                   <button
                     onClick={endBreak}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
+                    disabled={isEndingBreak}
+                    className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-3 rounded-lg transition-all duration-200 shadow"
                   >
-                    End Break
+                    {isEndingBreak ? "Ending…" : "End Break"}
                   </button>
                 </div>
               )}

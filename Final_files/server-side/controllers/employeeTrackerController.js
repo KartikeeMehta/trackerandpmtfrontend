@@ -4,7 +4,7 @@ const User = require("../models/User");
 
 // Break duration limits in minutes
 const BREAK_DURATION_LIMITS = {
-  tea_break: 1, // 10 minutes
+  tea_break: 15,
   meeting_break: 10, // 10 minutes
   lunch_break: 45, // 45 minutes
   manual: 60, // 60 minutes (no auto-end for manual breaks)
@@ -177,14 +177,18 @@ async function getOrCreateTrackerForReq(req) {
     };
   }
 
-  let tracker = await EmployeeTracker.findOne({ employeeId });
-  if (!tracker) {
-    tracker = await EmployeeTracker.create({
-      employeeId,
-      companyId,
-      employeeInfo,
-    });
-  }
+  // Upsert to guarantee single document per employeeId (prevents duplicates in races)
+  const tracker = await EmployeeTracker.findOneAndUpdate(
+    { employeeId },
+    {
+      $setOnInsert: {
+        employeeId,
+        companyId,
+        employeeInfo,
+      },
+    },
+    { new: true, upsert: true }
+  );
   return tracker;
 }
 
@@ -609,26 +613,30 @@ exports.getDailySummary = async (req, res) => {
         last.endTimeIST || formatISTTime(summary.lastPunchOut);
     }
 
-    // Upsert the summary into dailySummaries array
-    const existingIndex = tracker.dailySummaries.findIndex(
-      (ds) => ds.date === targetDate
-    );
+    // Only persist a summary if there is data for the target date
+    if (summary.sessionsCount > 0 || summary.totalWorkTime > 0) {
+      const existingIndex = tracker.dailySummaries.findIndex(
+        (ds) => ds.date === targetDate
+      );
 
-    if (existingIndex >= 0) {
-      // Update existing summary
-      tracker.dailySummaries[existingIndex] = summary;
-    } else {
-      // Add new summary
-      tracker.dailySummaries.push(summary);
+      if (existingIndex >= 0) {
+        tracker.dailySummaries[existingIndex] = summary;
+      } else {
+        tracker.dailySummaries.push(summary);
+      }
+
+      tracker.updateOverallStats();
+      await tracker.save();
+      return res.json({ success: true, summary });
     }
 
-    // Update overall stats
-    tracker.updateOverallStats();
-
-    // Save the tracker with updated daily summaries
-    await tracker.save();
-
-    return res.json({ success: true, summary });
+    // No data for this date — do not create an empty summary in DB
+    return res.json({
+      success: true,
+      summary: null,
+      empty: true,
+      date: targetDate,
+    });
   } catch (e) {
     console.error("getDailySummary error:", e);
     return res.status(500).json({

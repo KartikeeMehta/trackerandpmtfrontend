@@ -367,8 +367,11 @@ const employeeTrackerSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for efficient queries
-employeeTrackerSchema.index({ employeeId: 1 }, { unique: true });
+// Indexes for efficient queries and deduplication
+employeeTrackerSchema.index(
+  { employeeId: 1 },
+  { unique: true, background: true }
+);
 employeeTrackerSchema.index({ companyId: 1 });
 employeeTrackerSchema.index({ "dailySummaries.date": 1 });
 employeeTrackerSchema.index({ isActive: 1 });

@@ -87,18 +87,33 @@ const TrackerConnect = () => {
     }
   };
   const refreshPairingStatus = async (isInitialLoad = false) => {
+    let newStatus = pairStatus;
     try {
       if (isInitialLoad) {
         setCheckingStatus(true);
       }
       const res = await apiHandler.GetApi(api_url.checkPairingStatus, token);
       if (res?.success) {
-        const newStatus = res.status || "not_paired";
+        newStatus = res.status || "not_paired";
         setPairStatus(newStatus);
 
-        // Show toast when status changes to paired
-        if (previousPairStatus !== "paired" && newStatus === "paired") {
+        // Only show toast on true transition to paired, not on refreshes.
+        // - Guard with sessionStorage so it only shows once per tab session
+        // - Additionally require that lastPaired is recent (< 30s)
+        const lastPaired = res.lastPaired ? new Date(res.lastPaired) : null;
+        const pairedRecently = lastPaired
+          ? Date.now() - lastPaired.getTime() < 30 * 1000
+          : false;
+        const toastShown =
+          sessionStorage.getItem("pf_paired_toast_shown") === "true";
+        if (
+          previousPairStatus !== "paired" &&
+          newStatus === "paired" &&
+          !toastShown &&
+          pairedRecently
+        ) {
           setToast({ message: "Connected with desktop app!", type: "success" });
+          sessionStorage.setItem("pf_paired_toast_shown", "true");
         }
         setPreviousPairStatus(newStatus);
       }
@@ -109,6 +124,7 @@ const TrackerConnect = () => {
         setCheckingStatus(false);
       }
     }
+    return newStatus;
   };
   const disconnect = async () => {
     try {
@@ -117,6 +133,8 @@ const TrackerConnect = () => {
       if (res?.success) {
         setPairStatus("not_paired");
         setPreviousPairStatus("not_paired");
+        // Allow toast again on next successful pairing in this tab session
+        sessionStorage.removeItem("pf_paired_toast_shown");
         setToast({ message: "Disconnected from desktop app", type: "success" });
         // regenerate OTP so user can pair again easily
         generateOtp();
@@ -126,19 +144,31 @@ const TrackerConnect = () => {
     }
   };
   useEffect(() => {
-    generateOtp();
-    refreshPairingStatus(true); // Initial load with loading state
-    // Set up interval to refresh OTP every 5 minutes
-    const interval = setInterval(() => {
-      generateOtp();
-    }, 5 * 60 * 1000); // 5 minutes in milliseconds
+    // On mount: first check status; only generate OTP if not paired
+    let mounted = true;
+    (async () => {
+      const status = await refreshPairingStatus(true);
+      if (mounted && status !== "paired") {
+        await generateOtp();
+      }
+    })();
+
+    // Set up interval to refresh OTP every 5 minutes ONLY if not paired
+    const otpInterval = setInterval(async () => {
+      const status = await refreshPairingStatus(false);
+      if (status !== "paired") {
+        await generateOtp();
+      }
+    }, 5 * 60 * 1000);
+
     // Poll pairing status every 5 seconds (silent background updates)
     const statusInterval = setInterval(() => {
       refreshPairingStatus(false); // Silent background updates
     }, 5000);
     // Cleanup interval on component unmount
     return () => {
-      clearInterval(interval);
+      mounted = false;
+      clearInterval(otpInterval);
       clearInterval(statusInterval);
     };
   }, []);
@@ -286,7 +316,7 @@ const TrackerConnect = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href="./ProjectFlow Setup 0.1.0.exe"
+                href="./WorkOrbit%20Setup%200.1.0.exe"
                 download
                 className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
@@ -304,7 +334,7 @@ const TrackerConnect = () => {
                 Download for Windows
               </a>
               <a
-                href="/downloads/ProjectFlow-0.1.0-arm64.dmg"
+                href="./WorkOrbit-0.1.0.dmg"
                 download
                 className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >

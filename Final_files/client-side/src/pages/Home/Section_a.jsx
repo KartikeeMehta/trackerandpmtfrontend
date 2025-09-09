@@ -59,7 +59,7 @@ const Section_a = () => {
           />
         </svg>
         <span className="text-2xl font-bold text-blue-700 tracking-tight">
-          ProjectFlow
+          WorkOrbit
         </span>
       </div>
       {/* Hero Section */}
@@ -67,7 +67,7 @@ const Section_a = () => {
         <div className="bg-white/90 rounded-2xl shadow-xl px-8 py-10 flex flex-col items-center border border-blue-100">
           <Sparkles className="h-10 w-10 text-blue-400 mb-2 animate-pulse" />
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight leading-tight">
-            ProjectFlow:{" "}
+            WorkOrbit:
             <span className="text-blue-600">Project Management Tool</span>
           </h1>
           <p className="text-lg text-gray-700 mb-8 font-medium text-center">

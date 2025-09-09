@@ -269,7 +269,7 @@ const Section_a = () => {
               />
             </svg>
             <span className="text-xl font-bold text-blue-700 tracking-tight">
-              ProjectFlow
+              WorkOrbit
             </span>
           </div>
 
@@ -416,7 +416,7 @@ const Section_a = () => {
             />
           </svg>
           <span className="text-xl font-bold text-blue-700 tracking-tight">
-            ProjectFlow
+            WorkOrbit
           </span>
         </div>
         <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">

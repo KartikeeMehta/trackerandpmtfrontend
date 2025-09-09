@@ -27,6 +27,9 @@
         onIdleEnd(handler) {
           safeOn("tracker:idle-end", handler);
         },
+        onForcePunchOut(handler) {
+          safeOn("tracker:force-punch-out", handler);
+        },
         async getActivityCounts() {
           return await ir.invoke("get-activity-counts");
         },

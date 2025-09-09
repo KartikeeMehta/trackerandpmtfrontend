@@ -1,4 +1,24 @@
 import axios from "axios";
+// Global 401/403 handler: on session expiry, clear storage and redirect to login
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401 || status === 403) {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (_) {}
+      if (
+        typeof window !== "undefined" &&
+        window.location?.pathname !== "/login"
+      ) {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 import { Methods } from "./Api";
 export const apiHandler = {
   PostApi: async (url, data, token) => {

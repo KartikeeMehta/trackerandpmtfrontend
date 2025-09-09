@@ -153,13 +153,37 @@ export default function TrackerPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Initialize selected date from IST today and also respect server-provided todaySummary
   useEffect(() => {
-    const date =
-      status?.todaySummary?.date || new Date().toISOString().slice(0, 10);
+    const istToday = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const date = status?.todaySummary?.date || istToday;
     setSelectedDate(date);
     fetchDailySummary(date);
     fetchBreaks(date);
   }, [status?.todaySummary?.date]);
+
+  // Auto-rollover date picker across midnight (IST) on refresh or when page stays open
+  useEffect(() => {
+    const id = setInterval(() => {
+      const istNow = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      if (istNow !== selectedDate) {
+        setSelectedDate(istNow);
+        fetchDailySummary(istNow);
+        fetchBreaks(istNow);
+      }
+    }, 60 * 1000);
+    return () => clearInterval(id);
+  }, [selectedDate]);
 
   // Also fetch breaks for the IST date (next day) if the current date doesn't have breaks
   useEffect(() => {
@@ -324,7 +348,8 @@ export default function TrackerPage() {
     const result = Array.from({ length: 7 }, () => ({})); // each entry: { [hour]: minutes }
 
     const IST_OFFSET_MIN = 330; // +05:30
-    const toISTDate = (date) => new Date(date.getTime() + IST_OFFSET_MIN * 60 * 1000);
+    const toISTDate = (date) =>
+      new Date(date.getTime() + IST_OFFSET_MIN * 60 * 1000);
 
     const getISTDayHour = (date) => {
       const d = toISTDate(date);
@@ -334,9 +359,14 @@ export default function TrackerPage() {
       return { day, hour };
     };
 
-    const minutesBetween = (a, b) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
+    const minutesBetween = (a, b) =>
+      Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
 
-    const distributeProductiveMinutes = (startUtc, endUtc, productiveMinutes) => {
+    const distributeProductiveMinutes = (
+      startUtc,
+      endUtc,
+      productiveMinutes
+    ) => {
       try {
         if (!startUtc || !endUtc) return;
         const start = new Date(startUtc);
@@ -364,7 +394,9 @@ export default function TrackerPage() {
             )
           );
           // convert hourEnd back to UTC baseline (reverse shift)
-          const hourEndUTC = new Date(hourEndIST.getTime() - IST_OFFSET_MIN * 60 * 1000);
+          const hourEndUTC = new Date(
+            hourEndIST.getTime() - IST_OFFSET_MIN * 60 * 1000
+          );
           const windowEnd = hourEndUTC < end ? hourEndUTC : end;
           const overlapMin = minutesBetween(cursor, windowEnd);
           if (overlapMin > 0) {
@@ -378,7 +410,9 @@ export default function TrackerPage() {
     };
 
     // Process past sessions
-    const sessions = Array.isArray(status?.workSessions) ? status.workSessions : [];
+    const sessions = Array.isArray(status?.workSessions)
+      ? status.workSessions
+      : [];
     sessions.forEach((s) => {
       try {
         const start = s?.startTime ? new Date(s.startTime) : null;
@@ -386,7 +420,9 @@ export default function TrackerPage() {
         if (s?.endTime) {
           end = new Date(s.endTime);
         } else if (s?.duration) {
-          end = start ? new Date(start.getTime() + Number(s.duration) * 60000) : null;
+          end = start
+            ? new Date(start.getTime() + Number(s.duration) * 60000)
+            : null;
         }
         const productive = Math.max(0, Number(s?.productiveTime) || 0);
         if (start && end && productive > 0) {
@@ -970,7 +1006,9 @@ export default function TrackerPage() {
 
         <div className="grid grid-cols-2 gap-6">
           <div className="rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 p-4 border border-white/60">
-            <div className="text-base font-medium text-gray-600 mb-1">Keystrokes</div>
+            <div className="text-base font-medium text-gray-600 mb-1">
+              Keystrokes
+            </div>
             <div className="text-4xl font-bold text-violet-700 tabular-nums">
               {totals.keystrokes.toLocaleString()}
             </div>
@@ -979,7 +1017,9 @@ export default function TrackerPage() {
           </div>
 
           <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 border border-white/60">
-            <div className="text-base font-medium text-gray-600 mb-1">Mouse Clicks</div>
+            <div className="text-base font-medium text-gray-600 mb-1">
+              Mouse Clicks
+            </div>
 
             <div className="text-4xl font-bold text-cyan-700 tabular-nums">
               {totals.clicks.toLocaleString()}
@@ -1291,6 +1331,34 @@ export default function TrackerPage() {
     );
   };
 
+  function LiveElapsed({ start }) {
+    const [now, setNow] = useState(Date.now());
+    useEffect(() => {
+      const id = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(id);
+    }, []);
+    if (!start)
+      return (
+        <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 px-3 py-2 rounded-md">
+          <span className="font-medium">Elapsed</span>
+          <span className="tabular-nums">—</span>
+        </div>
+      );
+    const ms = Math.max(0, now - new Date(start).getTime());
+    const s = Math.floor(ms / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, "0");
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const sec = String(s % 60).padStart(2, "0");
+    return (
+      <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 px-3 py-2 rounded-md">
+        <span className="font-medium">Elapsed</span>
+        <span className="tabular-nums">
+          {h}:{m}:{sec}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Header Section */}
@@ -1579,11 +1647,24 @@ export default function TrackerPage() {
               </div>
 
               {status?.currentSession?.isActive ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                  <span className="text-base font-medium text-emerald-700">
-                    Active Session
-                  </span>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-base font-medium text-emerald-700">
+                      Active Session
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex justify-between items-center bg-emerald-50 text-emerald-800 px-3 py-2 rounded-md">
+                      <span className="font-medium">Started</span>
+                      <span className="tabular-nums">
+                        {status?.currentSession?.startTimeIST ||
+                          formatISTDate(status?.currentSession?.startTime) ||
+                          "—"}
+                      </span>
+                    </div>
+                    <LiveElapsed start={status?.currentSession?.startTime} />
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -1627,9 +1708,11 @@ export default function TrackerPage() {
                   </span>
 
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                    {dateSummary?.lastPunchOutIST ||
-                      formatISTDate(dateSummary?.lastPunchOut) ||
-                      "—"}
+                    {status?.currentSession?.isActive
+                      ? "—"
+                      : dateSummary?.lastPunchOutIST ||
+                        formatISTDate(dateSummary?.lastPunchOut) ||
+                        "—"}
                   </span>
                 </div>
 
