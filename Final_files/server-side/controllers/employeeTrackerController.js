@@ -506,7 +506,37 @@ exports.getCurrentStatus = async (req, res) => {
 // Aggregate a user's work for a specific date (defaults to today) into daily summary
 exports.getDailySummary = async (req, res) => {
   try {
-    const tracker = await getOrCreateTrackerForReq(req);
+    let tracker = null;
+    const { teamMemberId } = req.query || {};
+
+    if (teamMemberId) {
+      const role = (req.user?.role || "").toLowerCase();
+      if (!["owner", "admin", "manager"].includes(role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view other members",
+        });
+      }
+      const Employee = require("../models/Employee");
+      const member = await Employee.findOne({ teamMemberId });
+      if (!member) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Employee not found" });
+      }
+      const EmployeeTracker = require("../models/EmployeeTracker");
+      tracker = await EmployeeTracker.findOne({ employeeId: member._id });
+      if (!tracker) {
+        return res.json({
+          success: true,
+          summary: null,
+          empty: true,
+          date: req.query?.date || "",
+        });
+      }
+    } else {
+      tracker = await getOrCreateTrackerForReq(req);
+    }
 
     // Get IST date string for target date
     const dateParam = (req.query?.date || "").toString(); // YYYY-MM-DD or empty
@@ -554,6 +584,8 @@ exports.getDailySummary = async (req, res) => {
       lastPunchOut: null,
       firstPunchInIST: null,
       lastPunchOutIST: null,
+      isActiveToday: false,
+      currentStartTimeIST: null,
     };
 
     if (sessions.length > 0) {
@@ -604,13 +636,26 @@ exports.getDailySummary = async (req, res) => {
       // Set first punch in and last punch out in UTC
       summary.firstPunchIn = sorted[0].startTime;
       const last = sorted[sorted.length - 1];
-      summary.lastPunchOut = last.endTime || new Date();
+      summary.lastPunchOut = last.endTime || null;
 
       // Set IST formatted times for display (use stored IST strings if available)
       summary.firstPunchInIST =
         sorted[0].startTimeIST || formatISTTime(summary.firstPunchIn);
       summary.lastPunchOutIST =
-        last.endTimeIST || formatISTTime(summary.lastPunchOut);
+        last.endTimeIST ||
+        (summary.lastPunchOut ? formatISTTime(summary.lastPunchOut) : null);
+    }
+
+    // Enrich with live state if current session belongs to target day
+    if (
+      tracker.currentSession &&
+      tracker.currentSession.isActive &&
+      isOnTarget(tracker.currentSession.startTime)
+    ) {
+      summary.isActiveToday = true;
+      summary.currentStartTimeIST =
+        tracker.currentSession.startTimeIST ||
+        formatISTTime(tracker.currentSession.startTime);
     }
 
     // Only persist a summary if there is data for the target date

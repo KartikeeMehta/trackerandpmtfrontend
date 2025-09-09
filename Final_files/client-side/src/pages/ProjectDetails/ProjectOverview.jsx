@@ -4,6 +4,7 @@ import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
 import OverviewTab from "./OverviewTab";
 import PhasesTab from "./PhasesTab";
+import SummaryTab from "./SummaryTab";
 
 const ProjectOverview = () => {
   const location = useLocation();
@@ -12,11 +13,14 @@ const ProjectOverview = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "overview");
+  const [activeTab, setActiveTab] = useState(
+    location.state?.activeTab || "overview"
+  );
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "phases", label: "Tasks/Phases", icon: "📋" },
+    { id: "summary", label: "Summary", icon: "📝" },
   ];
 
   useEffect(() => {
@@ -64,6 +68,8 @@ const ProjectOverview = () => {
         return <OverviewTab project={project} projectId={projectId} />;
       case "phases":
         return <PhasesTab project={project} />;
+      case "summary":
+        return <SummaryTab project={project} projectId={projectId} />;
     }
   };
 

@@ -118,8 +118,17 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TIME TRACKING",
       items: [
+        ...(canAccessTeamMembers
+          ? [
+              {
+                to: "/people-tracking",
+                label: "Workforce Insights",
+                icon: Users,
+              },
+            ]
+          : []),
+        { to: "/overall-stats", label: "Overall Stats", icon: Timer },
         { to: "/tracker", label: "Tracker", icon: Timer },
-        // { to: "/overall-stats", label: "Overall Stats", icon: Timer },
       ],
     },
     {

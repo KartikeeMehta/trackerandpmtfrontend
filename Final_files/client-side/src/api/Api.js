@@ -39,6 +39,9 @@ export const api_url = {
   editSubtask: BASE_URL + "/projects/subtask/edit", // POST
   deleteSubtask: BASE_URL + "/projects/subtask/delete", // POST
   getSubtaskActivity: BASE_URL + "/projects/subtask/activity",
+  // --- Project Summary ---
+  projects: BASE_URL + "/projects",
+  projectSummaryActivity: BASE_URL + "/projects/summary/activity/", // append :projectId
   // --- Added for Phase Comments ---
   addPhaseComment: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (POST)
   getPhaseComments: BASE_URL + "/projects/", // append :projectId/phases/:phaseId/comments (GET)

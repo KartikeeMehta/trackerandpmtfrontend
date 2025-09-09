@@ -79,4 +79,16 @@ router.get(
   projectController.getPhaseComments
 ); // ✅ get comments for a phase
 
+// Summary endpoints
+router.post(
+  "/summary/update",
+  authMiddleware,
+  projectController.updateProjectSummary
+);
+router.get(
+  "/summary/activity/:projectId",
+  authMiddleware,
+  projectController.getProjectSummaryActivity
+);
+
 module.exports = router;

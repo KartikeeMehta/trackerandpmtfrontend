@@ -31,7 +31,7 @@ const subtaskSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Completed"],
+      enum: ["Pending", "In Progress", "Paused", "Completed"],
       default: "Pending",
     },
     dueDate: { type: Date },
@@ -74,6 +74,13 @@ const projectSchema = new mongoose.Schema(
       type: String,
       enum: ["ongoing", "completed", "on hold", "deleted"],
       default: "ongoing",
+    },
+    // Rich summary field for the Project Details → Summary tab
+    summary: { type: String, default: "" },
+    summaryMeta: {
+      lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      lastEditedByName: { type: String },
+      lastEditedAt: { type: Date },
     },
     project_lead: {
       type: String, // teamMemberId

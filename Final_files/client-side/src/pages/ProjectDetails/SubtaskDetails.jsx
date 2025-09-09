@@ -212,6 +212,8 @@ const SubtaskDetails = () => {
         return <CheckCircle size={16} className="text-green-600" />;
       case "In Progress":
         return <Clock size={16} className="text-blue-600" />;
+      case "Paused":
+        return <AlertCircle size={16} className="text-orange-600" />;
       case "Pending":
         return <AlertCircle size={16} className="text-yellow-600" />;
       default:
@@ -225,6 +227,8 @@ const SubtaskDetails = () => {
         return "bg-green-100 text-green-800";
       case "In Progress":
         return "bg-blue-100 text-blue-800";
+      case "Paused":
+        return "bg-orange-100 text-orange-800";
       case "Pending":
         return "bg-yellow-100 text-yellow-800";
       default:
@@ -238,6 +242,8 @@ const SubtaskDetails = () => {
         return "Completed";
       case "In Progress":
         return "In Progress";
+      case "Paused":
+        return "Paused";
       case "Pending":
         return "Pending";
       default:
@@ -587,12 +593,12 @@ const SubtaskDetails = () => {
 
   const getTimeEfficiencyProgress = (subtask) => {
     if (!subtask.dueDate) return 50; // No due date, neutral score
-    
+
     const dueDate = new Date(subtask.dueDate);
     const now = new Date();
     const timeDiff = dueDate.getTime() - now.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    
+
     // Calculate time efficiency based on status and remaining time
     if (subtask.status === "Completed") {
       // If completed, reward early completion and penalize late completion
@@ -625,12 +631,12 @@ const SubtaskDetails = () => {
 
   const getDueDateProgress = (subtask) => {
     if (!subtask.dueDate) return 0;
-    
+
     const dueDate = new Date(subtask.dueDate);
     const now = new Date();
     const timeDiff = dueDate.getTime() - now.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    
+
     // More logical due date progress: closer to due date = higher progress
     if (daysDiff < 0) return 20; // Overdue - low progress
     if (daysDiff <= 1) return 90; // Due today/tomorrow - high progress
@@ -648,13 +654,13 @@ const SubtaskDetails = () => {
     const statusProgress = getStatusProgress(subtask.status);
     const timeEfficiencyProgress = getTimeEfficiencyProgress(subtask);
 
-    const totalProgress = 
-      (statusProgress * statusWeight) +
-      (timeEfficiencyProgress * timeEfficiencyWeight);
+    const totalProgress =
+      statusProgress * statusWeight +
+      timeEfficiencyProgress * timeEfficiencyWeight;
 
     // Cap the progress at 100% but allow for bonus points in insights
     const calculatedProgress = Math.round(totalProgress);
-    
+
     // For completed tasks, ensure minimum 85% but cap at 100%
     if (subtask.status === "Completed") {
       return Math.min(Math.max(calculatedProgress, 85), 100);
@@ -666,7 +672,7 @@ const SubtaskDetails = () => {
   const getProgressInsights = (subtask) => {
     const progress = calculateProgressPercentage(subtask);
     const timeEfficiency = getTimeEfficiencyProgress(subtask);
-    
+
     if (subtask.status === "Completed") {
       // Check for early completion bonuses
       if (timeEfficiency >= 120) {
@@ -814,6 +820,7 @@ const SubtaskDetails = () => {
                     >
                       <option value="Pending">Pending</option>
                       <option value="In Progress">In Progress</option>
+                      <option value="Paused">Paused</option>
                       <option value="Completed">Completed</option>
                     </select>
                   </div>
@@ -849,57 +856,67 @@ const SubtaskDetails = () => {
                             ? "bg-gradient-to-r from-yellow-500 to-orange-500"
                             : "bg-gradient-to-r from-gray-400 to-gray-500"
                         }`}
-                        style={{ width: `${calculateProgressPercentage(subtask)}%` }}
+                        style={{
+                          width: `${calculateProgressPercentage(subtask)}%`,
+                        }}
                       ></div>
                     </div>
                   </div>
 
-                                     {/* Progress Breakdown */}
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                     {/* Status Progress */}
-                     <div className="bg-gray-50 rounded-lg p-3">
-                       <div className="flex items-center justify-between mb-2">
-                         <span className="text-xs font-medium text-gray-600">Status</span>
-                         <span className="text-xs font-medium text-gray-900">
-                           {getStatusProgress(subtask.status)}%
-                         </span>
-                       </div>
-                       <div className="w-full bg-gray-200 rounded-full h-1.5">
-                         <div
-                           className={`h-1.5 rounded-full transition-all duration-300 ${
-                             getStatusProgress(subtask.status) === 100
-                               ? "bg-green-500"
-                               : getStatusProgress(subtask.status) >= 50
-                               ? "bg-blue-500"
-                               : "bg-gray-400"
-                           }`}
-                           style={{ width: `${getStatusProgress(subtask.status)}%` }}
-                         ></div>
-                       </div>
-                     </div>
+                  {/* Progress Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Status Progress */}
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-600">
+                          Status
+                        </span>
+                        <span className="text-xs font-medium text-gray-900">
+                          {getStatusProgress(subtask.status)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            getStatusProgress(subtask.status) === 100
+                              ? "bg-green-500"
+                              : getStatusProgress(subtask.status) >= 50
+                              ? "bg-blue-500"
+                              : "bg-gray-400"
+                          }`}
+                          style={{
+                            width: `${getStatusProgress(subtask.status)}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
 
-                     {/* Time Efficiency Progress */}
-                     <div className="bg-gray-50 rounded-lg p-3">
-                       <div className="flex items-center justify-between mb-2">
-                         <span className="text-xs font-medium text-gray-600">Time Efficiency</span>
-                         <span className="text-xs font-medium text-gray-900">
-                           {getTimeEfficiencyProgress(subtask)}%
-                         </span>
-                       </div>
-                       <div className="w-full bg-gray-200 rounded-full h-1.5">
-                         <div
-                           className={`h-1.5 rounded-full transition-all duration-300 ${
-                             getTimeEfficiencyProgress(subtask) === 100
-                               ? "bg-green-500"
-                               : getTimeEfficiencyProgress(subtask) >= 50
-                               ? "bg-blue-500"
-                               : "bg-gray-400"
-                           }`}
-                           style={{ width: `${getTimeEfficiencyProgress(subtask)}%` }}
-                         ></div>
-                       </div>
-                     </div>
-                   </div>
+                    {/* Time Efficiency Progress */}
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-600">
+                          Time Efficiency
+                        </span>
+                        <span className="text-xs font-medium text-gray-900">
+                          {getTimeEfficiencyProgress(subtask)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            getTimeEfficiencyProgress(subtask) === 100
+                              ? "bg-green-500"
+                              : getTimeEfficiencyProgress(subtask) >= 50
+                              ? "bg-blue-500"
+                              : "bg-gray-400"
+                          }`}
+                          style={{
+                            width: `${getTimeEfficiencyProgress(subtask)}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Priority Level */}
                   <div className="flex items-center gap-2">
@@ -916,7 +933,10 @@ const SubtaskDetails = () => {
                   {/* Progress Insights */}
                   <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                     <div className="flex items-start gap-2">
-                      <AlertCircle size={14} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                      <AlertCircle
+                        size={14}
+                        className="text-blue-600 mt-0.5 flex-shrink-0"
+                      />
                       <div className="text-xs text-blue-800">
                         <p className="font-medium mb-1">Progress Insights:</p>
                         <p>{getProgressInsights(subtask)}</p>

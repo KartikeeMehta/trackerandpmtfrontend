@@ -28,6 +28,7 @@ import NotificationWrapper from "./components/NotificationWrapper";
 import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
 import OverallStatsPage from "./pages/OverallStats";
+import PeopleTracking from "./pages/PeopleTracking";
 
 // Main App component
 
@@ -223,6 +224,16 @@ function App() {
               <ProtectedRoute>
                 <MainLayout>
                   <OverallStatsPage />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/people-tracking"
+            element={
+              <ProtectedRoute roles={["owner", "admin", "manager"]}>
+                <MainLayout>
+                  <PeopleTracking />
                 </MainLayout>
               </ProtectedRoute>
             }

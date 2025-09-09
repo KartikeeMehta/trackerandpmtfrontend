@@ -67,19 +67,22 @@ const Section_a = () => {
   const [phases, setPhases] = useState([]);
   const [phasesLoading, setPhasesLoading] = useState(false);
   const [selectedPhaseId, setSelectedPhaseId] = useState("");
+  // Drag & drop state for subtasks
+  const [draggedTask, setDraggedTask] = useState(null);
   // General subtasks state
   const [generalTasks, setGeneralTasks] = useState([]);
   const [generalLoading, setGeneralLoading] = useState(false);
   const [selectedGeneralTask, setSelectedGeneralTask] = useState(null);
   const [generalOngoingExpanded, setGeneralOngoingExpanded] = useState(true);
-  const [generalCompletedExpanded, setGeneralCompletedExpanded] = useState(true);
+  const [generalCompletedExpanded, setGeneralCompletedExpanded] =
+    useState(true);
   // Pinned filters for History view
   const [historyProjectId, setHistoryProjectId] = useState(null);
   const [historyPhaseId, setHistoryPhaseId] = useState("");
   // Toggle states for sections
-  const [ongoingSubtasksExpanded, setOngoingSubtasksExpanded] = useState(true);
+  const [ongoingSubtasksExpanded, setOngoingSubtasksExpanded] = useState(false);
   const [completedSubtasksExpanded, setCompletedSubtasksExpanded] =
-    useState(true);
+    useState(false);
 
   // Prefill from navigation state (e.g., coming from TeamMember detail)
   useEffect(() => {
@@ -330,6 +333,7 @@ const Section_a = () => {
     if (!backendStatus) return "pending";
     const normalized = String(backendStatus).toLowerCase();
     if (normalized.includes("complete")) return "completed";
+    if (normalized.includes("pause")) return "paused";
     if (normalized.includes("progress")) return "in-progress";
     return "pending";
   };
@@ -536,7 +540,12 @@ const Section_a = () => {
       );
       if (response?.success) {
         setShowAddTaskModal(false);
-        setNewTask({ title: "", description: "", dueDate: "", priority: "Low" });
+        setNewTask({
+          title: "",
+          description: "",
+          dueDate: "",
+          priority: "Low",
+        });
         setSelectedImages([]);
         fetchOngoingTasks(selectedMember.teamMemberId);
       } else {
@@ -617,6 +626,7 @@ const Section_a = () => {
         pending: "Pending",
         "in progress": "In Progress",
         "in-progress": "In Progress",
+        paused: "Paused",
         completed: "Completed",
       };
       if (editTask.status) {
@@ -633,16 +643,19 @@ const Section_a = () => {
       // Team members editing their own subtasks: skip non-status edits (backend forbids)
       if (!(isTeamMember && isSelf)) {
         response = await apiHandler.postApiWithToken(
-        api_url.editSubtask,
-        {
-          subtask_id: selectedTask.task_id,
-          subtask_title: editTask.title,
-          description: editTask.description,
-        },
-        token
-      );
+          api_url.editSubtask,
+          {
+            subtask_id: selectedTask.task_id,
+            subtask_title: editTask.title,
+            description: editTask.description,
+          },
+          token
+        );
       }
-      if (response?.success || response?.message?.toLowerCase?.().includes("updated")) {
+      if (
+        response?.success ||
+        response?.message?.toLowerCase?.().includes("updated")
+      ) {
         setShowEditTaskModal(false);
         setSelectedTask(null);
         if (selectedProject) {
@@ -658,7 +671,7 @@ const Section_a = () => {
             selectedPhaseId
           );
         } else {
-        fetchOngoingTasks(selectedMember.teamMemberId);
+          fetchOngoingTasks(selectedMember.teamMemberId);
           fetchTaskHistory(selectedMember.teamMemberId);
         }
       } else {
@@ -703,7 +716,7 @@ const Section_a = () => {
             selectedPhaseId
           );
         } else {
-        fetchOngoingTasks(selectedMember.teamMemberId);
+          fetchOngoingTasks(selectedMember.teamMemberId);
           fetchTaskHistory(selectedMember.teamMemberId);
         }
       } else {
@@ -714,6 +727,129 @@ const Section_a = () => {
     } finally {
       setDeleteTaskLoading(false);
     }
+  };
+
+  // --- Drag & Drop (Kanban) for Subtasks ---
+  const kanbanColumns = [
+    { id: "paused", title: "Paused" },
+    { id: "pending", title: "Pending" },
+    { id: "in-progress", title: "In Progress" },
+    { id: "completed", title: "Completed" },
+  ];
+
+  const kanbanStyles = {
+    pending: {
+      header: "bg-gray-50 border-gray-300",
+      drop: "border-gray-300 bg-gray-50",
+      card: "border-gray-200",
+    },
+    "in-progress": {
+      header: "bg-orange-50 border-orange-300",
+      drop: "border-orange-300 bg-orange-50",
+      card: "border-orange-200",
+    },
+    completed: {
+      header: "bg-emerald-50 border-emerald-300",
+      drop: "border-emerald-300 bg-emerald-50",
+      card: "border-emerald-200",
+    },
+    paused: {
+      header: "bg-violet-50 border-violet-300",
+      drop: "border-violet-300 bg-violet-50",
+      card: "border-violet-200",
+    },
+  };
+
+  const handleTaskDragStart = (e, task) => {
+    setDraggedTask(task);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleTaskDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleTaskDrop = async (e, targetStatusId) => {
+    e.preventDefault();
+    if (!draggedTask) return;
+
+    // Prevent unnecessary updates
+    if ((draggedTask.status || "").toLowerCase() === targetStatusId) {
+      setDraggedTask(null);
+      return;
+    }
+
+    const isTeamMember = (userRole || "").toLowerCase() === "teammember";
+    const isSelf =
+      selectedMember?.teamMemberId &&
+      currentEmployee?.teamMemberId &&
+      selectedMember.teamMemberId === currentEmployee.teamMemberId;
+    if (isTeamMember && !isSelf) {
+      setPermissionToast(
+        "You are not allowed to change the status of other members"
+      );
+      setTimeout(() => setPermissionToast(""), 2500);
+      setDraggedTask(null);
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    const statusMapOut = {
+      pending: "Pending",
+      "in-progress": "In Progress",
+      paused: "Paused",
+      completed: "Completed",
+    };
+
+    try {
+      await apiHandler.postApiWithToken(
+        api_url.updateSubtaskStatus,
+        {
+          subtask_id: draggedTask.task_id,
+          status: statusMapOut[targetStatusId],
+        },
+        token
+      );
+      // Optimistically update UI
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.task_id === draggedTask.task_id
+            ? { ...t, status: targetStatusId }
+            : t
+        )
+      );
+      // Refresh lists to stay consistent with filters
+      if (selectedProject) {
+        fetchTasksByMemberInProject(
+          selectedMember.teamMemberId,
+          selectedProject.project_id,
+          selectedPhaseId
+        );
+        fetchTaskHistory(
+          selectedMember.teamMemberId,
+          selectedProject.project_id,
+          selectedPhaseId
+        );
+      } else {
+        fetchOngoingTasks(selectedMember.teamMemberId);
+        fetchTaskHistory(selectedMember.teamMemberId);
+      }
+    } catch (_) {
+      // ignore; UI will refresh on next fetch
+    } finally {
+      setDraggedTask(null);
+    }
+  };
+
+  // Helper to get tasks per column for Kanban
+  const getTasksForColumn = (statusId) => {
+    const all = [...(tasks || []), ...(taskHistory || [])];
+    const filtered = all.filter(
+      (t) => (t.status || "").toLowerCase() === statusId
+    );
+    // Limit to 5 per column when no specific project filter is selected
+    return selectedProject ? filtered : filtered.slice(0, 5);
   };
 
   function formatName(name) {
@@ -832,7 +968,9 @@ const Section_a = () => {
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                         {(currentEmployee?.name || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium">{currentEmployee?.name || "Me"}</span>
+                      <span className="font-medium">
+                        {currentEmployee?.name || "Me"}
+                      </span>
                     </button>
                   </div>
                   <div className="relative mb-4">
@@ -980,7 +1118,7 @@ const Section_a = () => {
         {selectedMember ? (
           <>
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     Subtasks for {formatName(selectedMember?.name)}
@@ -989,18 +1127,60 @@ const Section_a = () => {
                     Manage and track subtask progress
                   </p>
                 </div>
-                {userRole !== "teamMember" && (
-                  <button
-                    className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                    onClick={() => setShowAddTaskModal(true)}
-                    disabled={!selectedMember}
-                    title={
-                      !selectedMember ? "Please select a team member first" : ""
-                    }
+                <div className="flex items-center gap-3">
+                  {/* Filters moved to header right */}
+                  <select
+                    value={selectedProject ? selectedProject.project_id : ""}
+                    onChange={(e) => {
+                      const project = projects.find(
+                        (p) => p.project_id === e.target.value
+                      );
+                      setSelectedProject(project || null);
+                      setSelectedPhaseId("");
+                      setPhases([]);
+                      if (project) fetchPhasesForProject(project.project_id);
+                    }}
+                    className="border border-gray-200 rounded-xl px-5 py-2 bg-white min-w-[220px]"
                   >
-                    <Plus size={18} /> Add Subtask
-                  </button>
-                )}
+                    <option value="">All Projects</option>
+                    {projects.map((project) => (
+                      <option
+                        key={project.project_id}
+                        value={project.project_id}
+                      >
+                        {project.project_name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedProject && (
+                    <select
+                      value={selectedPhaseId}
+                      onChange={(e) => setSelectedPhaseId(e.target.value)}
+                      className="border border-gray-200 rounded-xl px-5 py-2 bg-white min-w-[220px]"
+                    >
+                      <option value="">All Phases</option>
+                      {(phases || []).map((ph) => (
+                        <option key={ph.phase_id} value={ph.phase_id}>
+                          {ph.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {userRole !== "teamMember" && (
+                    <button
+                      className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                      onClick={() => setShowAddTaskModal(true)}
+                      disabled={!selectedMember}
+                      title={
+                        !selectedMember
+                          ? "Please select a team member first"
+                          : ""
+                      }
+                    >
+                      <Plus size={18} /> Add Subtask
+                    </button>
+                  )}
+                </div>
               </div>
               {permissionToast && (
                 <div className="mb-4">
@@ -1009,26 +1189,36 @@ const Section_a = () => {
                   </div>
                 </div>
               )}
-              {(selectedMember?.role === "admin" || selectedMember?.role === "manager") && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+              {(selectedMember?.role === "admin" ||
+                selectedMember?.role === "manager") && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100">
                   {generalLoading ? (
-                    <div className="text-gray-500 text-sm">Loading general subtasks...</div>
+                    <div className="text-gray-500 text-sm">
+                      Loading general subtasks...
+                    </div>
                   ) : (
                     <>
                       <div className="flex items-center gap-3 mb-6">
                         <div className="w-1 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
                         <button
-                          onClick={() => setGeneralOngoingExpanded(!generalOngoingExpanded)}
+                          onClick={() =>
+                            setGeneralOngoingExpanded(!generalOngoingExpanded)
+                          }
                           className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-amber-600 transition-colors duration-200 cursor-pointer"
                         >
                           <span>Ongoing General Subtasks</span>
-                          <span className="text-lg">{generalOngoingExpanded ? "▼" : "▶"}</span>
+                          <span className="text-lg">
+                            {generalOngoingExpanded ? "▼" : "▶"}
+                          </span>
                         </button>
                       </div>
                       {generalOngoingExpanded && (
                         <div className="space-y-4 mb-8">
-                          {generalTasks.filter((x) => x.status !== "completed").length === 0 ? (
-                            <div className="text-gray-500 text-sm">No ongoing general subtasks.</div>
+                          {generalTasks.filter((x) => x.status !== "completed")
+                            .length === 0 ? (
+                            <div className="text-gray-500 text-sm">
+                              No ongoing general subtasks.
+                            </div>
                           ) : (
                             generalTasks
                               .filter((x) => x.status !== "completed")
@@ -1042,7 +1232,9 @@ const Section_a = () => {
                                     }`}
                                     onClick={() =>
                                       setSelectedGeneralTask(
-                                        selectedGeneralTask?._id === t._id ? null : t
+                                        selectedGeneralTask?._id === t._id
+                                          ? null
+                                          : t
                                       )
                                     }
                                   >
@@ -1050,8 +1242,16 @@ const Section_a = () => {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
-                                            <h4 className="font-semibold text-gray-900 capitalize text-base">{t.title}</h4>
-                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                            <h4 className="font-semibold text-gray-900 capitalize text-base">
+                                              {t.title}
+                                            </h4>
+                                            <span
+                                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
+                                                t.priority
+                                              )}`}
+                                            >
+                                              {t.priority}
+                                            </span>
                                           </div>
                                           <span
                                             className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
@@ -1065,7 +1265,9 @@ const Section_a = () => {
                                             {t.status}
                                           </span>
                                         </div>
-                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">{t.description}</p>
+                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                          {t.description}
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
@@ -1073,16 +1275,29 @@ const Section_a = () => {
                                   {selectedGeneralTask?._id === t._id && (
                                     <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
                                       <div className="flex justify-between items-center mb-4">
-                                        <h4 className="text-xl font-bold text-gray-800">{t.title}</h4>
+                                        <h4 className="text-xl font-bold text-gray-800">
+                                          {t.title}
+                                        </h4>
                                         <div className="flex items-center gap-2">
                                           <select
                                             className="text-sm border rounded px-2 py-1"
                                             value={t.status}
-                                            onChange={(e) => updateGeneralStatus(t, e.target.value)}
+                                            onChange={(e) =>
+                                              updateGeneralStatus(
+                                                t,
+                                                e.target.value
+                                              )
+                                            }
                                           >
-                                            <option value="pending">Pending</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="completed">Completed</option>
+                                            <option value="pending">
+                                              Pending
+                                            </option>
+                                            <option value="in-progress">
+                                              In Progress
+                                            </option>
+                                            <option value="completed">
+                                              Completed
+                                            </option>
                                           </select>
                                           <button
                                             className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -1094,17 +1309,35 @@ const Section_a = () => {
                                       </div>
                                       <div className="space-y-3">
                                         <div className="text-gray-700">
-                                          <span className="font-semibold text-gray-800">Description:</span>
-                                          <p className="mt-1 text-gray-600 leading-relaxed">{t.description}</p>
+                                          <span className="font-semibold text-gray-800">
+                                            Description:
+                                          </span>
+                                          <p className="mt-1 text-gray-600 leading-relaxed">
+                                            {t.description}
+                                          </p>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                           <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-gray-700">Priority:</span>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                            <span className="font-semibold text-gray-700">
+                                              Priority:
+                                            </span>
+                                            <span
+                                              className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(
+                                                t.priority
+                                              )}`}
+                                            >
+                                              {t.priority}
+                                            </span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-gray-700">Created At:</span>
-                                            <span className="text-gray-600">{new Date(t.createdAt).toLocaleString()}</span>
+                                            <span className="font-semibold text-gray-700">
+                                              Created At:
+                                            </span>
+                                            <span className="text-gray-600">
+                                              {new Date(
+                                                t.createdAt
+                                              ).toLocaleString()}
+                                            </span>
                                           </div>
                                         </div>
                                       </div>
@@ -1119,17 +1352,26 @@ const Section_a = () => {
                       <div className="flex items-center gap-3 mb-6">
                         <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
                         <button
-                          onClick={() => setGeneralCompletedExpanded(!generalCompletedExpanded)}
+                          onClick={() =>
+                            setGeneralCompletedExpanded(
+                              !generalCompletedExpanded
+                            )
+                          }
                           className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-200 cursor-pointer"
                         >
                           <span>Completed General Subtasks</span>
-                          <span className="text-lg">{generalCompletedExpanded ? "▼" : "▶"}</span>
+                          <span className="text-lg">
+                            {generalCompletedExpanded ? "▼" : "▶"}
+                          </span>
                         </button>
                       </div>
                       {generalCompletedExpanded && (
                         <div className="space-y-4">
-                          {generalTasks.filter((x) => x.status === "completed").length === 0 ? (
-                            <div className="text-gray-500 text-sm">No completed general subtasks.</div>
+                          {generalTasks.filter((x) => x.status === "completed")
+                            .length === 0 ? (
+                            <div className="text-gray-500 text-sm">
+                              No completed general subtasks.
+                            </div>
                           ) : (
                             generalTasks
                               .filter((x) => x.status === "completed")
@@ -1143,7 +1385,9 @@ const Section_a = () => {
                                     }`}
                                     onClick={() =>
                                       setSelectedGeneralTask(
-                                        selectedGeneralTask?._id === t._id ? null : t
+                                        selectedGeneralTask?._id === t._id
+                                          ? null
+                                          : t
                                       )
                                     }
                                   >
@@ -1151,8 +1395,16 @@ const Section_a = () => {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-2">
                                           <div className="flex items-center gap-2">
-                                            <h4 className="font-semibold text-gray-900 capitalize text-base">{t.title}</h4>
-                                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                            <h4 className="font-semibold text-gray-900 capitalize text-base">
+                                              {t.title}
+                                            </h4>
+                                            <span
+                                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
+                                                t.priority
+                                              )}`}
+                                            >
+                                              {t.priority}
+                                            </span>
                                           </div>
                                           <span
                                             className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
@@ -1166,7 +1418,9 @@ const Section_a = () => {
                                             {t.status}
                                           </span>
                                         </div>
-                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">{t.description}</p>
+                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                          {t.description}
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
@@ -1174,16 +1428,29 @@ const Section_a = () => {
                                   {selectedGeneralTask?._id === t._id && (
                                     <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
                                       <div className="flex justify-between items-center mb-4">
-                                        <h4 className="text-xl font-bold text-gray-800">{t.title}</h4>
+                                        <h4 className="text-xl font-bold text-gray-800">
+                                          {t.title}
+                                        </h4>
                                         <div className="flex items-center gap-2">
                                           <select
                                             className="text-sm border rounded px-2 py-1"
                                             value={t.status}
-                                            onChange={(e) => updateGeneralStatus(t, e.target.value)}
+                                            onChange={(e) =>
+                                              updateGeneralStatus(
+                                                t,
+                                                e.target.value
+                                              )
+                                            }
                                           >
-                                            <option value="pending">Pending</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="completed">Completed</option>
+                                            <option value="pending">
+                                              Pending
+                                            </option>
+                                            <option value="in-progress">
+                                              In Progress
+                                            </option>
+                                            <option value="completed">
+                                              Completed
+                                            </option>
                                           </select>
                                           <button
                                             className="px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -1195,17 +1462,35 @@ const Section_a = () => {
                                       </div>
                                       <div className="space-y-3">
                                         <div className="text-gray-700">
-                                          <span className="font-semibold text-gray-800">Description:</span>
-                                          <p className="mt-1 text-gray-600 leading-relaxed">{t.description}</p>
+                                          <span className="font-semibold text-gray-800">
+                                            Description:
+                                          </span>
+                                          <p className="mt-1 text-gray-600 leading-relaxed">
+                                            {t.description}
+                                          </p>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                           <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-gray-700">Priority:</span>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(t.priority)}`}>{t.priority}</span>
+                                            <span className="font-semibold text-gray-700">
+                                              Priority:
+                                            </span>
+                                            <span
+                                              className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(
+                                                t.priority
+                                              )}`}
+                                            >
+                                              {t.priority}
+                                            </span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-gray-700">Created At:</span>
-                                            <span className="text-gray-600">{new Date(t.createdAt).toLocaleString()}</span>
+                                            <span className="font-semibold text-gray-700">
+                                              Created At:
+                                            </span>
+                                            <span className="text-gray-600">
+                                              {new Date(
+                                                t.createdAt
+                                              ).toLocaleString()}
+                                            </span>
                                           </div>
                                         </div>
                                       </div>
@@ -1221,485 +1506,486 @@ const Section_a = () => {
                 </div>
               )}
 
-              {/* Project Selection (hidden for admin) */}
-              {!showTaskHistory && selectedMember?.role !== "admin" && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Filter by Project
-                      </label>
-                      {projectsLoading ? (
-                        <div className="text-gray-500 text-sm">
-                          Loading projects...
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <select
-                            value={
-                              selectedProject ? selectedProject.project_id : ""
-                            }
-                            onChange={(e) => {
-                              const project = projects.find(
-                                (p) => p.project_id === e.target.value
-                              );
-                              setSelectedProject(project || null);
-                              setSelectedPhaseId("");
-                              setPhases([]);
-                            }}
-                            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
-                          >
-                            <option value="">Select a project</option>
-                            {projects.map((project) => (
-                              <option
-                                key={project.project_id}
-                                value={project.project_id}
-                              >
-                                {project.project_name}
-                              </option>
-                            ))}
-                          </select>
-                          {selectedProject && (
-                            <button
-                              onClick={() => {
-                                setSelectedProject(null);
-                                setSelectedPhaseId("");
-                                setPhases([]);
-                                fetchOngoingTasks(selectedMember.teamMemberId);
-                              }}
-                              className="px-4 py-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {selectedProject && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Select Phase for adding subtask
-                      </label>
-                      {phasesLoading ? (
-                        <div className="text-gray-500 text-sm">
-                          Loading phases...
-                        </div>
-                      ) : (
-                        <select
-                          value={selectedPhaseId}
-                          onChange={(e) => setSelectedPhaseId(e.target.value)}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200 bg-white"
-                        >
-                          <option value="">Select a phase</option>
-                          {(phases || []).map((ph) => (
-                            <option key={ph.phase_id} value={ph.phase_id}>
-                              {ph.title}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Old inline project/phase filter removed (moved to header) */}
             </div>
 
             {selectedMember?.role !== "admin" && (
-            <>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
-                  <button
-                    onClick={() =>
-                      setOngoingSubtasksExpanded(!ongoingSubtasksExpanded)
-                    }
-                    className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors duration-200 cursor-pointer"
-                  >
-                    <span>
-                      {selectedProject
-                        ? `Ongoing Subtasks in ${selectedProject.project_name}`
-                        : "Ongoing Subtasks"}
-                    </span>
-                    <span className="text-lg">
-                      {ongoingSubtasksExpanded ? "▼" : "▶"}
-                    </span>
-                  </button>
-                </div>
+              <>
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                    <button
+                      onClick={() =>
+                        setOngoingSubtasksExpanded(!ongoingSubtasksExpanded)
+                      }
+                      className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors duration-200 cursor-pointer"
+                    >
+                      <span>
+                        {selectedProject
+                          ? `Ongoing Subtasks in ${selectedProject.project_name}`
+                          : "Ongoing Subtasks"}
+                      </span>
+                      <span className="text-lg">
+                        {ongoingSubtasksExpanded ? "▼" : "▶"}
+                      </span>
+                    </button>
+                  </div>
 
-                {ongoingSubtasksExpanded && (
-                  <>
-                    {tasksLoading ? (
-                      <div className="text-center py-12">
-                        <div className="inline-flex items-center gap-3 text-gray-500">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                          Loading subtasks...
-                        </div>
-                      </div>
-                    ) : tasks.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="bg-gray-50 rounded-2xl p-8 max-w-md mx-auto">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CalendarDays size={24} className="text-gray-400" />
+                  {ongoingSubtasksExpanded && (
+                    <>
+                      {tasksLoading ? (
+                        <div className="text-center py-12">
+                          <div className="inline-flex items-center gap-3 text-gray-500">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            Loading subtasks...
                           </div>
-                          <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                            No subtasks found
-                          </h4>
-                          <p className="text-gray-500 text-sm">
-                            {selectedProject
-                              ? `No subtasks found in ${selectedProject.project_name}`
-                              : "No ongoing subtasks for this member."}
-                          </p>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {tasks.map((task) => (
-                          <div key={task._id}>
-                            <div
-                              className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
-                                selectedTask?._id === task._id
-                                  ? "bg-blue-50 border-blue-200 shadow-sm"
-                                  : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                              }`}
-                              onClick={() =>
-                                setSelectedTask(
-                                  selectedTask?._id === task._id ? null : task
-                                )
-                              }
-                            >
-                              <div className="flex items-start gap-3">
-                                {/* Compact Status Icon */}
-                                <div className="flex-shrink-0">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                    task.status === "completed" 
-                                      ? "bg-emerald-100" 
-                                      : task.status === "in-progress"
-                                      ? "bg-blue-100"
-                                      : "bg-amber-100"
-                                  }`}>
-                                    {task.status === "completed" ? (
-                                      <CheckCircle className="w-4 h-4 text-emerald-600" />
-                                    ) : task.status === "in-progress" ? (
-                                      <Play className="w-4 h-4 text-blue-600" />
-                                    ) : (
-                                      <Clock className="w-4 h-4 text-amber-600" />
-                                    )}
+                      ) : tasks.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="bg-gray-50 rounded-2xl p-8 max-w-md mx-auto">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <CalendarDays
+                                size={24}
+                                className="text-gray-400"
+                              />
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                              No subtasks found
+                            </h4>
+                            <p className="text-gray-500 text-sm">
+                              {selectedProject
+                                ? `No subtasks found in ${selectedProject.project_name}`
+                                : "No ongoing subtasks for this member."}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {tasks.map((task) => (
+                            <div key={task._id}>
+                              <div
+                                className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                                  selectedTask?._id === task._id
+                                    ? "bg-blue-50 border-blue-200 shadow-sm"
+                                    : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                }`}
+                                onClick={() =>
+                                  setSelectedTask(
+                                    selectedTask?._id === task._id ? null : task
+                                  )
+                                }
+                              >
+                                <div className="flex items-start gap-3">
+                                  {/* Compact Status Icon */}
+                                  <div className="flex-shrink-0">
+                                    <div
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                        task.status === "completed"
+                                          ? "bg-emerald-100"
+                                          : task.status === "in-progress"
+                                          ? "bg-blue-100"
+                                          : "bg-amber-100"
+                                      }`}
+                                    >
+                                      {task.status === "completed" ? (
+                                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                      ) : task.status === "in-progress" ? (
+                                        <Play className="w-4 h-4 text-blue-600" />
+                                      ) : (
+                                        <Clock className="w-4 h-4 text-amber-600" />
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold text-gray-900 capitalize text-base">
+                                          {task.title}
+                                        </h4>
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            task.priority === "Critical"
+                                              ? "bg-red-100 text-red-700"
+                                              : task.priority === "High"
+                                              ? "bg-amber-100 text-amber-700"
+                                              : "bg-emerald-100 text-emerald-700"
+                                          }`}
+                                        >
+                                          {task.priority || "Low"}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                          task.status === "completed"
+                                            ? "bg-green-100 text-green-700"
+                                            : task.status === "in-progress"
+                                            ? "bg-blue-100 text-blue-700"
+                                            : "bg-gray-100 text-gray-700"
+                                        }`}
+                                      >
+                                        {task.status}
+                                      </span>
+                                    </div>
+
+                                    <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                      {task.description}
+                                    </p>
+
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-gray-500">
+                                        Project:
+                                      </span>
+                                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                        {getProjectNameById(task.project)}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
-                                
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                      <h4 className="font-semibold text-gray-900 capitalize text-base">
-                                  {task.title}
-                                </h4>
-                                  <span
-                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                          task.priority === "Critical" 
-                                            ? "bg-red-100 text-red-700" 
-                                            : task.priority === "High"
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-emerald-100 text-emerald-700"
-                                        }`}
-                                  >
-                                    {task.priority || "Low"}
+                              </div>
+
+                              {/* Subtask Details - Appears directly below the selected subtask */}
+                              {selectedTask?._id === task._id && (
+                                <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                  <div className="flex justify-between items-center mb-4">
+                                    <h4 className="text-xl font-bold text-gray-800">
+                                      {selectedTask.title}
+                                    </h4>
+                                    <div className="flex gap-2">
+                                      <button
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                        onClick={handleEditTaskOpen}
+                                      >
+                                        <Edit size={16} /> Edit
+                                      </button>
+                                      <button
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                        onClick={() =>
+                                          setShowDeleteConfirm(true)
+                                        }
+                                      >
+                                        <Trash2 size={16} /> Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div className="text-gray-700">
+                                      <span className="font-semibold text-gray-800">
+                                        Description:
+                                      </span>
+                                      <p className="mt-1 text-gray-600 leading-relaxed">
+                                        {selectedTask.description}
+                                      </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Status:
+                                        </span>
+                                        <span
+                                          className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                            selectedTask.status === "completed"
+                                              ? "bg-green-100 text-green-700"
+                                              : selectedTask.status ===
+                                                "in-progress"
+                                              ? "bg-blue-100 text-blue-700"
+                                              : "bg-gray-100 text-gray-700"
+                                          }`}
+                                        >
+                                          {selectedTask.status}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Assigned To:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {selectedTask.assignedTo}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Project:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {getProjectNameById(
+                                            selectedTask.project
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Priority:
+                                        </span>
+                                        <span
+                                          className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(
+                                            selectedTask.priority || "Low"
+                                          )}`}
+                                        >
+                                          {selectedTask.priority || "Low"}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Created At:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {new Date(
+                                            selectedTask.createdAt
+                                          ).toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                {/* Kanban Board (drag & drop across statuses) */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      Subtasks Board
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {kanbanColumns.map((col) => (
+                      <div key={col.id} className="space-y-3">
+                        <div
+                          className={`flex items-center gap-2 p-3 rounded-lg border-2 border-dotted ${
+                            kanbanStyles[col.id].header
+                          }`}
+                        >
+                          <h4 className="font-semibold text-sm text-gray-700">
+                            {col.title}
+                          </h4>
+                        </div>
+                        <div
+                          className={`min-h-[320px] p-3 rounded-lg border-2 border-dotted ${
+                            kanbanStyles[col.id].drop
+                          }`}
+                          onDragOver={handleTaskDragOver}
+                          onDrop={(e) => handleTaskDrop(e, col.id)}
+                        >
+                          {getTasksForColumn(col.id).length === 0 ? (
+                            <div className="text-center text-gray-400 text-sm py-6">
+                              Drop subtasks here
+                            </div>
+                          ) : (
+                            getTasksForColumn(col.id).map((task) => (
+                              <div
+                                key={task._id}
+                                className={`p-4 rounded-lg border bg-white hover:bg-gray-50 transition mb-3 cursor-move ${
+                                  selectedTask?._id === task._id
+                                    ? "border-blue-300 shadow"
+                                    : kanbanStyles[col.id].card
+                                }`}
+                                draggable
+                                onDragStart={(e) =>
+                                  handleTaskDragStart(e, task)
+                                }
+                                onClick={() =>
+                                  setSelectedTask(
+                                    selectedTask?._id === task._id ? null : task
+                                  )
+                                }
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <h5 className="font-semibold text-gray-900 text-sm line-clamp-1">
+                                    {task.title}
+                                  </h5>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 capitalize">
+                                    {task.status}
                                   </span>
                                 </div>
-                                <span
-                                      className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                                    task.status === "completed"
-                                      ? "bg-green-100 text-green-700"
-                                      : task.status === "in-progress"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-gray-100 text-gray-700"
-                                  }`}
-                                >
-                                  {task.status}
-                                </span>
-                              </div>
-                                  
-                                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                                {task.description}
-                              </p>
-                                  
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs text-gray-500">
-                                  Project:
-                                </span>
-                                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                <p className="text-xs text-gray-600 line-clamp-2">
+                                  {task.description}
+                                </p>
+                                <div className="mt-2 text-[10px] text-gray-500">
                                   {getProjectNameById(task.project)}
-                                </span>
-                                  </div>
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Subtask Details - Appears directly below the selected subtask */}
-                            {selectedTask?._id === task._id && (
-                              <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
-                                <div className="flex justify-between items-center mb-4">
-                                  <h4 className="text-xl font-bold text-gray-800">
-                                    {selectedTask.title}
-                                  </h4>
-                                  <div className="flex gap-2">
-                                    <button
-                                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
-                                      onClick={handleEditTaskOpen}
-                                    >
-                                      <Edit size={16} /> Edit
-                                    </button>
-                                    <button
-                                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
-                                      onClick={() => setShowDeleteConfirm(true)}
-                                    >
-                                      <Trash2 size={16} /> Delete
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="space-y-3">
-                                  <div className="text-gray-700">
-                                    <span className="font-semibold text-gray-800">
-                                      Description:
-                                    </span>
-                                    <p className="mt-1 text-gray-600 leading-relaxed">
-                                      {selectedTask.description}
-                                    </p>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Status:
-                                      </span>
-                                      <span
-                                        className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                          selectedTask.status === "completed"
-                                            ? "bg-green-100 text-green-700"
-                                            : selectedTask.status ===
-                                              "in-progress"
-                                            ? "bg-blue-100 text-blue-700"
-                                            : "bg-gray-100 text-gray-700"
-                                        }`}
-                                      >
-                                        {selectedTask.status}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Assigned To:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {selectedTask.assignedTo}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Project:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {getProjectNameById(
-                                          selectedTask.project
-                                        )}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Priority:
-                                      </span>
-                                      <span
-                                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getPriorityColor(
-                                          selectedTask.priority || "Low"
-                                        )}`}
-                                      >
-                                        {selectedTask.priority || "Low"}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Created At:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {new Date(
-                                          selectedTask.createdAt
-                                        ).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                            ))
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-              {/* Completed Subtasks section */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
-                  <button
-                    onClick={() =>
-                      setCompletedSubtasksExpanded(!completedSubtasksExpanded)
-                    }
-                    className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-200 cursor-pointer"
-                  >
-                    <span>
-                      {selectedProject
-                        ? `Completed Subtasks in ${selectedProject.project_name}`
-                        : "Completed Subtasks"}
-                    </span>
-                    <span className="text-lg">
-                      {completedSubtasksExpanded ? "▼" : "▶"}
-                    </span>
-                  </button>
+                    ))}
+                  </div>
                 </div>
-                {completedSubtasksExpanded && (
-                  <>
-                    {taskHistoryLoading ? (
-                      <div className="text-gray-500">
-                        Loading completed subtasks...
-                      </div>
-                    ) : taskHistory.length === 0 ? (
-                      <div className="text-gray-500">
-                        No completed subtasks.
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {taskHistory.map((task) => (
-                          <div key={task._id}>
-                            <div
-                              className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                                selectedTask?._id === task._id
-                                  ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg"
-                                  : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
-                              }`}
-                              onClick={() =>
-                                setSelectedTask(
-                                  selectedTask?._id === task._id ? null : task
-                                )
-                              }
-                            >
-                              <div className="flex justify-between items-start mb-3">
-                                <h4 className="font-bold text-gray-900 capitalize text-lg">
-                                  {task.title}
-                                </h4>
-                                <span
-                                  className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
-                                    task.status === "completed"
-                                      ? "bg-green-100 text-green-700"
-                                      : task.status === "in-progress"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-gray-100 text-gray-700"
-                                  }`}
-                                >
-                                  {task.status}
-                                </span>
-                              </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">
-                                {task.description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <span className="text-xs font-medium text-gray-500">
-                                  Project:
-                                </span>
-                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                                  {getProjectNameById(task.project)}
-                                </span>
-                              </div>
-                            </div>
 
-                            {/* Subtask Details - Appears directly below the selected subtask */}
-                            {selectedTask?._id === task._id && (
-                              <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
-                                <div className="flex justify-between items-center mb-4">
-                                  <h4 className="text-xl font-bold text-gray-800">
-                                    {selectedTask.title}
+                {/* Completed Subtasks section */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                    <button
+                      onClick={() =>
+                        setCompletedSubtasksExpanded(!completedSubtasksExpanded)
+                      }
+                      className="flex items-center gap-2 text-xl font-bold text-gray-800 hover:text-green-600 transition-colors duration-200 cursor-pointer"
+                    >
+                      <span>
+                        {selectedProject
+                          ? `Completed Subtasks in ${selectedProject.project_name}`
+                          : "Completed Subtasks"}
+                      </span>
+                      <span className="text-lg">
+                        {completedSubtasksExpanded ? "▼" : "▶"}
+                      </span>
+                    </button>
+                  </div>
+                  {completedSubtasksExpanded && (
+                    <>
+                      {taskHistoryLoading ? (
+                        <div className="text-gray-500">
+                          Loading completed subtasks...
+                        </div>
+                      ) : taskHistory.length === 0 ? (
+                        <div className="text-gray-500">
+                          No completed subtasks.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {taskHistory.map((task) => (
+                            <div key={task._id}>
+                              <div
+                                className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                  selectedTask?._id === task._id
+                                    ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg"
+                                    : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300"
+                                }`}
+                                onClick={() =>
+                                  setSelectedTask(
+                                    selectedTask?._id === task._id ? null : task
+                                  )
+                                }
+                              >
+                                <div className="flex justify-between items-start mb-3">
+                                  <h4 className="font-bold text-gray-900 capitalize text-lg">
+                                    {task.title}
                                   </h4>
-                                  <div className="flex gap-2">
-                                    <button
-                                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
-                                      onClick={handleEditTaskOpen}
-                                    >
-                                      <Edit size={16} /> Edit
-                                    </button>
-                                    <button
-                                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
-                                      onClick={() => setShowDeleteConfirm(true)}
-                                    >
-                                      <Trash2 size={16} /> Delete
-                                    </button>
-                                  </div>
+                                  <span
+                                    className={`text-xs px-3 py-1 rounded-full font-semibold capitalize ${
+                                      task.status === "completed"
+                                        ? "bg-green-100 text-green-700"
+                                        : task.status === "in-progress"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                  >
+                                    {task.status}
+                                  </span>
                                 </div>
-                                <div className="space-y-3">
-                                  <div className="text-gray-700">
-                                    <span className="font-semibold text-gray-800">
-                                      Description:
-                                    </span>
-                                    <p className="mt-1 text-gray-600 leading-relaxed">
-                                      {selectedTask.description}
-                                    </p>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Status:
-                                      </span>
-                                      <span
-                                        className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                          selectedTask.status === "completed"
-                                            ? "bg-green-100 text-green-700"
-                                            : selectedTask.status ===
-                                              "in-progress"
-                                            ? "bg-blue-100 text-blue-700"
-                                            : "bg-gray-100 text-gray-700"
-                                        }`}
-                                      >
-                                        {selectedTask.status}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Assigned To:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {selectedTask.assignedTo}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Project:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {getProjectNameById(
-                                          selectedTask.project
-                                        )}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-700">
-                                        Created At:
-                                      </span>
-                                      <span className="text-gray-600">
-                                        {new Date(
-                                          selectedTask.createdAt
-                                        ).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  </div>
+                                <p className="text-gray-600 text-sm leading-relaxed">
+                                  {task.description}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-xs font-medium text-gray-500">
+                                    Project:
+                                  </span>
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                    {getProjectNameById(task.project)}
+                                  </span>
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </>
+
+                              {/* Subtask Details - Appears directly below the selected subtask */}
+                              {selectedTask?._id === task._id && (
+                                <div className="mt-4 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                                  <div className="flex justify-between items-center mb-4">
+                                    <h4 className="text-xl font-bold text-gray-800">
+                                      {selectedTask.title}
+                                    </h4>
+                                    <div className="flex gap-2">
+                                      <button
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all duration-200 shadow-md hover:shadow-lg"
+                                        onClick={handleEditTaskOpen}
+                                      >
+                                        <Edit size={16} /> Edit
+                                      </button>
+                                      <button
+                                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-400 to-gray-500 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                                        onClick={() =>
+                                          setShowDeleteConfirm(true)
+                                        }
+                                      >
+                                        <Trash2 size={16} /> Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div className="text-gray-700">
+                                      <span className="font-semibold text-gray-800">
+                                        Description:
+                                      </span>
+                                      <p className="mt-1 text-gray-600 leading-relaxed">
+                                        {selectedTask.description}
+                                      </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Status:
+                                        </span>
+                                        <span
+                                          className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                            selectedTask.status === "completed"
+                                              ? "bg-green-100 text-green-700"
+                                              : selectedTask.status ===
+                                                "in-progress"
+                                              ? "bg-blue-100 text-blue-700"
+                                              : "bg-gray-100 text-gray-700"
+                                          }`}
+                                        >
+                                          {selectedTask.status}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Assigned To:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {selectedTask.assignedTo}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Project:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {getProjectNameById(
+                                            selectedTask.project
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-700">
+                                          Created At:
+                                        </span>
+                                        <span className="text-gray-600">
+                                          {new Date(
+                                            selectedTask.createdAt
+                                          ).toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -1868,7 +2154,9 @@ const Section_a = () => {
                   type="date"
                   className="mt-1 block w-full border rounded-md p-2"
                   value={newTask.dueDate}
-                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, dueDate: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -1878,7 +2166,9 @@ const Section_a = () => {
                 <select
                   className="mt-1 block w-full border rounded-md p-2"
                   value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, priority: e.target.value })
+                  }
                 >
                   <option value="Low">Low</option>
                   <option value="High">High</option>
@@ -1899,7 +2189,10 @@ const Section_a = () => {
                 {selectedImages.length > 0 && (
                   <div className="mt-2 flex gap-2 flex-wrap">
                     {selectedImages.map((file, idx) => (
-                      <div key={idx} className="relative w-20 h-20 border rounded overflow-hidden">
+                      <div
+                        key={idx}
+                        className="relative w-20 h-20 border rounded overflow-hidden"
+                      >
                         <img
                           src={URL.createObjectURL(file)}
                           alt="preview"
@@ -1918,7 +2211,9 @@ const Section_a = () => {
                   </div>
                 )}
                 {selectedImages.length >= 2 && (
-                  <p className="text-xs text-gray-500 mt-1">Maximum 2 images reached</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum 2 images reached
+                  </p>
                 )}
               </div>
               {addTaskError && (
@@ -1957,7 +2252,8 @@ const Section_a = () => {
             <h3 className="text-lg font-bold mb-1">Edit Subtask</h3>
             {(userRole || "").toLowerCase() === "teammember" && (
               <p className="mb-3 text-xs text-gray-500">
-                You can update Status for your own subtasks. Other fields are disabled.
+                You can update Status for your own subtasks. Other fields are
+                disabled.
               </p>
             )}
             <form onSubmit={handleEditTask} className="space-y-4">
@@ -2003,6 +2299,7 @@ const Section_a = () => {
                 >
                   <option value="pending">Pending</option>
                   <option value="in progress">In Progress</option>
+                  <option value="paused">Paused</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>

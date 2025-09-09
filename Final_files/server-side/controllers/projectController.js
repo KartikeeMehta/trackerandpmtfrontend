@@ -367,6 +367,129 @@ exports.updateProject = async (req, res) => {
   }
 };
 
+// Update only summary and track metadata
+exports.updateProjectSummary = async (req, res) => {
+  try {
+    const { projectId, summary } = req.body || {};
+    if (!projectId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "projectId is required" });
+    }
+
+    const role = (req.user?.role || "").toLowerCase();
+    if (!["owner", "admin", "manager", "teamlead"].includes(role)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
+    }
+
+    const project = await Project.findOne({
+      project_id: projectId,
+      companyName: req.user.companyName,
+    });
+    if (!project)
+      return res
+        .status(404)
+        .json({ success: false, message: "Project not found" });
+
+    project.summary = String(summary || "");
+    // Build a proper human name, avoid showing emails
+    let editorName = req.user?.name || req.user?.fullName || "";
+    // Try User model
+    if (!editorName) {
+      try {
+        const User = require("../models/User");
+        const u = await User.findById(req.user?._id);
+        if (u?.name) editorName = u.name;
+      } catch (_) {}
+    }
+    // Try Employee model
+    if (!editorName) {
+      try {
+        const Employee = require("../models/Employee");
+        const emp = await Employee.findOne({
+          $or: [
+            { teamMemberId: req.user?.teamMemberId },
+            { _id: req.user?._id },
+          ],
+        });
+        if (emp?.name) editorName = emp.name;
+      } catch (_) {}
+    }
+    // Fallback: derive from email before @ and title-case
+    if (!editorName) {
+      const email = req.user?.email || "";
+      if (email.includes("@")) {
+        const base = email.split("@")[0].replace(/[._-]+/g, " ");
+        editorName = base
+          .split(" ")
+          .filter(Boolean)
+          .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+          .join(" ");
+      }
+    }
+    if (!editorName) editorName = req.user?.username || "Unknown";
+
+    project.summaryMeta = {
+      lastEditedBy: req.user._id,
+      lastEditedByName: editorName,
+      lastEditedAt: new Date(),
+    };
+
+    await project.save();
+
+    // Log activity
+    try {
+      await Activity.create({
+        type: "ProjectSummary",
+        action: "edit",
+        name: project.project_name,
+        description: `Summary updated by ${editorName}`,
+        performedBy: getPerformer(req.user),
+        companyName: req.user.companyName,
+        meta: { projectId: project.project_id },
+      });
+    } catch (_) {}
+    return res.json({
+      success: true,
+      summary: project.summary,
+      summaryMeta: project.summaryMeta,
+    });
+  } catch (e) {
+    console.error("updateProjectSummary error:", e);
+    return res.status(500).json({
+      success: false,
+      message: e.message || "Failed to update summary",
+    });
+  }
+};
+
+// Get recent activity for project summary
+exports.getProjectSummaryActivity = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    if (!projectId)
+      return res
+        .status(400)
+        .json({ success: false, message: "projectId required" });
+    const companyName = req.user.companyName;
+    const items = await Activity.find({
+      companyName,
+      type: "ProjectSummary",
+      "meta.projectId": projectId,
+    })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    return res.json({ success: true, activities: items });
+  } catch (e) {
+    console.error("getProjectSummaryActivity error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch activity" });
+  }
+};
+
 exports.deleteProject = async (req, res) => {
   try {
     if (
@@ -791,12 +914,10 @@ exports.editPhaseDetails = async (req, res) => {
     const userTeamMemberId = req.user.teamMemberId;
 
     if (!projectId || !phaseId) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "projectId and phaseId are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "projectId and phaseId are required",
+      });
     }
 
     // Find project within company
@@ -812,12 +933,10 @@ exports.editPhaseDetails = async (req, res) => {
 
     // Role-based access: deny teamMember; teamLead must be project lead
     if (userRole === "teamMember") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Team members cannot edit project phases",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Team members cannot edit project phases",
+      });
     }
     if (
       userRole === "teamLead" &&
@@ -855,13 +974,11 @@ exports.editPhaseDetails = async (req, res) => {
       .json({ success: true, message: "Phase updated", phase });
   } catch (error) {
     console.error("Error editing phase details:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error editing phase",
-        error: error.message,
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Error editing phase",
+      error: error.message,
+    });
   }
 };
 
@@ -1100,6 +1217,15 @@ exports.updateSubtaskStatus = async (req, res) => {
       }
     }
     // Owner and admin have full access
+
+    // Validate allowed statuses for subtasks
+    const allowed = ["Pending", "In Progress", "Paused", "Completed"];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Allowed: ${allowed.join(", ")}`,
+      });
+    }
 
     // Update the subtask status using array update
     const result = await Project.updateOne(
@@ -1886,12 +2012,10 @@ exports.addSubtask = async (req, res) => {
         allowed = assignee && assignee.role === "manager";
       }
       if (!allowed) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            message: "Not allowed to assign general subtasks to this role",
-          });
+        return res.status(403).json({
+          success: false,
+          message: "Not allowed to assign general subtasks to this role",
+        });
       }
 
       // save general subtask to employee document
