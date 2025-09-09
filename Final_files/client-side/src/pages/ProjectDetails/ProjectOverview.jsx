@@ -13,9 +13,11 @@ const ProjectOverview = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState(
-    location.state?.activeTab || "overview"
-  );
+  const [activeTab, setActiveTab] = useState(() => {
+    const pid = location.state?.project_id;
+    const stored = pid ? localStorage.getItem(`project_tab_${pid}`) : null;
+    return stored || location.state?.activeTab || "overview";
+  });
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "📊" },
@@ -61,6 +63,13 @@ const ProjectOverview = () => {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state?.activeTab]);
+
+  // Persist active tab per project so refresh keeps the same tab
+  useEffect(() => {
+    if (projectId && activeTab) {
+      localStorage.setItem(`project_tab_${projectId}`, activeTab);
+    }
+  }, [projectId, activeTab]);
 
   const renderTabContent = () => {
     switch (activeTab) {

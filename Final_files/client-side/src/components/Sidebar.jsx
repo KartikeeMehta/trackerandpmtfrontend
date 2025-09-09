@@ -56,6 +56,9 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   };
 
   const userRole = getUserRole();
+  const isOwnerAdmin = ["owner", "admin"].includes(
+    (userRole || "").toLowerCase()
+  );
 
   // Define which roles can access Team Members
   const canAccessTeamMembers = ["owner", "admin", "manager"].includes(
@@ -127,8 +130,12 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
               },
             ]
           : []),
-        { to: "/overall-stats", label: "Overall Stats", icon: Timer },
-        { to: "/tracker", label: "Tracker", icon: Timer },
+        ...(!isOwnerAdmin
+          ? [
+              { to: "/overall-stats", label: "Overall Stats", icon: Timer },
+              { to: "/tracker", label: "Tracker", icon: Timer },
+            ]
+          : []),
       ],
     },
     {

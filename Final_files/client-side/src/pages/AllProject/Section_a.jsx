@@ -1,4 +1,12 @@
-import { Plus, Users, Trash2, CalendarDays, Pencil, X, Star } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Trash2,
+  CalendarDays,
+  Pencil,
+  X,
+  Star,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api_url } from "@/api/Api";
@@ -22,6 +30,9 @@ const Section_a = () => {
   const [deleteError, setDeleteError] = useState("");
   const [userRole, setUserRole] = useState("");
   const [starred, setStarred] = useState([]); // array of project_id
+  const [search, setSearch] = useState("");
+
+  const [teamFilter, setTeamFilter] = useState("");
 
   useEffect(() => {
     // Get user role from localStorage
@@ -57,27 +68,36 @@ const Section_a = () => {
             response.projects
               .filter(
                 (p) =>
-                  p.project_status === "ongoing" || p.project_status === "on hold"
+                  p.project_status === "ongoing" ||
+                  p.project_status === "on hold"
               )
               .map((p) => ({ ...p }))
           );
           // Initialize starred state from backend (works for all roles)
           try {
             const raw = localStorage.getItem("starredProjects");
-            const localIds = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+            const localIds = Array.isArray(JSON.parse(raw))
+              ? JSON.parse(raw)
+              : [];
             // If backend has starred flag, merge it into local for owners/admins/managers, and load for others
             const backendStarred = response.projects
               .filter((p) => p.starred === true)
               .map((p) => p.project_id);
-            const merged = Array.from(new Set([...(localIds || []), ...backendStarred]));
+            const merged = Array.from(
+              new Set([...(localIds || []), ...backendStarred])
+            );
             setStarred(merged);
             localStorage.setItem("starredProjects", JSON.stringify(merged));
             // Seed names map for Sidebar
             const nameMap = {};
             response.projects.forEach((p) => {
-              if (merged.includes(p.project_id)) nameMap[p.project_id] = p.project_name;
+              if (merged.includes(p.project_id))
+                nameMap[p.project_id] = p.project_name;
             });
-            localStorage.setItem("starredProjectsNames", JSON.stringify(nameMap));
+            localStorage.setItem(
+              "starredProjectsNames",
+              JSON.stringify(nameMap)
+            );
           } catch {}
         } else {
           setError(response?.message || "Failed to fetch projects");
@@ -179,22 +199,35 @@ const Section_a = () => {
     try {
       // Get all unread notifications for this project
       const res = await apiHandler.GetApi(api_url.getMyNotifications, token);
-      const unreadNotifs = (res?.notifications || []).filter((n) => 
-        n && n.read === false && 
-        n.projectId === project.project_id &&
-        ["phase_added", "phase_deadline", "subtask_assigned", "subtask_deadline"].includes(n.type)
+      const unreadNotifs = (res?.notifications || []).filter(
+        (n) =>
+          n &&
+          n.read === false &&
+          n.projectId === project.project_id &&
+          [
+            "phase_added",
+            "phase_deadline",
+            "subtask_assigned",
+            "subtask_deadline",
+          ].includes(n.type)
       );
-      
+
       // Mark them as read
       for (const notif of unreadNotifs) {
-        await apiHandler.UpdateApi(api_url.markNotifRead + notif._id + "/read", {}, token);
+        await apiHandler.UpdateApi(
+          api_url.markNotifRead + notif._id + "/read",
+          {},
+          token
+        );
       }
-      
+
       // Dispatch event to clear sidebar badges
       if (unreadNotifs.length > 0) {
-        window.dispatchEvent(new CustomEvent("notifications:categoryRead", { 
-          detail: { category: "projects" } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("notifications:categoryRead", {
+            detail: { category: "projects" },
+          })
+        );
       }
     } catch (error) {
       console.error("Error marking notifications as read:", error);
@@ -433,6 +466,43 @@ const Section_a = () => {
           </div>
         </div>
 
+        {/* Filters */}
+        <div className="mb-6 flex flex-col md:flex-row md:items-end gap-3">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              placeholder="Search Team Lead name or Team Member id/name"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white"
+            />
+          </div>
+          {(userRole === "owner" ||
+            userRole === "admin" ||
+            userRole === "manager") && (
+            <div className="w-full md:w-64">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Filter by team
+              </label>
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-3 bg-white"
+              >
+                <option value="">All teams</option>
+                {teams.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.teamName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
         {/* Projects Grid */}
         {loading ? (
           <div className="text-center py-20">
@@ -453,99 +523,122 @@ const Section_a = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {projects.map((project, index) => (
-              <div
-                key={project._id || index}
-                onClick={() => handleCardClick(project)}
-                className="group relative  rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
-              >
-                {/* Action Buttons - Only for Owner, Admin, Manager */}
-                {canSeeEditDelete() && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-                    {/* Star toggle */}
-                    <button
-                      onClick={(e) => toggleStar(e, project)}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-yellow-50 transition-colors duration-200"
-                      title={isStarred(project.project_id) ? "Unstar" : "Mark important"}
-                    >
-                      <Star
-                        size={16}
-                        className={isStarred(project.project_id) ? "text-yellow-500" : "text-gray-400"}
-                        fill={isStarred(project.project_id) ? "#f59e0b" : "none"}
-                      />
-                    </button>
-                    <button
-                      onClick={(e) => handleEditClick(e, project)}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
-                    >
-                      <Pencil
-                        size={16}
-                        className="text-gray-600 hover:text-blue-600"
-                      />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteClick(e, project)}
-                      className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
-                    >
-                      <Trash2
-                        size={16}
-                        className="text-red-500 hover:text-red-700"
-                      />
-                    </button>
-                  </div>
-                )}
-
-                {/* Card Content */}
-                <div className="p-6 pt-16">
-                  {/* Project Avatar */}
-                  <div className="flex justify-center mb-4">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                      {project.project_name?.charAt(0).toUpperCase() || "P"}
+            {projects
+              .filter((p) => {
+                // Team filter (owner/admin/manager only)
+                if (teamFilter && (p.team_id || "") !== teamFilter)
+                  return false;
+                // Role search/filter
+                const text = search.trim().toLowerCase();
+                if (!text) return true;
+                // Resolve lead/member strings
+                const lead = getProjectLeadName(p.project_lead).toLowerCase();
+                const members = (p.team_members || []).join(" ").toLowerCase();
+                return lead.includes(text) || members.includes(text);
+              })
+              .map((project, index) => (
+                <div
+                  key={project._id || index}
+                  onClick={() => handleCardClick(project)}
+                  className="group relative  rounded-2xl shadow-lg hover:shadow-2xl border border-gray-100 cursor-pointer transition-all duration-300 transform hover:-translate-y-2 overflow-hidden"
+                >
+                  {/* Action Buttons - Only for Owner, Admin, Manager */}
+                  {canSeeEditDelete() && (
+                    <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                      {/* Star toggle */}
+                      <button
+                        onClick={(e) => toggleStar(e, project)}
+                        className="p-2 bg-white rounded-lg shadow-md hover:bg-yellow-50 transition-colors duration-200"
+                        title={
+                          isStarred(project.project_id)
+                            ? "Unstar"
+                            : "Mark important"
+                        }
+                      >
+                        <Star
+                          size={16}
+                          className={
+                            isStarred(project.project_id)
+                              ? "text-yellow-500"
+                              : "text-gray-400"
+                          }
+                          fill={
+                            isStarred(project.project_id) ? "#f59e0b" : "none"
+                          }
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => handleEditClick(e, project)}
+                        className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors duration-200"
+                      >
+                        <Pencil
+                          size={16}
+                          className="text-gray-600 hover:text-blue-600"
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteClick(e, project)}
+                        className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors duration-200"
+                      >
+                        <Trash2
+                          size={16}
+                          className="text-red-500 hover:text-red-700"
+                        />
+                      </button>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Project Title and Lead */}
-                  <div className="text-center mb-3">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-1 capitalize">
-                      {project.project_name}
-                    </h3>
-                    <p className="text-gray-500 text-sm">
-                      {getProjectLeadName(project.project_lead)}
-                    </p>
-                  </div>
-
-                  {/* Project Description */}
-                  <div className="text-center mb-4">
-                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-2 capitalize">
-                      {project.project_description ||
-                        "No description available"}
-                    </p>
-                  </div>
-
-                  {/* Project Stats */}
-                  <div className="space-y-3">
-                    {/* Team Info */}
-                    <div className="flex items-center justify-center gap-2 p-2 bg-blue-50 rounded-lg">
-                      <Users size={14} className="text-blue-600" />
-                      <span className="text-xs font-medium text-gray-700">
-                        {project.team_members?.length || 0} Members
-                      </span>
+                  {/* Card Content */}
+                  <div className="p-6 pt-16">
+                    {/* Project Avatar */}
+                    <div className="flex justify-center mb-4">
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                        {project.project_name?.charAt(0).toUpperCase() || "P"}
+                      </div>
                     </div>
 
-                    {/* Team Name */}
-                    <div className="text-center">
-                      <p className="text-xs text-gray-500">Team</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {getTeamName(project.team_id) || "No team"}
+                    {/* Project Title and Lead */}
+                    <div className="text-center mb-3">
+                      <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-1 capitalize">
+                        {project.project_name}
+                      </h3>
+                      <p className="text-gray-500 text-sm">
+                        {getProjectLeadName(project.project_lead)}
                       </p>
                     </div>
-                  </div>
 
-                  {/* Hover Effect Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                    {/* Project Description */}
+                    <div className="text-center mb-4">
+                      <p className="text-gray-600 text-sm leading-relaxed line-clamp-2 capitalize">
+                        {project.project_description ||
+                          "No description available"}
+                      </p>
+                    </div>
+
+                    {/* Project Stats */}
+                    <div className="space-y-3">
+                      {/* Team Info */}
+                      <div className="flex items-center justify-center gap-2 p-2 bg-blue-50 rounded-lg">
+                        <Users size={14} className="text-blue-600" />
+                        <span className="text-xs font-medium text-gray-700">
+                          {project.team_members?.length || 0} Members
+                        </span>
+                      </div>
+
+                      {/* Team Name */}
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">Team</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {getTeamName(project.team_id) || "No team"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hover Effect Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

@@ -57,9 +57,9 @@ const PhasesTab = ({ project }) => {
     "owner",
     "admin",
     "manager",
-    "teamLead",
+    "teamlead",
   ].includes(userRole?.toLowerCase());
-  const canChangePhase = ["owner", "admin", "manager", "teamLead"].includes(
+  const canChangePhase = ["owner", "admin", "manager", "teamlead"].includes(
     userRole?.toLowerCase()
   );
 
@@ -234,6 +234,17 @@ const PhasesTab = ({ project }) => {
       CustomToast.error(
         "You don't have permission to move phases to Final Checks. Only owner, admin, manager, and team lead can perform this action."
       );
+      setDraggedPhase(null);
+      return;
+    }
+
+    // Prevent moving phases that have zero subtasks
+    if (
+      draggedPhase &&
+      Array.isArray(draggedPhase.subtasks) &&
+      draggedPhase.subtasks.length === 0
+    ) {
+      CustomToast.error("Cannot move a phase without any subtasks.");
       setDraggedPhase(null);
       return;
     }

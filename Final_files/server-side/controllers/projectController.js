@@ -876,12 +876,20 @@ exports.updatePhaseStatus = async (req, res) => {
       }
     }
 
-    // Team lead check (must be project lead)
+    // Team lead check: allow if they lead the project OR are on the project's team
     if (userRole === "teamLead") {
-      if (String(project.project_lead) !== String(userTeamMemberId)) {
+      const isLead =
+        String(project.project_lead || "") === String(userTeamMemberId || "");
+      const isOnTeam = Array.isArray(project.team_members)
+        ? project.team_members
+            .map(String)
+            .includes(String(userTeamMemberId || ""))
+        : false;
+      if (!isLead && !isOnTeam) {
         return res.status(403).json({
           success: false,
-          message: "Team leads can update phases only for projects they lead",
+          message:
+            "Team leads can update phases only for projects they lead or are assigned to",
         });
       }
     }

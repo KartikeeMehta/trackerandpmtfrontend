@@ -377,33 +377,38 @@ const TopBar = ({ isSidebarCollapsed = false }) => {
 
   const isPaired = pairStatus === "paired";
 
+  const role = String(userDetails?.role || "").toLowerCase();
+  const hideConnect = role === "owner" || role === "admin";
+
   return (
     <header
       className={`h-[76px] bg-white shadow flex items-center justify-end gap-2 px-8 fixed top-0 z-10 transition-all duration-300 ${
         isSidebarCollapsed ? "left-16 right-0" : "left-64 right-0"
       }`}
     >
-      {/* Tracker status button */}
-      <div className="flex items-center gap-3">
-        {isPaired ? (
-          <button
-            onClick={handleConnectNow}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-            title="View tracker connection"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Connected
-          </button>
-        ) : (
-          <button
-            onClick={handleConnectNow}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white"
-          >
-            <Link2Icon className="h-4 w-4" />
-            Connect Now
-          </button>
-        )}
-      </div>
+      {/* Tracker status button (hidden for owner/admin) */}
+      {!hideConnect && (
+        <div className="flex items-center gap-3">
+          {isPaired ? (
+            <button
+              onClick={handleConnectNow}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+              title="View tracker connection"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Connected
+            </button>
+          ) : (
+            <button
+              onClick={handleConnectNow}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white"
+            >
+              <Link2Icon className="h-4 w-4" />
+              Connect Now
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Notification Bell - moved before company pill */}
       <div className="relative" ref={notifRef}>
