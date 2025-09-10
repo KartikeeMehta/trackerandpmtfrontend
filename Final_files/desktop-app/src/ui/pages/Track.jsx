@@ -39,6 +39,7 @@ const Track = () => {
   const isActiveRef = useRef(false);
   const isOnBreakRef = useRef(false);
   const statusPollRef = useRef(null);
+  const pairingCheckRef = useRef(null);
 
   // Break type configurations - must match server-side BREAK_DURATION_LIMITS
   const breakTypes = {
@@ -145,6 +146,35 @@ const Track = () => {
     location.reload();
   };
 
+  // Check pairing status and punch out if disconnected
+  const checkPairingStatus = async () => {
+    try {
+      const token = localStorage.getItem("pf_auth_token");
+      if (!token) return;
+
+      const res = await fetch(`${API.base}/pairing/status`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      // If not paired and user is active, punch them out
+      if (data?.success && data.status !== "paired" && isActiveRef.current) {
+        console.log("⚠️ App disconnected from dashboard, punching out user");
+        await punchOut();
+        // Redirect to connect page
+        localStorage.setItem("pf_route", "connect");
+        location.reload();
+      }
+    } catch (error) {
+      console.error("Error checking pairing status:", error);
+    }
+  };
+
   // Start status polling to check for break auto-end
   const startStatusPolling = () => {
     if (statusPollRef.current) return;
@@ -206,6 +236,21 @@ const Track = () => {
       clearInterval(statusPollRef.current);
       statusPollRef.current = null;
       console.log("🔄 Stopped status polling");
+    }
+  };
+
+  // Start pairing status checking to detect disconnection
+  const startPairingCheck = () => {
+    if (pairingCheckRef.current) return;
+    console.log("🔗 Starting pairing status check for disconnect detection");
+    pairingCheckRef.current = setInterval(checkPairingStatus, 15000); // Check every 15 seconds
+  };
+
+  const stopPairingCheck = () => {
+    if (pairingCheckRef.current) {
+      clearInterval(pairingCheckRef.current);
+      pairingCheckRef.current = null;
+      console.log("🔗 Stopped pairing status check");
     }
   };
 
@@ -767,6 +812,36 @@ const Track = () => {
     window.tracker.onForcePunchOut(handler);
   }, []);
 
+  // Listen for break status check from main process (lock/suspend events)
+  useEffect(() => {
+    if (!window.tracker) return;
+    const handler = async (powerEvent) => {
+      try {
+        console.log(`🔒 Power event received: ${powerEvent}`);
+
+        // If user is on break, don't punch out on lock/suspend
+        if (isOnBreakRef.current) {
+          console.log("☕ User is on break, not punching out on lock/suspend");
+          return;
+        }
+
+        // If user is active (not on break), punch out on lock/suspend
+        if (isActiveRef.current) {
+          console.log(
+            `⚠️ Punching out due to ${powerEvent} (user not on break)`
+          );
+          await punchOut();
+        }
+      } catch (e) {
+        console.error("Error handling power event:", e);
+      }
+    };
+
+    if (window.tracker.onCheckBreakStatus) {
+      window.tracker.onCheckBreakStatus(handler);
+    }
+  }, []);
+
   // Fetch activity counts and send to backend periodically
   useEffect(() => {
     if (!isActiveRef.current) return;
@@ -818,10 +893,12 @@ const Track = () => {
   useEffect(() => {
     checkStatus();
     loadProfile();
+    startPairingCheck(); // Start checking for disconnection
 
     return () => {
       stopTicker();
       stopStatusPolling();
+      stopPairingCheck(); // Stop pairing check on cleanup
       // Clear auto-end timer on cleanup
       if (autoEndTimerRef.current) {
         clearTimeout(autoEndTimerRef.current);
@@ -844,6 +921,26 @@ const Track = () => {
               Welcome, {userName || "User"}
             </p>
           </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
+            title="Refresh page"
+          >
+            <svg
+              className="w-4 h-4 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
         </div>
 
         {/* Main Content */}

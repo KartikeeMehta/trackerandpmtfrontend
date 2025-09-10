@@ -630,7 +630,7 @@ const Section_a = () => {
         completed: "Completed",
       };
       if (editTask.status) {
-        await apiHandler.postApiWithToken(
+        const statusResponse = await apiHandler.postApiWithToken(
           api_url.updateSubtaskStatus,
           {
             subtask_id: selectedTask.task_id,
@@ -638,6 +638,12 @@ const Section_a = () => {
           },
           token
         );
+        if (!statusResponse?.success) {
+          setEditTaskError(
+            statusResponse?.message || "Failed to update subtask status"
+          );
+          return;
+        }
       }
       let response = { success: true };
       // Team members editing their own subtasks: skip non-status edits (backend forbids)
@@ -803,7 +809,7 @@ const Section_a = () => {
     };
 
     try {
-      await apiHandler.postApiWithToken(
+      const response = await apiHandler.postApiWithToken(
         api_url.updateSubtaskStatus,
         {
           subtask_id: draggedTask.task_id,
@@ -811,32 +817,62 @@ const Section_a = () => {
         },
         token
       );
-      // Optimistically update UI
+
+      // Check if the response indicates success
+      if (response?.success) {
+        // Optimistically update UI
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.task_id === draggedTask.task_id
+              ? { ...t, status: targetStatusId }
+              : t
+          )
+        );
+        // Refresh lists to stay consistent with filters
+        if (selectedProject) {
+          fetchTasksByMemberInProject(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+          fetchTaskHistory(
+            selectedMember.teamMemberId,
+            selectedProject.project_id,
+            selectedPhaseId
+          );
+        } else {
+          fetchOngoingTasks(selectedMember.teamMemberId);
+          fetchTaskHistory(selectedMember.teamMemberId);
+        }
+      } else {
+        // Handle error response
+        console.error("Error updating subtask status:", response);
+        setPermissionToast(
+          response?.message ||
+            "Failed to update subtask status. Please try again."
+        );
+        setTimeout(() => setPermissionToast(""), 3000);
+        // Revert the optimistic update
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.task_id === draggedTask.task_id
+              ? { ...t, status: draggedTask.status }
+              : t
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Unexpected error updating subtask status:", error);
+      setPermissionToast("Failed to update subtask status. Please try again.");
+      setTimeout(() => setPermissionToast(""), 3000);
+      // Revert the optimistic update
       setTasks((prev) =>
         prev.map((t) =>
           t.task_id === draggedTask.task_id
-            ? { ...t, status: targetStatusId }
+            ? { ...t, status: draggedTask.status }
             : t
         )
       );
-      // Refresh lists to stay consistent with filters
-      if (selectedProject) {
-        fetchTasksByMemberInProject(
-          selectedMember.teamMemberId,
-          selectedProject.project_id,
-          selectedPhaseId
-        );
-        fetchTaskHistory(
-          selectedMember.teamMemberId,
-          selectedProject.project_id,
-          selectedPhaseId
-        );
-      } else {
-        fetchOngoingTasks(selectedMember.teamMemberId);
-        fetchTaskHistory(selectedMember.teamMemberId);
-      }
-    } catch (_) {
-      // ignore; UI will refresh on next fetch
     } finally {
       setDraggedTask(null);
     }
@@ -870,7 +906,6 @@ const Section_a = () => {
   };
 
   const filteredMembers = members.filter((member) => {
-    console.log(member.role, "----------hhhhhhh>"); // debug
     return member.role === selectedRole; // filter condition
   });
 

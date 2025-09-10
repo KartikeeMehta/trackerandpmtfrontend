@@ -1209,22 +1209,8 @@ exports.updateSubtaskStatus = async (req, res) => {
           });
         }
       }
-    } else if (userRole === "manager") {
-      // Managers can update subtasks but check hierarchical access
-      const projectCreator = await User.findOne({
-        companyName,
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy,
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Managers cannot modify subtasks in projects created by owners or admins",
-        });
-      }
     }
-    // Owner and admin have full access
+    // Owner, admin, and manager have full access to modify any subtask
 
     // Validate allowed statuses for subtasks
     const allowed = ["Pending", "In Progress", "Paused", "Completed"];

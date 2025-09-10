@@ -224,7 +224,9 @@ export default function TrackerPage() {
     const activity =
       (ds.totalWorkTime || 0) > 0
         ? Math.round(
-            ((ds.totalProductiveTime || 0) / (ds.totalWorkTime || 0)) * 100
+            (((ds.totalProductiveTime || 0) + (ds.totalBreakTime || 0)) /
+              (ds.totalWorkTime || 0)) *
+              100
           )
         : 0;
 
@@ -758,7 +760,6 @@ export default function TrackerPage() {
           <div className="text-lg font-semibold text-gray-700">
             Input Intensity
           </div>
-          
         </div>
 
         <div className="grid grid-cols-2 gap-6">
@@ -809,13 +810,19 @@ export default function TrackerPage() {
   };
 
   const TimeDistributionCard = () => {
-    const totalMs = (cards.productiveMs || 0) + (cards.idleMs || 0) + (cards.breakMs || 0);
-    const productivePct = totalMs > 0 ? Math.round((cards.productiveMs / totalMs) * 100) : 0;
+    const totalMs =
+      (cards.productiveMs || 0) + (cards.idleMs || 0) + (cards.breakMs || 0);
+    const productivePct =
+      totalMs > 0 ? Math.round((cards.productiveMs / totalMs) * 100) : 0;
     return (
       <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-full min-h-[200px]">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">🕒</span>
-          <div className="text-lg font-semibold text-gray-700">Time Distribution</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
+            🕒
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Time Distribution
+          </div>
           <span className="ml-auto text-xs text-gray-500">Today</span>
         </div>
         <div className="flex items-center justify-center gap-8 mx-auto">
@@ -832,7 +839,10 @@ export default function TrackerPage() {
           <div className="pl-2">
             <div className="grid grid-cols-[150px_1fr] items-center gap-x-4 gap-y-4">
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#22c55e" }}></span>
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: "#22c55e" }}
+                ></span>
                 <span className="text-gray-700 font-medium">Productive</span>
               </div>
               <div>
@@ -842,7 +852,10 @@ export default function TrackerPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }}></span>
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: "#f59e0b" }}
+                ></span>
                 <span className="text-gray-700 font-medium">Idle</span>
               </div>
               <div>
@@ -852,7 +865,10 @@ export default function TrackerPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#3b82f6" }}></span>
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: "#3b82f6" }}
+                ></span>
                 <span className="text-gray-700 font-medium">Breaks</span>
               </div>
               <div>
@@ -1407,7 +1423,9 @@ export default function TrackerPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-                  <span className="text-base text-gray-500">No Active Session</span>
+                  <span className="text-base text-gray-500">
+                    No Active Session
+                  </span>
                 </div>
               )}
             </div>
@@ -1418,11 +1436,15 @@ export default function TrackerPage() {
                 <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 text-purple-700">
                   📋
                 </span>
-                <div className="text-lg text-gray-700 font-semibold">Punch Details</div>
+                <div className="text-lg text-gray-700 font-semibold">
+                  Punch Details
                 </div>
+              </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">First Punch In</span>
+                  <span className="text-sm text-gray-500 font-medium">
+                    First Punch In
+                  </span>
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {dateSummary?.firstPunchInIST ||
                       formatISTDate(dateSummary?.firstPunchIn) ||
@@ -1430,7 +1452,9 @@ export default function TrackerPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">Last Punch Out</span>
+                  <span className="text-sm text-gray-500 font-medium">
+                    Last Punch Out
+                  </span>
                   <span className="text-sm font-semibold text-gray-900 tabular-nums">
                     {status?.currentSession?.isActive
                       ? "—"
@@ -1440,12 +1464,20 @@ export default function TrackerPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">Breaks Taken</span>
-                  <span className="text-sm font-semibold text-gray-900">{dateSummary?.breaksCount || 0}</span>
+                  <span className="text-sm text-gray-500 font-medium">
+                    Breaks Taken
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {dateSummary?.breaksCount || 0}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 font-medium">Sessions</span>
-                  <span className="text-sm font-semibold text-gray-900">{dateSummary?.sessionsCount || 0}</span>
+                  <span className="text-sm text-gray-500 font-medium">
+                    Sessions
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {dateSummary?.sessionsCount || 0}
+                  </span>
                 </div>
               </div>
             </div>

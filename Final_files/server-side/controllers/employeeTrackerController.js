@@ -195,11 +195,30 @@ async function getOrCreateTrackerForReq(req) {
 exports.punchIn = async (req, res) => {
   try {
     const tracker = await getOrCreateTrackerForReq(req);
+    // Guard: prevent starting when an active session exists
     if (tracker.currentSession && tracker.currentSession.isActive) {
       return res
         .status(400)
         .json({ success: false, message: "Already punched in" });
     }
+    // Idempotency: if client passes a sessionId that already exists and is active, reuse it
+    const clientSessionId = (req.body?.sessionId || "").toString();
+    if (clientSessionId) {
+      const existing =
+        tracker.currentSession?.sessionId === clientSessionId
+          ? tracker.currentSession
+          : tracker.workSessions.find(
+              (s) => s.sessionId === clientSessionId && s.isActive
+            );
+      if (existing) {
+        return res.json({
+          success: true,
+          message: "Already punched in",
+          session: existing,
+        });
+      }
+    }
+
     tracker.startWorkSession();
     await tracker.save();
     return res.json({
@@ -222,6 +241,7 @@ exports.punchOut = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Not punched in" });
     }
+    // Update-in-place by sessionId to avoid duplicate entries
     const ended = tracker.endWorkSession();
     await tracker.save();
     return res.json({ success: true, message: "Punched out", session: ended });
@@ -623,9 +643,12 @@ exports.getDailySummary = async (req, res) => {
       );
       summary.breaksCount = sessions.reduce((t, s) => t + s.breaks.length, 0);
 
+      // Breaks count as productive: (Productive + Breaks) / Total × 100
       if (summary.totalWorkTime > 0) {
         summary.averageActivityPercentage =
-          (summary.totalProductiveTime / summary.totalWorkTime) * 100;
+          ((summary.totalProductiveTime + summary.totalBreakTime) /
+            summary.totalWorkTime) *
+          100;
       }
 
       // Sort sessions by start time
@@ -823,5 +846,149 @@ exports.getBreaksForDate = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Error retrieving breaks" });
+  }
+};
+
+// Attendance list for owner/admin by date (default: today IST)
+exports.getAttendanceForDate = async (req, res) => {
+  try {
+    const role = (req.user?.role || "").toLowerCase();
+    if (!["owner", "admin"].includes(role)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
+    }
+
+    // Determine company scope from owner/admin (admin may be in Employee collection)
+    let owner = await User.findById(req.user._id).select("companyName _id");
+    if (!owner) {
+      // If the logged-in principal is an admin stored as Employee, resolve the owner by companyName
+      const adminCompanyName = req.user?.companyName;
+      if (!adminCompanyName) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Company not found for admin" });
+      }
+      owner = await User.findOne({ companyName: adminCompanyName }).select(
+        "companyName _id"
+      );
+      if (!owner) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Owner not found" });
+      }
+    }
+
+    const targetDate = (
+      req.query?.date || toISTDateString(new Date())
+    ).toString();
+
+    // Fetch all employees under this company (by name) and all trackers (by companyId)
+    const [employeesRaw, trackers] = await Promise.all([
+      Employee.find({ companyName: owner.companyName }).select(
+        "_id name email teamMemberId designation"
+      ),
+      EmployeeTracker.find({ companyId: owner._id }).select(
+        "employeeId workSessions currentSession"
+      ),
+    ]);
+    // Exclude the current viewer (admin) from the listing
+    const viewerEmail = (req.user?.email || "").toLowerCase();
+    const viewerTeamMemberId = req.user?.teamMemberId || null;
+    const employees = employeesRaw.filter((e) => {
+      const emailOk = (e.email || "").toLowerCase() !== viewerEmail;
+      const tmOk = viewerTeamMemberId
+        ? e.teamMemberId !== viewerTeamMemberId
+        : true;
+      return emailOk && tmOk;
+    });
+    const idToTracker = new Map(
+      trackers.map((t) => [t.employeeId.toString(), t])
+    );
+
+    const isOnTarget = (d) => toISTDateString(d) === targetDate;
+
+    const rows = employees.map((emp) => {
+      const tr = idToTracker.get(emp._id.toString());
+      let sessions = [];
+      if (tr) {
+        (tr.workSessions || []).forEach((s) => {
+          if (s?.startTime && isOnTarget(s.startTime)) sessions.push(s);
+        });
+        if (
+          tr.currentSession &&
+          tr.currentSession.isActive &&
+          tr.currentSession.startTime &&
+          isOnTarget(tr.currentSession.startTime)
+        ) {
+          sessions.push(tr.currentSession);
+        }
+      }
+
+      // Compute metrics
+      let firstPunchIn = null;
+      let lastPunchOut = null;
+      let totalWorkTime = 0;
+      let breakStart = null;
+      let breakEnd = null;
+      let breakReason = null;
+      let manualBreakReason = null;
+      if (sessions.length > 0) {
+        sessions.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+        firstPunchIn =
+          sessions[0].startTimeIST || formatISTTime(sessions[0].startTime);
+        const last = sessions[sessions.length - 1];
+        lastPunchOut =
+          last.endTimeIST || (last.endTime ? formatISTTime(last.endTime) : "—");
+        totalWorkTime = sessions.reduce((t, s) => t + (s.duration || 0), 0);
+
+        // Collect earliest break start and latest break end for the target date
+        for (const s of sessions) {
+          for (const b of s.breaks || []) {
+            if (!b?.startTime) continue;
+            if (toISTDateString(b.startTime) !== targetDate) continue;
+            const startLabel = b.startTimeIST || formatISTTime(b.startTime);
+            const endLabel = b.endTime
+              ? b.endTimeIST || formatISTTime(b.endTime)
+              : "Ongoing";
+            if (!breakStart) breakStart = startLabel;
+            breakEnd = endLabel; // last one of the day
+            // capture the first non-empty reason; otherwise keep updating to latest
+            if (b.reason && b.reason.trim()) {
+              breakReason = b.reason.trim();
+            }
+            if (b.breakType === "manual" && b.reason && b.reason.trim()) {
+              manualBreakReason = b.reason.trim();
+            }
+          }
+        }
+      }
+
+      const attended = sessions.length > 0 ? 1 : 0;
+      const absent = attended ? 0 : 1;
+
+      return {
+        personId: emp.teamMemberId,
+        name: emp.name || emp.email,
+        department: emp.designation || "",
+        date: targetDate,
+        breakStart: breakStart || "—",
+        breakEnd: breakEnd || "—",
+        breakReason: manualBreakReason || breakReason || "—",
+        attendanceType: attended ? "Present" : "Absent",
+        checkIn: firstPunchIn || "—",
+        checkOut: lastPunchOut || "—",
+        attended,
+        absent,
+        workedMinutes: totalWorkTime,
+      };
+    });
+
+    return res.json({ success: true, date: targetDate, rows });
+  } catch (error) {
+    console.error("getAttendanceForDate error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to get attendance" });
   }
 };

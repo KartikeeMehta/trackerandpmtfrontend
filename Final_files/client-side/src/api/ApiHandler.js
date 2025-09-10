@@ -1,10 +1,10 @@
 import axios from "axios";
-// Global 401/403 handler: on session expiry, clear storage and redirect to login
+// Global 401 handler: on session expiry, clear storage and redirect to login
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       try {
         localStorage.clear();
         sessionStorage.clear();

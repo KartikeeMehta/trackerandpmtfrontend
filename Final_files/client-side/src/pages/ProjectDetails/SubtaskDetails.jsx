@@ -272,31 +272,52 @@ const SubtaskDetails = () => {
     setSubtask((prev) => ({ ...prev, status: newStatus }));
     const token = localStorage.getItem("token");
     try {
-      await apiHandler.PostApi(
+      const response = await apiHandler.PostApi(
         api_url.updateSubtaskStatus,
         { subtask_id: subtaskId, status: newStatus },
         token
       );
-      // Re-fetch subtask details
-      const subtasksResponse = await apiHandler.GetApi(
-        api_url.getSubtasks + projectId,
-        token
-      );
-      let foundSubtask = null;
-      if (
-        subtasksResponse.success &&
-        Array.isArray(subtasksResponse.subtasks)
-      ) {
-        foundSubtask = subtasksResponse.subtasks.find(
-          (s) => String(s.subtask_id) === String(subtaskId)
-        );
-      }
-      setSubtask(foundSubtask || null);
 
-      // Refresh activity log
-      await fetchActivityLog(subtaskId, token);
+      // Check if the response indicates success
+      if (response?.success) {
+        // Re-fetch subtask details
+        const subtasksResponse = await apiHandler.GetApi(
+          api_url.getSubtasks + projectId,
+          token
+        );
+        let foundSubtask = null;
+        if (
+          subtasksResponse.success &&
+          Array.isArray(subtasksResponse.subtasks)
+        ) {
+          foundSubtask = subtasksResponse.subtasks.find(
+            (s) => String(s.subtask_id) === String(subtaskId)
+          );
+        }
+        setSubtask(foundSubtask || null);
+
+        // Refresh activity log
+        await fetchActivityLog(subtaskId, token);
+      } else {
+        // Handle error response
+        console.error("Error updating subtask status:", response);
+        setToast({
+          message:
+            response?.message ||
+            "Failed to update subtask status. Please try again.",
+          type: "error",
+        });
+        // Revert the optimistic update
+        setSubtask((prev) => ({ ...prev, status: subtask.status }));
+      }
     } catch (error) {
-      console.error("Error updating subtask status:", error);
+      console.error("Unexpected error updating subtask status:", error);
+      setToast({
+        message: "Failed to update subtask status. Please try again.",
+        type: "error",
+      });
+      // Revert the optimistic update
+      setSubtask((prev) => ({ ...prev, status: subtask.status }));
     }
   };
 

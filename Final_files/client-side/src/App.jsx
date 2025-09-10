@@ -29,6 +29,7 @@ import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
 import OverallStatsPage from "./pages/OverallStats";
 import PeopleTracking from "./pages/PeopleTracking";
+import HRManagement from "./pages/HRManagement";
 
 // Main App component
 
@@ -234,6 +235,16 @@ function App() {
               <ProtectedRoute roles={["owner", "admin", "manager"]}>
                 <MainLayout>
                   <PeopleTracking />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr-management"
+            element={
+              <ProtectedRoute roles={["owner", "admin"]}>
+                <MainLayout>
+                  <HRManagement />
                 </MainLayout>
               </ProtectedRoute>
             }

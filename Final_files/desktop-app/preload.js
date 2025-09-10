@@ -36,6 +36,21 @@
         async resetActivityCounters() {
           return await ir.invoke("reset-activity-counters");
         },
+        onCheckBreakStatus(handler) {
+          safeOn("check-break-status", handler);
+        },
+        async checkBreakStatus(powerEvent) {
+          return await ir.invoke("check-break-status", powerEvent);
+        },
+        async setStartup(enabled) {
+          return await ir.invoke("set-startup", enabled);
+        },
+        async getStartupStatus() {
+          return await ir.invoke("get-startup-status");
+        },
+        async toggleStartup() {
+          return await ir.invoke("toggle-startup");
+        },
       });
       global.__TRACKER_PRELOAD_EXPOSED__ = true;
     } catch (e) {

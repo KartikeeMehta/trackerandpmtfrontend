@@ -326,7 +326,8 @@ export default function PeopleTracking() {
                       </div>
                       <div className="text-base font-semibold text-gray-800">
                         {`${Math.round(
-                          ((summary.totalProductiveTime || 0) /
+                          (((summary.totalProductiveTime || 0) +
+                            (summary.totalBreakTime || 0)) /
                             Math.max(1, summary.totalWorkTime || 0)) *
                             100
                         )}% Activity`}
@@ -385,7 +386,8 @@ export default function PeopleTracking() {
                       <BadgeStat
                         label="Activity %"
                         value={`${Math.round(
-                          ((summary.totalProductiveTime || 0) /
+                          (((summary.totalProductiveTime || 0) +
+                            (summary.totalBreakTime || 0)) /
                             Math.max(1, summary.totalWorkTime || 0)) *
                             100
                         )}%`}

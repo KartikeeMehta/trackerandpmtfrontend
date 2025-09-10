@@ -210,12 +210,11 @@ exports.update = async (req, res) => {
     // Handle companyLogo upload
     let companyLogo;
     if (req.file) {
-
-      console.log('File uploaded:', req.file);
+      console.log("File uploaded:", req.file);
       companyLogo = `/uploads/companyLogos/${req.file.filename}`;
-      console.log('Company logo path:', companyLogo);
+      console.log("Company logo path:", companyLogo);
     } else {
-      console.log('No file uploaded in request');
+      console.log("No file uploaded in request");
     }
 
     const updateFields = {
@@ -236,7 +235,7 @@ exports.update = async (req, res) => {
 
     res.json({ message: "Updated", user: updated });
   } catch (err) {
-    console.error('Update profile error:', err);
+    console.error("Update profile error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -396,7 +395,9 @@ exports.generatePairingOTP = async (req, res) => {
     }
 
     if (!updatedUser) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     res.json({
@@ -431,7 +432,9 @@ exports.verifyPairingOTP = async (req, res) => {
       isEmployee = !!user;
     }
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     // Check if OTP matches and is not expired
@@ -508,9 +511,15 @@ exports.getPairingStatus = async (req, res) => {
       doc = await Employee.findById(userId).select("pairingStatus lastPaired");
     }
     if (!doc) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
-    res.json({ success: true, status: doc.pairingStatus || "not_paired", lastPaired: doc.lastPaired });
+    res.json({
+      success: true,
+      status: doc.pairingStatus || "not_paired",
+      lastPaired: doc.lastPaired,
+    });
   } catch (error) {
     console.error("Error getting pairing status:", error);
     res.status(500).json({
@@ -523,20 +532,54 @@ exports.getPairingStatus = async (req, res) => {
 exports.disconnectTracker = async (req, res) => {
   try {
     const userId = req.user._id;
+    // First, check if user is currently punched in and punch them out
+    try {
+      const EmployeeTracker = require("../models/EmployeeTracker");
+      // EmployeeTracker schema uses employeeId and companyId (no companyName field)
+      // Find by employeeId only to ensure we locate the tracker document
+      const tracker = await EmployeeTracker.findOne({ employeeId: userId });
+
+      if (
+        tracker &&
+        tracker.currentSession &&
+        tracker.currentSession.isActive
+      ) {
+        console.log(`Auto-punching out user ${userId} due to disconnect`);
+        tracker.endWorkSession();
+        await tracker.save();
+      }
+    } catch (punchOutError) {
+      console.error("Error auto-punching out on disconnect:", punchOutError);
+      // Continue with disconnect even if punch out fails
+    }
+
+    // Update pairing status
     let updated = await User.findByIdAndUpdate(
       userId,
-      { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+      {
+        pairingStatus: "not_paired",
+        pairingOTP: null,
+        pairingOTPExpiry: null,
+        lastPaired: null,
+      },
       { new: true }
     );
     if (!updated) {
       updated = await Employee.findByIdAndUpdate(
         userId,
-        { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+        {
+          pairingStatus: "not_paired",
+          pairingOTP: null,
+          pairingOTPExpiry: null,
+          lastPaired: null,
+        },
         { new: true }
       );
     }
     if (!updated) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
     res.json({ success: true, message: "Tracker disconnected successfully" });
   } catch (error) {
@@ -552,20 +595,36 @@ exports.disconnectTracker = async (req, res) => {
 exports.disconnectByEmail = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: "Email required" });
+    if (!email)
+      return res
+        .status(400)
+        .json({ success: false, message: "Email required" });
     let updated = await User.findOneAndUpdate(
       { email },
-      { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+      {
+        pairingStatus: "not_paired",
+        pairingOTP: null,
+        pairingOTPExpiry: null,
+        lastPaired: null,
+      },
       { new: true }
     );
     if (!updated) {
       updated = await Employee.findOneAndUpdate(
         { email },
-        { pairingStatus: "not_paired", pairingOTP: null, pairingOTPExpiry: null, lastPaired: null },
+        {
+          pairingStatus: "not_paired",
+          pairingOTP: null,
+          pairingOTPExpiry: null,
+          lastPaired: null,
+        },
         { new: true }
       );
     }
-    if (!updated) return res.status(404).json({ success: false, message: "User not found" });
+    if (!updated)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     res.json({ success: true, message: "Disconnected" });
   } catch (e) {
     res.status(500).json({ success: false, message: "Failed to disconnect" });

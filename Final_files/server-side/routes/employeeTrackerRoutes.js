@@ -20,5 +20,7 @@ router.post("/break/end", employeeTrackerController.breakEnd);
 router.get("/status", employeeTrackerController.getCurrentStatus);
 router.get("/summary/daily", employeeTrackerController.getDailySummary);
 router.get("/breaks", employeeTrackerController.getBreaksForDate);
+// HR attendance (owner/admin)
+router.get("/attendance", employeeTrackerController.getAttendanceForDate);
 
 module.exports = router;

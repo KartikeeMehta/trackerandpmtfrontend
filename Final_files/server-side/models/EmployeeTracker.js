@@ -466,10 +466,18 @@ employeeTrackerSchema.methods.endWorkSession = function () {
       idleTimeInMinutes
   );
 
-  // Calculate activity percentage
-  if (this.currentSession.duration > 0) {
+  // Calculate activity percentage (breaks count as productive)
+  const totalTime = this.currentSession.duration || 0;
+  const idleTime = this.currentSession.idleTime || 0;
+  const breakTime = this.currentSession.totalBreakTime || 0;
+  const productiveTime = this.currentSession.productiveTime || 0;
+
+  // Productivity = (Productive + Breaks) / Total × 100
+  if (totalTime > 0) {
     this.currentSession.activityPercentage =
-      (this.currentSession.productiveTime / this.currentSession.duration) * 100;
+      ((productiveTime + breakTime) / totalTime) * 100;
+  } else {
+    this.currentSession.activityPercentage = 0;
   }
 
   // Close any active breaks
@@ -483,8 +491,16 @@ employeeTrackerSchema.methods.endWorkSession = function () {
     }
   });
 
-  // Add to work sessions history
-  this.workSessions.push(this.currentSession);
+  // Add to work sessions history (idempotent: avoid duplicate sessionId)
+  const existingIndex = this.workSessions.findIndex(
+    (s) => s.sessionId === this.currentSession.sessionId
+  );
+  if (existingIndex >= 0) {
+    // Merge/overwrite the existing one with the latest values
+    this.workSessions[existingIndex] = this.currentSession;
+  } else {
+    this.workSessions.push(this.currentSession);
+  }
 
   // Update daily summary
   this.updateDailySummary();
@@ -653,11 +669,18 @@ employeeTrackerSchema.methods.recalculateCurrentSessionTimes = function () {
         idleTimeInMinutes
     );
 
-    // Calculate activity percentage
-    if (this.currentSession.duration > 0) {
+    // Calculate activity percentage (breaks count as productive)
+    const totalTime = this.currentSession.duration || 0;
+    const idleTime = this.currentSession.idleTime || 0;
+    const breakTime = this.currentSession.totalBreakTime || 0;
+    const productiveTime = this.currentSession.productiveTime || 0;
+
+    // Productivity = (Productive + Breaks) / Total × 100
+    if (totalTime > 0) {
       this.currentSession.activityPercentage =
-        (this.currentSession.productiveTime / this.currentSession.duration) *
-        100;
+        ((productiveTime + breakTime) / totalTime) * 100;
+    } else {
+      this.currentSession.activityPercentage = 0;
     }
   }
 };

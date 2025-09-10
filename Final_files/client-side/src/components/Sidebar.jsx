@@ -121,6 +121,16 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TIME TRACKING",
       items: [
+        // HR Management for owner/admin
+        ...(isOwnerAdmin
+          ? [
+              {
+                to: "/hr-management",
+                label: "HR Management",
+                icon: Users,
+              },
+            ]
+          : []),
         ...(canAccessTeamMembers
           ? [
               {

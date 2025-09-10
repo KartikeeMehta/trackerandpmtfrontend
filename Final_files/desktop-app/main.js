@@ -196,11 +196,19 @@ try {
   });
 
   powerMonitor.on("suspend", () => {
-    sendForcePunchOut();
+    // Don't punch out on suspend if user is on break
+    // User should remain on break even when computer goes to sleep
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("check-break-status", "suspend");
+    }
   });
 
   powerMonitor.on("lock-screen", () => {
-    sendForcePunchOut();
+    // Don't punch out on lock if user is on break
+    // User should remain on break even when computer is locked
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("check-break-status", "lock");
+    }
   });
 } catch (e) {}
 
@@ -551,6 +559,79 @@ ipcMain.handle("reset-activity-counters", () => {
   return { success: true };
 });
 
+// IPC handler to check break status and decide whether to punch out
+ipcMain.handle("check-break-status", (event, powerEvent) => {
+  // This will be called from the renderer process
+  // The renderer will check if user is on break and respond accordingly
+  return { powerEvent };
+});
+
+// Startup functionality
+const setStartup = (enabled) => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      openAsHidden: true, // Start minimized to tray
+      name: "WorkOrbit Tracker",
+      path: process.execPath,
+      args: ["--hidden"], // Start hidden
+    });
+    console.log(`Startup ${enabled ? "enabled" : "disabled"}`);
+    return { success: true, enabled };
+  } catch (error) {
+    console.error("Error setting startup:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+const getStartupStatus = () => {
+  try {
+    const settings = app.getLoginItemSettings();
+    return {
+      success: true,
+      enabled: settings.openAtLogin,
+      wasOpenedAtLogin: settings.wasOpenedAtLogin,
+      wasOpenedAsHidden: settings.wasOpenedAsHidden,
+    };
+  } catch (error) {
+    console.error("Error getting startup status:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// IPC handlers for startup management
+ipcMain.handle("set-startup", (event, enabled) => {
+  return setStartup(enabled);
+});
+
+ipcMain.handle("get-startup-status", () => {
+  return getStartupStatus();
+});
+
+ipcMain.handle("toggle-startup", () => {
+  const currentStatus = getStartupStatus();
+  if (currentStatus.success) {
+    return setStartup(!currentStatus.enabled);
+  }
+  return currentStatus;
+});
+
 app.whenReady().then(() => {
   startIdleMonitor();
+
+  // Automatically enable startup - make it mandatory
+  const startupResult = setStartup(true);
+  if (startupResult.success) {
+    console.log("Startup automatically enabled - app will start with system");
+  }
+
+  // Check if app was opened at login and start hidden if so
+  const startupStatus = getStartupStatus();
+  if (startupStatus.success && startupStatus.wasOpenedAtLogin) {
+    console.log("App was opened at login, starting hidden");
+    // Don't show window if opened at login, just create it for tray
+    if (mainWindow) {
+      mainWindow.hide();
+    }
+  }
 });

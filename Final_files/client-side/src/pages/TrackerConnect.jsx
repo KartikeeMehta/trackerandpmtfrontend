@@ -316,7 +316,7 @@ const TrackerConnect = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href="./WorkOrbit%20Setup%200.1.0.exe"
+                href="https://www.dropbox.com/scl/fi/2ox6ste7fdgru265fhftj/WorkOrbit-Setup-0.1.0.exe?rlkey=q04ecsnb7lf8j2hws6wccukvf&st=o7zmkvav&dl=1"
                 download
                 className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
@@ -334,7 +334,7 @@ const TrackerConnect = () => {
                 Download for Windows
               </a>
               <a
-                href="./WorkOrbit-0.1.0.dmg"
+                href="https://www.dropbox.com/scl/fi/fkmj020y7toj9j1ulzsgc/WorkOrbit-0.1.0.dmg?rlkey=mf52az41bw8407jltfr80vhks&st=7mdhazfs&dl=1"
                 download
                 className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
