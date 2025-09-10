@@ -145,7 +145,8 @@ export default function OverallStatsPage() {
   }, []);
 
   useEffect(() => {
-    const date = status?.todaySummary?.date || new Date().toISOString().slice(0, 10);
+    const date =
+      status?.todaySummary?.date || new Date().toISOString().slice(0, 10);
     setSelectedDate(date);
     fetchDailySummary(date);
     fetchBreaks(date);
@@ -167,9 +168,12 @@ export default function OverallStatsPage() {
     const breakMs = minToMs(ds.totalBreakTime || 0);
     const idleMs = minToMs(ds.totalIdleTime || 0);
     const productiveMs = minToMs(ds.totalProductiveTime || 0);
-    const activity = (ds.totalWorkTime || 0) > 0
-      ? Math.round(((ds.totalProductiveTime || 0) / (ds.totalWorkTime || 0)) * 100)
-      : 0;
+    const activity =
+      (ds.totalWorkTime || 0) > 0
+        ? Math.round(
+            ((ds.totalProductiveTime || 0) / (ds.totalWorkTime || 0)) * 100
+          )
+        : 0;
     return { totalMs, productiveMs, idleMs, breakMs, activity };
   }, [dateSummary]);
 
@@ -218,7 +222,8 @@ export default function OverallStatsPage() {
         totalProductiveTime += productiveMs;
         totalWorkTime += workMs;
       });
-      const productivity = totalWorkTime > 0 ? (totalProductiveTime / totalWorkTime) * 100 : 0;
+      const productivity =
+        totalWorkTime > 0 ? (totalProductiveTime / totalWorkTime) * 100 : 0;
       return {
         date,
         productivity: Math.round(productivity),
@@ -258,7 +263,12 @@ export default function OverallStatsPage() {
         }).format(new Date(session.startTime));
         return sessionDate === date;
       });
-      const breakTypes = { manual: 0, tea_break: 0, lunch_break: 0, meeting_break: 0 };
+      const breakTypes = {
+        manual: 0,
+        tea_break: 0,
+        lunch_break: 0,
+        meeting_break: 0,
+      };
       daySessions.forEach((session) => {
         if (session.breaks && Array.isArray(session.breaks)) {
           session.breaks.forEach((breakItem) => {
@@ -321,14 +331,18 @@ export default function OverallStatsPage() {
           if (curDate === date) sessionsForDay.push(cur);
         }
       } catch {}
-      const idleMin = sessionsForDay.reduce((sum, s) => sum + (Number(s.idleTime) || 0), 0);
+      const idleMin = sessionsForDay.reduce(
+        (sum, s) => sum + (Number(s.idleTime) || 0),
+        0
+      );
       return { date, idleMin: Math.max(0, Math.round(idleMin)) };
     });
   }, [status?.workSessions, status?.currentSession, selectedDate]);
 
   // Hourly Input Intensity (avg keystrokes+clicks per hour over last 7 days)
   const hourlyInputIntensity = useMemo(() => {
-    if (!Array.isArray(status?.workSessions)) return Array.from({ length: 24 }, () => 0);
+    if (!Array.isArray(status?.workSessions))
+      return Array.from({ length: 24 }, () => 0);
     const end = selectedDate ? new Date(selectedDate) : new Date();
     const dayKeys = [];
     for (let i = 6; i >= 0; i--) {
@@ -356,9 +370,14 @@ export default function OverallStatsPage() {
       const endT = new Date(s.endTime || s.startTime);
       // approximate: attribute all inputs equally to the hour of the start time
       const hourIST = Number(
-        new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", hour12: false }).format(start)
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          hour12: false,
+        }).format(start)
       );
-      const inputs = (Number(s.totalKeystrokes) || 0) + (Number(s.totalMouseClicks) || 0);
+      const inputs =
+        (Number(s.totalKeystrokes) || 0) + (Number(s.totalMouseClicks) || 0);
       perHour[hourIST] += inputs;
     }
     // average per day across the 7-day window
@@ -371,12 +390,17 @@ export default function OverallStatsPage() {
     const cx = width / 2;
     const cy = 110;
     const maxVal = Math.max(1, ...data);
-    const avgVal = data.length ? data.reduce((a, b) => a + b, 0) / data.length : 0;
+    const avgVal = data.length
+      ? data.reduce((a, b) => a + b, 0) / data.length
+      : 0;
     const Rmin = 28;
     const Rmax = 80;
     const step = (Math.PI * 2) / 24;
     const startAngle = -Math.PI / 2; // 0h at top
-    const polar = (r, a) => ({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+    const polar = (r, a) => ({
+      x: cx + r * Math.cos(a),
+      y: cy + r * Math.sin(a),
+    });
     const sectorPath = (innerR, outerR, a0, a1) => {
       const p1 = polar(outerR, a0);
       const p2 = polar(outerR, a1);
@@ -388,17 +412,35 @@ export default function OverallStatsPage() {
     return (
       <div className="backdrop-blur-md bg-white/60 border border-white/60 shadow-sm rounded-xl px-4 pt-4 pb-3">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-amber-100 text-amber-700">⚡</span>
-          <div className="text-lg font-semibold text-gray-700">Hourly Input Intensity</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-amber-100 text-amber-700">
+            ⚡
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Hourly Input Intensity
+          </div>
           <div className="ml-auto">
-            <span className="text-xs text-gray-500">Avg per hour (last 7 days)</span>
+            <span className="text-xs text-gray-500">
+              Avg per hour (last 7 days)
+            </span>
           </div>
         </div>
-        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+        <svg
+          width="100%"
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          className="overflow-visible"
+        >
           {/* background ring */}
           <circle cx={cx} cy={cy} r={Rmax + 10} fill="#f8fafc" />
           {/* average guide ring */}
-          <circle cx={cx} cy={cy} r={Rmin + (Rmax - Rmin) * (avgVal / maxVal)} fill="none" stroke="#cbd5e1" strokeDasharray="4,3" />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={Rmin + (Rmax - Rmin) * (avgVal / maxVal)}
+            fill="none"
+            stroke="#cbd5e1"
+            strokeDasharray="4,3"
+          />
           {/* hour wedges */}
           {data.map((v, i) => {
             const a0 = startAngle + i * step;
@@ -407,17 +449,37 @@ export default function OverallStatsPage() {
             const d = sectorPath(Rmin, outer, a0, a1);
             return (
               <path key={i} d={d} fill="#3b82f6" opacity={0.85}>
-                <title>{`${String(((i % 12)||12)).padStart(2,'0')}:00 ${i<12?'AM':'PM'} — ${v} avg inputs (last 7 days)`}</title>
+                <title>{`${String(i % 12 || 12).padStart(2, "0")}:00 ${
+                  i < 12 ? "AM" : "PM"
+                } — ${v} avg inputs (last 7 days)`}</title>
               </path>
             );
           })}
           {/* cardinal labels */}
-          {[{t:'12a',a:startAngle},{t:'6a',a:startAngle+6*step},{t:'12p',a:startAngle+12*step},{t:'6p',a:startAngle+18*step}].map((p,idx)=>{
+          {[
+            { t: "12a", a: startAngle },
+            { t: "6a", a: startAngle + 6 * step },
+            { t: "12p", a: startAngle + 12 * step },
+            { t: "6p", a: startAngle + 18 * step },
+          ].map((p, idx) => {
             const pos = polar(Rmax + 16, p.a);
-            return <text key={idx} x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold fill-gray-700">{p.t}</text>;
+            return (
+              <text
+                key={idx}
+                x={pos.x}
+                y={pos.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="text-xs font-semibold fill-gray-700"
+              >
+                {p.t}
+              </text>
+            );
           })}
         </svg>
-        <div className="mt-1 text-[11px] font-medium text-gray-600 text-right pr-1">each wedge = hour; radius encodes avg inputs over last 7 days</div>
+        <div className="mt-1 text-[11px] font-medium text-gray-600 text-right pr-1">
+          each wedge = hour; radius encodes avg inputs over last 7 days
+        </div>
       </div>
     );
   };
@@ -459,7 +521,8 @@ export default function OverallStatsPage() {
         day: "2-digit",
       }).format(new Date(t));
       const agg = byDate[key] || { prodMs: 0, workMs: 0 };
-      const pct = agg.workMs > 0 ? Math.round((agg.prodMs / agg.workMs) * 100) : 0;
+      const pct =
+        agg.workMs > 0 ? Math.round((agg.prodMs / agg.workMs) * 100) : 0;
       res[key] = pct;
     }
     return res;
@@ -481,31 +544,46 @@ export default function OverallStatsPage() {
       const alpha = 0.15 + x * 0.85; // from light to strong emerald
       return `rgba(16,185,129,${alpha.toFixed(2)})`;
     };
-    const keyFor = (day) => new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(year, month, day));
+    const keyFor = (day) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(year, month, day));
     return (
       <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-3">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">📅</span>
-          <div className="text-lg font-semibold text-gray-700">Calendar Productivity Heatmap</div>
-          <div className="ml-auto text-sm text-gray-500">{monthName} {year}</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
+            📅
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Calendar Productivity Heatmap
+          </div>
+          <div className="ml-auto text-sm text-gray-500">
+            {monthName} {year}
+          </div>
         </div>
         <div className="mb-2 grid grid-cols-7 text-[11px] text-gray-500">
-          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
-            <div key={d} className="text-center">{d}</div>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} className="text-center">
+              {d}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
           {cells.map((day, idx) => {
-            if (day === null) return <div key={`e-${idx}`} className="h-8"></div>;
+            if (day === null)
+              return <div key={`e-${idx}`} className="h-8"></div>;
             const k = keyFor(day);
             const pct = data[k] ?? 0;
             return (
-              <div key={k} className="h-8 rounded relative group" style={{ background: colorFor(pct) }} title={`${k} — ${pct}% productive`}>
+              <div
+                key={k}
+                className="h-8 rounded relative group"
+                style={{ background: colorFor(pct) }}
+                title={`${k} — ${pct}% productive`}
+              >
                 <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-700">
                   {day}
                 </div>
@@ -515,11 +593,26 @@ export default function OverallStatsPage() {
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
           <span>Less</span>
-          <div className="h-3 w-3 rounded" style={{ background: colorFor(5) }}></div>
-          <div className="h-3 w-3 rounded" style={{ background: colorFor(25) }}></div>
-          <div className="h-3 w-3 rounded" style={{ background: colorFor(50) }}></div>
-          <div className="h-3 w-3 rounded" style={{ background: colorFor(75) }}></div>
-          <div className="h-3 w-3 rounded" style={{ background: colorFor(100) }}></div>
+          <div
+            className="h-3 w-3 rounded"
+            style={{ background: colorFor(5) }}
+          ></div>
+          <div
+            className="h-3 w-3 rounded"
+            style={{ background: colorFor(25) }}
+          ></div>
+          <div
+            className="h-3 w-3 rounded"
+            style={{ background: colorFor(50) }}
+          ></div>
+          <div
+            className="h-3 w-3 rounded"
+            style={{ background: colorFor(75) }}
+          ></div>
+          <div
+            className="h-3 w-3 rounded"
+            style={{ background: colorFor(100) }}
+          ></div>
           <span>More</span>
         </div>
       </div>
@@ -567,7 +660,12 @@ export default function OverallStatsPage() {
       totalActiveMin += session.productiveTime || 0;
     });
     return [
-      { date: target, keystrokes: totalKeystrokes, clicks: totalMouseClicks, activeMin: totalActiveMin },
+      {
+        date: target,
+        keystrokes: totalKeystrokes,
+        clicks: totalMouseClicks,
+        activeMin: totalActiveMin,
+      },
     ];
   }, [status?.workSessions, intensityTick, selectedDate]);
 
@@ -590,7 +688,9 @@ export default function OverallStatsPage() {
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-fuchsia-100 text-fuchsia-700">
             ⌨️
           </span>
-          <div className="text-lg font-semibold text-gray-700">Input Intensity</div>
+          <div className="text-lg font-semibold text-gray-700">
+            Input Intensity
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-6">
           <div className="rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 p-4 border border-white/60">
@@ -598,14 +698,18 @@ export default function OverallStatsPage() {
             <div className="text-2xl font-bold text-violet-700 tabular-nums">
               {totals.keystrokes.toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600 mt-1">{kpm.toFixed(1)} per minute</div>
+            <div className="text-xs text-gray-600 mt-1">
+              {kpm.toFixed(1)} per minute
+            </div>
           </div>
           <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 border border-white/60">
             <div className="text-xs text-gray-500 mb-1">Mouse Clicks</div>
             <div className="text-2xl font-bold text-cyan-700 tabular-nums">
               {totals.clicks.toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600 mt-1">{cpm.toFixed(1)} per minute</div>
+            <div className="text-xs text-gray-600 mt-1">
+              {cpm.toFixed(1)} per minute
+            </div>
           </div>
         </div>
       </div>
@@ -619,11 +723,20 @@ export default function OverallStatsPage() {
     let acc = 0;
     return (
       <svg viewBox="0 0 42 42" className="w-44 h-44">
-        <circle cx="21" cy="21" r="15.9155" fill="#fff" stroke="#E5E7EB" strokeWidth="6" />
+        <circle
+          cx="21"
+          cy="21"
+          r="15.9155"
+          fill="#fff"
+          stroke="#E5E7EB"
+          strokeWidth="6"
+        />
         {keys.map((k, i) => {
           const val = data[k];
           const frac = val / total;
-          const dash = `${(frac * 100).toFixed(2)} ${((1 - frac) * 100).toFixed(2)}`;
+          const dash = `${(frac * 100).toFixed(2)} ${((1 - frac) * 100).toFixed(
+            2
+          )}`;
           const rot = `rotate(${acc * 360 - 90} 21 21)`;
           acc += frac;
           return (
@@ -650,18 +763,25 @@ export default function OverallStatsPage() {
       return (
         <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-3">
           <div className="flex items-center gap-3 mb-3.5">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">📈</span>
-            <div className="text-lg font-semibold text-gray-700">Daily Productivity Trends</div>
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
+              📈
+            </span>
+            <div className="text-lg font-semibold text-gray-700">
+              Daily Productivity Trends
+            </div>
           </div>
           <div className="text-center py-8 text-gray-500">
             <div className="text-lg font-medium mb-2">No data available</div>
-            <div className="text-sm">Start tracking to see your productivity trends</div>
+            <div className="text-sm">
+              Start tracking to see your productivity trends
+            </div>
           </div>
         </div>
       );
     }
     const maxProductivity = Math.max(...data.map((d) => d.productivity));
-    const avgProductivity = data.reduce((sum, d) => sum + d.productivity, 0) / data.length;
+    const avgProductivity =
+      data.reduce((sum, d) => sum + d.productivity, 0) / data.length;
 
     // Calculate trend (difference between averages of second and first halves)
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
@@ -670,7 +790,8 @@ export default function OverallStatsPage() {
       ? firstHalf.reduce((sum, d) => sum + d.productivity, 0) / firstHalf.length
       : 0;
     const secondAvg = secondHalf.length
-      ? secondHalf.reduce((sum, d) => sum + d.productivity, 0) / secondHalf.length
+      ? secondHalf.reduce((sum, d) => sum + d.productivity, 0) /
+        secondHalf.length
       : 0;
     const trend = secondAvg - firstAvg;
     const chartHeight = 200;
@@ -683,37 +804,102 @@ export default function OverallStatsPage() {
       const y = padding + ((100 - d.productivity) / 100) * innerHeight;
       return { x, y, data: d };
     });
-    const pathData = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-    const areaData = `${pathData} L ${points[points.length - 1].x} ${padding + innerHeight} L ${padding} ${padding + innerHeight} Z`;
+    const pathData = points
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+      .join(" ");
+    const areaData = `${pathData} L ${points[points.length - 1].x} ${
+      padding + innerHeight
+    } L ${padding} ${padding + innerHeight} Z`;
     return (
       <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-3">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">📈</span>
-          <div className="text-lg font-semibold text-gray-700">Daily Productivity Trends</div>
-          <div className="ml-auto text-sm text-gray-500">Last {data.length} days</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700">
+            📈
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Daily Productivity Trends
+          </div>
+          <div className="ml-auto text-sm text-gray-500">
+            Last {data.length} days
+          </div>
         </div>
         <div className="relative">
-          <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+          <svg
+            width="100%"
+            height={chartHeight}
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="overflow-visible"
+          >
             {[0, 25, 50, 75, 100].map((value) => {
               const y = padding + ((100 - value) / 100) * innerHeight;
               return (
                 <g key={value}>
-                  <line x1={padding} y1={y} x2={padding + innerWidth} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="2,2" />
-                  <text x={padding - 10} y={y + 4} textAnchor="end" className="text-sm fill-gray-500">{value}%</text>
+                  <line
+                    x1={padding}
+                    y1={y}
+                    x2={padding + innerWidth}
+                    y2={y}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                  <text
+                    x={padding - 10}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="text-sm fill-gray-500"
+                  >
+                    {value}%
+                  </text>
                 </g>
               );
             })}
-            <path d={areaData} fill="url(#productivityGradient)" opacity="0.3" />
-            <path d={pathData} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d={areaData}
+              fill="url(#productivityGradient)"
+              opacity="0.3"
+            />
+            <path
+              d={pathData}
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             {points.map((p, i) => (
               <g key={i}>
-                <circle cx={p.x} cy={p.y} r="4" fill="#10b981" stroke="#fff" strokeWidth="2" className="hover:r-6 transition-all cursor-pointer">
-                  <title>{new Date(p.data.date).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}{"\n"}Productivity: {p.data.productivity}%{"\n"}Productive Time: {p.data.productiveTimeFormatted}{"\n"}Total Time: {p.data.totalTimeFormatted}</title>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="4"
+                  fill="#10b981"
+                  stroke="#fff"
+                  strokeWidth="2"
+                  className="hover:r-6 transition-all cursor-pointer"
+                >
+                  <title>
+                    {new Date(p.data.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                    {"\n"}Productivity: {p.data.productivity}%{"\n"}Productive
+                    Time: {p.data.productiveTimeFormatted}
+                    {"\n"}Total Time: {p.data.totalTimeFormatted}
+                  </title>
                 </circle>
               </g>
             ))}
             <defs>
-              <linearGradient id="productivityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <linearGradient
+                id="productivityGradient"
+                x1="0%"
+                y1="0%"
+                x2="0%"
+                y2="100%"
+              >
                 <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
               </linearGradient>
@@ -722,18 +908,29 @@ export default function OverallStatsPage() {
         </div>
         <div className="mt-3 grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-emerald-600">{Math.round(avgProductivity)}%</div>
+            <div className="text-2xl font-bold text-emerald-600">
+              {Math.round(avgProductivity)}%
+            </div>
             <div className="text-xs text-gray-500">Average</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">{Math.round(maxProductivity)}%</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {Math.round(maxProductivity)}%
+            </div>
             <div className="text-xs text-gray-500">Best Day</div>
           </div>
           <div>
-            <div className={`text-2xl font-bold ${
-              trend > 2 ? "text-green-600" : trend < -2 ? "text-red-600" : "text-gray-600"
-            }`}>
-              {trend > 0 ? "+" : ""}{Math.round(trend)}%
+            <div
+              className={`text-2xl font-bold ${
+                trend > 2
+                  ? "text-green-600"
+                  : trend < -2
+                  ? "text-red-600"
+                  : "text-gray-600"
+              }`}
+            >
+              {trend > 0 ? "+" : ""}
+              {Math.round(trend)}%
             </div>
             <div className="text-xs text-gray-500">Trend</div>
           </div>
@@ -752,35 +949,88 @@ export default function OverallStatsPage() {
     return (
       <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-3">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sky-100 text-sky-700">☕</span>
-          <div className="text-lg font-semibold text-gray-700">Break Pattern Analysis</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-sky-100 text-sky-700">
+            ☕
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Break Pattern Analysis
+          </div>
         </div>
         <div className="space-y-3">
           {days.map((d) => {
-            const total = d.manual + d.tea_break + d.lunch_break + d.meeting_break || 1;
+            const total =
+              d.manual + d.tea_break + d.lunch_break + d.meeting_break || 1;
             return (
               <div key={d.date} className="flex items-center gap-3">
                 <div className="w-20 text-sm text-gray-600">
-                  {new Date(d.date).toLocaleDateString("en-US", { weekday: "short" })}
+                  {new Date(d.date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                  })}
                 </div>
                 <div className="flex-1 h-3 rounded bg-gray-100 overflow-hidden flex">
-                  <div style={{ width: `${(d.manual / total) * 100}%`, background: colors.manual }} />
-                  <div style={{ width: `${(d.tea_break / total) * 100}%`, background: colors.tea_break }} />
-                  <div style={{ width: `${(d.lunch_break / total) * 100}%`, background: colors.lunch_break }} />
+                  <div
+                    style={{
+                      width: `${(d.manual / total) * 100}%`,
+                      background: colors.manual,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(d.tea_break / total) * 100}%`,
+                      background: colors.tea_break,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(d.lunch_break / total) * 100}%`,
+                      background: colors.lunch_break,
+                    }}
+                  />
                   {d.meeting_break > 0 && (
-                    <div style={{ width: `${(d.meeting_break / total) * 100}%`, background: colors.meeting_break }} />
+                    <div
+                      style={{
+                        width: `${(d.meeting_break / total) * 100}%`,
+                        background: colors.meeting_break,
+                      }}
+                    />
                   )}
                 </div>
-                <div className="w-20 text-right text-sm text-gray-700">{total}m</div>
+                <div className="w-20 text-right text-sm text-gray-700">
+                  {total}m
+                </div>
               </div>
             );
           })}
         </div>
         <div className="mt-3 flex gap-4 text-sm text-gray-700">
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: colors.manual }}></span>Manual</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: colors.tea_break }}></span>Tea Break</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: colors.lunch_break }}></span>Lunch Break</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: colors.meeting_break }}></span>Meeting Break</div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded"
+              style={{ background: colors.manual }}
+            ></span>
+            Manual
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded"
+              style={{ background: colors.tea_break }}
+            ></span>
+            Tea Break
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded"
+              style={{ background: colors.lunch_break }}
+            ></span>
+            Lunch Break
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded"
+              style={{ background: colors.meeting_break }}
+            ></span>
+            Meeting Break
+          </div>
         </div>
       </div>
     );
@@ -798,34 +1048,78 @@ export default function OverallStatsPage() {
       const y = padding + (1 - d.idleMin / max) * innerHeight;
       return { x, y, d };
     });
-    const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-    const area = `${path} L ${points[points.length - 1].x} ${padding + innerHeight} L ${padding} ${padding + innerHeight} Z`;
+    const path = points
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+      .join(" ");
+    const area = `${path} L ${points[points.length - 1].x} ${
+      padding + innerHeight
+    } L ${padding} ${padding + innerHeight} Z`;
     return (
       <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-3">
         <div className="flex items-center gap-3 mb-3.5">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 text-gray-700">🧭</span>
-          <div className="text-lg font-semibold text-gray-700">Idle Trend (7 days)</div>
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 text-gray-700">
+            🧭
+          </span>
+          <div className="text-lg font-semibold text-gray-700">
+            Idle Trend (7 days)
+          </div>
         </div>
         <div className="pb-2">
-          <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
-          {[0, 20, 40, 60].map((v) => {
-            const y = padding + (1 - v / max) * innerHeight;
-            return (
-              <g key={v}>
-                <line x1={padding} y1={y} x2={padding + innerWidth} y2={y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="2,2" />
-                <text x={padding - 8} y={y + 4} textAnchor="end" className="text-xs fill-gray-500">{v}m</text>
+          <svg
+            width="100%"
+            height={chartHeight}
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="overflow-visible"
+          >
+            {[0, 20, 40, 60].map((v) => {
+              const y = padding + (1 - v / max) * innerHeight;
+              return (
+                <g key={v}>
+                  <line
+                    x1={padding}
+                    y1={y}
+                    x2={padding + innerWidth}
+                    y2={y}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                  <text
+                    x={padding - 8}
+                    y={y + 4}
+                    textAnchor="end"
+                    className="text-xs fill-gray-500"
+                  >
+                    {v}m
+                  </text>
+                </g>
+              );
+            })}
+            <path d={area} fill="#6b7280" opacity="0.12" />
+            <path
+              d={path}
+              fill="none"
+              stroke="#6b7280"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            {points.map((p, i) => (
+              <g key={i}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r="3.5"
+                  fill="#6b7280"
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                >
+                  <title>
+                    {new Date(p.d.date).toLocaleDateString()}\nIdle:{" "}
+                    {p.d.idleMin} min
+                  </title>
+                </circle>
               </g>
-            );
-          })}
-          <path d={area} fill="#6b7280" opacity="0.12" />
-          <path d={path} fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round" />
-          {points.map((p, i) => (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="3.5" fill="#6b7280" stroke="#fff" strokeWidth="1.5">
-                <title>{new Date(p.d.date).toLocaleDateString()}\nIdle: {p.d.idleMin} min</title>
-              </circle>
-            </g>
-          ))}
+            ))}
           </svg>
         </div>
       </div>
@@ -845,81 +1139,162 @@ export default function OverallStatsPage() {
         (() => {
           const s = status?.overallStats || {};
           const StatCard = ({ bgFrom, bgTo, icon, title, value }) => (
-            <div className={`rounded-xl border bg-gradient-to-br ${bgFrom} ${bgTo} py-4 px-4 shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm bg-white/60 border-white/60`}>
+            <div
+              className={`rounded-xl border bg-gradient-to-br ${bgFrom} ${bgTo} py-4 px-4 shadow-sm hover:shadow-lg transition-all duration-300 backdrop-blur-sm bg-white/60 border-white/60`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 text-gray-700 shadow-sm">
                   {icon}
                 </span>
                 <p className="font-semibold text-gray-700">{title}</p>
               </div>
-              <p className="text-2xl font-bold text-gray-800 tabular-nums">{value}</p>
+              <p className="text-2xl font-bold text-gray-800 tabular-nums">
+                {value}
+              </p>
             </div>
           );
           return (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
-                <StatCard bgFrom="from-indigo-50" bgTo="to-indigo-100" icon={<span>📅</span>} title="Total Days Worked" value={(s.totalDaysWorked || 0).toLocaleString()} />
-                <StatCard bgFrom="from-green-50" bgTo="to-green-100" icon={<span>⏱️</span>} title="Total Work Time" value={fmt(minToMs(s.totalWorkTime || 0))} />
-                <StatCard bgFrom="from-amber-50" bgTo="to-amber-100" icon={<span>☕</span>} title="Total Break Time" value={fmt(minToMs(s.totalBreakTime || 0))} />
-                <StatCard bgFrom="from-sky-50" bgTo="to-sky-100" icon={<span>🛌</span>} title="Total Idle Time" value={fmt(minToMs(s.totalIdleTime || 0))} />
-                <StatCard bgFrom="from-emerald-50" bgTo="to-emerald-100" icon={<span>✅</span>} title="Total Productive Time" value={fmt(minToMs(s.totalProductiveTime || 0))} />
+                <StatCard
+                  bgFrom="from-indigo-50"
+                  bgTo="to-indigo-100"
+                  icon={<span>📅</span>}
+                  title="Total Days Worked"
+                  value={(s.totalDaysWorked || 0).toLocaleString()}
+                />
+                <StatCard
+                  bgFrom="from-green-50"
+                  bgTo="to-green-100"
+                  icon={<span>⏱️</span>}
+                  title="Total Work Time"
+                  value={fmt(minToMs(s.totalWorkTime || 0))}
+                />
+                <StatCard
+                  bgFrom="from-amber-50"
+                  bgTo="to-amber-100"
+                  icon={<span>☕</span>}
+                  title="Total Break Time"
+                  value={fmt(minToMs(s.totalBreakTime || 0))}
+                />
+                <StatCard
+                  bgFrom="from-sky-50"
+                  bgTo="to-sky-100"
+                  icon={<span>🛌</span>}
+                  title="Total Idle Time"
+                  value={fmt(minToMs(s.totalIdleTime || 0))}
+                />
+                <StatCard
+                  bgFrom="from-emerald-50"
+                  bgTo="to-emerald-100"
+                  icon={<span>✅</span>}
+                  title="Total Productive Time"
+                  value={fmt(minToMs(s.totalProductiveTime || 0))}
+                />
               </div>
 
               {/* Placeholder cards (match tracker styles) */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-[200px] overflow-hidden">
                   <div className="flex items-center gap-3 mb-3.5">
-                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-fuchsia-100 text-fuchsia-700">⌨️</span>
-                    <div className="text-lg text-gray-700 font-semibold">Total Input Intensity</div>
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-fuchsia-100 text-fuchsia-700">
+                      ⌨️
+                    </span>
+                    <div className="text-lg text-gray-700 font-semibold">
+                      Total Input Intensity
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 p-4 border border-white/60">
-                      <div className="text-xs text-gray-500 mb-1">Keystrokes</div>
+                      <div className="text-xs text-gray-500 mb-1">
+                        Keystrokes
+                      </div>
                       <div className="text-2xl font-bold text-violet-700 tabular-nums">
                         {(s.totalKeystrokes || 0).toLocaleString()}
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        {((s.totalKeystrokes || 0) && (s.totalProductiveTime || 0)) ? ((s.totalKeystrokes || 0) / (s.totalProductiveTime || 1)).toFixed(1) : (0).toFixed(1)} per minute
+                        {(s.totalKeystrokes || 0) &&
+                        (s.totalProductiveTime || 0)
+                          ? (
+                              (s.totalKeystrokes || 0) /
+                              (s.totalProductiveTime || 1)
+                            ).toFixed(1)
+                          : (0).toFixed(1)}{" "}
+                        per minute
                       </div>
                     </div>
                     <div className="rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 border border-white/60">
-                      <div className="text-xs text-gray-500 mb-1">Mouse Clicks</div>
+                      <div className="text-xs text-gray-500 mb-1">
+                        Mouse Clicks
+                      </div>
                       <div className="text-2xl font-bold text-cyan-700 tabular-nums">
                         {(s.totalMouseClicks || 0).toLocaleString()}
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        {((s.totalMouseClicks || 0) && (s.totalProductiveTime || 0)) ? ((s.totalMouseClicks || 0) / (s.totalProductiveTime || 1)).toFixed(1) : (0).toFixed(1)} per minute
+                        {(s.totalMouseClicks || 0) &&
+                        (s.totalProductiveTime || 0)
+                          ? (
+                              (s.totalMouseClicks || 0) /
+                              (s.totalProductiveTime || 1)
+                            ).toFixed(1)
+                          : (0).toFixed(1)}{" "}
+                        per minute
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="backdrop-blur-md bg-white/50 border border-white/60 shadow-sm rounded-xl px-3.5 pt-3.5 pb-1.5 h-[200px] overflow-hidden">
                   <div className="flex items-center gap-3 mb-3.5">
-                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700">⏰</span>
-                    <div className="text-lg text-gray-700 font-semibold">Average Productivity & Work Hours</div>
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700">
+                      ⏰
+                    </span>
+                    <div className="text-lg text-gray-700 font-semibold">
+                      Average Productivity & Work Hours
+                    </div>
                   </div>
                   {(() => {
-                    const avgProd = Math.max(0, Math.min(100, Number((status?.overallStats?.averageProductivityPercentage) || 0)));
-                    const avgHours = Number((status?.overallStats?.averageWorkHoursPerDay) || 0);
+                    const avgProd = Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        Number(
+                          status?.overallStats?.averageProductivityPercentage ||
+                            0
+                        )
+                      )
+                    );
+                    const avgHours = Number(
+                      status?.overallStats?.averageWorkHoursPerDay || 0
+                    );
                     return (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 border border-white/60">
-                          <div className="text-xs text-gray-500 mb-1">Avg Productivity</div>
-                          <div className="text-2xl font-bold text-emerald-700 tabular-nums">{Math.round(avgProd)}%</div>
-                          <div className="text-xs text-gray-600 mt-1">Last period average</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Avg Productivity
+                          </div>
+                          <div className="text-2xl font-bold text-emerald-700 tabular-nums">
+                            {Math.round(avgProd)}%
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Last period average
+                          </div>
                         </div>
                         <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 border border-white/60">
-                          <div className="text-xs text-gray-500 mb-1">Avg Hours/Day</div>
-                          <div className="text-2xl font-bold text-indigo-700 tabular-nums">{avgHours.toFixed(2)}h</div>
-                          <div className="text-xs text-gray-600 mt-1">Across worked days</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            Avg Hours/Day
+                          </div>
+                          <div className="text-2xl font-bold text-indigo-700 tabular-nums">
+                            {avgHours.toFixed(2)}h
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Across worked days
+                          </div>
                         </div>
                       </div>
                     );
                   })()}
                 </div>
               </div>
-
-              
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <ProductivityTrends data={dailyProductivityData} />
@@ -942,5 +1317,3 @@ export default function OverallStatsPage() {
     </div>
   );
 }
-
-

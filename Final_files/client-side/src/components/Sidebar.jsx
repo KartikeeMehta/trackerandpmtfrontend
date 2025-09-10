@@ -10,6 +10,8 @@ import {
   Timer,
   ChevronLeft,
   ChevronRight,
+  PanelLeftOpen,
+  PanelLeftClose,
   MessageCircle,
 } from "lucide-react";
 // import notificationManager from "@/utils/notificationManager";
