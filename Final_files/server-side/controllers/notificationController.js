@@ -6,7 +6,7 @@ const NotificationPreference = require("../models/NotificationPreference");
 exports.getMyNotifications = async (req, res) => {
 	try {
 		const companyName = req.user.companyName;
-		const teamMemberId = req.user.teamMemberId; // only Employee has this
+		const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
 		if (!companyName || !teamMemberId) {
 			return res.status(200).json({ notifications: [] });
 		}
@@ -27,7 +27,7 @@ exports.getMyNotifications = async (req, res) => {
 exports.getUnreadCount = async (req, res) => {
 	try {
 		const companyName = req.user.companyName;
-		const teamMemberId = req.user.teamMemberId;
+		const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
 		if (!companyName || !teamMemberId) {
 			return res.status(200).json({ count: 0 });
 		}
@@ -48,7 +48,7 @@ exports.markRead = async (req, res) => {
 	try {
 		const { id } = req.params;
 		const companyName = req.user.companyName;
-		const teamMemberId = req.user.teamMemberId;
+		const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
 		if (!companyName || !teamMemberId) {
 			return res.status(403).json({ message: "Not allowed" });
 		}
@@ -67,7 +67,7 @@ exports.markRead = async (req, res) => {
 exports.markAllRead = async (req, res) => {
 	try {
 		const companyName = req.user.companyName;
-		const teamMemberId = req.user.teamMemberId;
+		const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
 		if (!companyName || !teamMemberId) {
 			return res.status(200).json({ message: "No notifications" });
 		}
@@ -88,7 +88,7 @@ exports.markAllRead = async (req, res) => {
 exports.clearMyNotifications = async (req, res) => {
   try {
     const companyName = req.user.companyName;
-    const teamMemberId = req.user.teamMemberId;
+    const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
     if (!companyName || !teamMemberId) return res.status(200).json({ cleared: 0 });
     const result = await Notification.deleteMany({ companyName, recipientTeamMemberId: teamMemberId });
     return res.status(200).json({ cleared: result?.deletedCount || 0 });
@@ -103,7 +103,7 @@ exports.deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
     const companyName = req.user.companyName;
-    const teamMemberId = req.user.teamMemberId;
+    const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
     
     if (!companyName || !teamMemberId) {
       return res.status(403).json({ message: "Not allowed" });
@@ -130,7 +130,7 @@ exports.deleteNotification = async (req, res) => {
 exports.cleanupReadNotifications = async (req, res) => {
   try {
     const companyName = req.user.companyName;
-    const teamMemberId = req.user.teamMemberId;
+    const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
     
     if (!companyName || !teamMemberId) {
       return res.status(403).json({ message: "Not allowed" });
@@ -171,7 +171,7 @@ exports.cleanupReadNotifications = async (req, res) => {
 exports.getMyPreferences = async (req, res) => {
   try {
     const companyName = req.user.companyName;
-    const teamMemberId = req.user.teamMemberId;
+    const teamMemberId = req.user.teamMemberId || (req.user.role === "owner" ? "OWNER" : null);
     if (!companyName || !teamMemberId) return res.status(200).json({});
     let pref = await NotificationPreference.findOne({ companyName, recipientTeamMemberId: teamMemberId });
     if (!pref) {

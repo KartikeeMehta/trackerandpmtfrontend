@@ -15,6 +15,8 @@ const notificationPreferenceSchema = new mongoose.Schema(
     team_created: { type: Boolean, default: true },
     team_member_added: { type: Boolean, default: true },
     project_member_added: { type: Boolean, default: true },
+    // Chat mentions
+    chat_mention: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

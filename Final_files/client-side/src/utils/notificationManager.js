@@ -42,13 +42,20 @@ class NotificationManager {
       // Show toast notification
       CustomToast.info(toastMsg || "New notification");
 
-      // Show Windows notification if enabled
-      if (this.windowsNotificationsEnabled) {
-        try {
+      // Show Windows notification
+      try {
+        // Always attempt to show for chat mentions; otherwise respect toggle
+        if (notification?.type === "chat_mention") {
+          windowsNotificationService.show({
+            title: notification.title || "Mention",
+            message: notification.message || "You were mentioned",
+            type: notification.type,
+          });
+        } else if (this.windowsNotificationsEnabled) {
           windowsNotificationService.show(notification);
-        } catch (error) {
-          // Error showing Windows notification
         }
+      } catch (error) {
+        // Ignore notification display errors
       }
 
       // Notify all registered listeners

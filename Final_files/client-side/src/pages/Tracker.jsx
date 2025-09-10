@@ -108,10 +108,10 @@ export default function TrackerPage() {
     ]);
 
   const fetchBreaks = async (dateStr, { useCacheFirst = true } = {}) => {
-    const reqId = ++breaksRequestRef.current;
-    const token = localStorage.getItem("token");
-    const istDate = toISTDate(dateStr || new Date());
-    const qs = `?date=${encodeURIComponent(istDate)}`;
+      const reqId = ++breaksRequestRef.current;
+      const token = localStorage.getItem("token");
+      const istDate = toISTDate(dateStr || new Date());
+      const qs = `?date=${encodeURIComponent(istDate)}`;
 
     // 1) Show cache immediately if present
     if (useCacheFirst && breaksCacheRef.current.has(istDate)) {
@@ -145,10 +145,10 @@ export default function TrackerPage() {
           breaks: Array.isArray(res.breaks) ? res.breaks : [],
           totals:
             res.totals || {
-              count: 0,
-              totalMinutes: 0,
-              totalHMS: "00:00:00",
-            },
+            count: 0,
+            totalMinutes: 0,
+            totalHMS: "00:00:00",
+          },
         };
         // Update state and cache
         setBreaksData(payload);
@@ -168,8 +168,8 @@ export default function TrackerPage() {
       const fallback =
         breaksCacheRef.current.get(istDate) || {
           date: istDate,
-          breaks: [],
-          totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
+        breaks: [],
+        totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
         };
       setBreaksData(fallback);
       breaksCacheRef.current.set(istDate, fallback);

@@ -6,6 +6,9 @@ import { BASE_URL, image_url } from "../../api/Api";
 const Messaging = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [menuFor, setMenuFor] = useState(null);
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -13,8 +16,66 @@ const Messaging = () => {
   const [error, setError] = useState(null);
   const [lastMessageTime, setLastMessageTime] = useState(null);
   const [realTimeStatus, setRealTimeStatus] = useState("idle");
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [directory, setDirectory] = useState([]);
+  const [ownerName, setOwnerName] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Helpers to render mentions as full-name highlights
+  const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const renderWithMentions = (text, mentions = []) => {
+    const cleanText = String(text || "");
+    const names = (Array.isArray(mentions) ? mentions : [])
+      .map((m) => String(m || "").trim())
+      .filter(Boolean);
+
+    if (names.length === 0) {
+      // Fallback: highlight only multi-word capitalized names after @ (e.g., @First Last[, Middle])
+      const fullNamePattern = /(@[A-Z][\w.-]+(?:\s+[A-Z][\w.-]+)+)/g;
+      const parts = cleanText.split(fullNamePattern);
+      if (parts.length > 1) {
+        return parts.map((part, i) => {
+          if (!part) return null;
+          if (fullNamePattern.test(part)) {
+            fullNamePattern.lastIndex = 0;
+            return (
+              <span key={i} className={"px-1 rounded bg-blue-100 text-blue-700"}>{part}</span>
+            );
+          }
+          return <span key={i}>{part}</span>;
+        });
+      }
+      // Otherwise, highlight simple @token
+      return cleanText.split(/(\@[\w.-]+)/g).map((chunk, i) => {
+        if (/^\@[\w.-]+$/.test(chunk)) {
+          return (
+            <span key={i} className={"px-1 rounded bg-blue-100 text-blue-700"}>{chunk}</span>
+          );
+        }
+        return <span key={i}>{chunk}</span>;
+      });
+    }
+
+    // Build a robust pattern that tolerates variable whitespace between name parts
+    const alternation = names
+      .map((n) => n.split(/\s+/).map((p) => escapeRegExp(p)).join("\\s+"))
+      .join("|");
+    const pattern = new RegExp(`(@(?:${alternation}))`, "gi");
+    const parts = cleanText.split(pattern);
+
+    return parts.map((part, i) => {
+      if (!part) return null;
+      if (pattern.test(part)) {
+        pattern.lastIndex = 0; // reset for subsequent tests
+        return (
+          <span key={i} className={"px-1 rounded bg-blue-100 text-blue-700"}>{part}</span>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
 
   // Get user token from localStorage
   const getToken = () => {
@@ -70,9 +131,12 @@ const Messaging = () => {
       const token = getToken();
       if (!token) return;
 
+      const mentions = Array.from(
+        new Set((messageText.match(/@([\w.-]+)/g) || []).map((t) => t.slice(1)).slice(0, 10))
+      );
       const response = await apiHandler.PostApi(
         `${BASE_URL}/chat/send`,
-        { message: messageText },
+        { message: messageText, mentions },
         token
       );
       return response;
@@ -80,6 +144,16 @@ const Messaging = () => {
       console.error("Error sending message:", error);
       throw error;
     }
+  };
+
+  const editMessageViaAPI = async (messageId, messageText) => {
+    const token = getToken();
+    return apiHandler.PostApi(`${BASE_URL}/chat/edit`, { messageId, message: messageText }, token);
+  };
+
+  const deleteMessageViaAPI = async (messageId) => {
+    const token = getToken();
+    return apiHandler.PostApi(`${BASE_URL}/chat/delete`, { messageId }, token);
   };
 
   // Initialize socket connection
@@ -136,6 +210,7 @@ const Messaging = () => {
       // Check if this message is already in our list to avoid duplicates
       const messageExists = messages.some(
         (msg) =>
+          (messageData?.type === "system_welcome" && msg?.type === "system_welcome") ||
           msg._id === messageData._id || // Check by ID first (most reliable)
           (msg.message === messageData.message &&
             msg.sender?.name === messageData.sender?.name &&
@@ -155,6 +230,8 @@ const Messaging = () => {
             email: messageData.sender?.email,
           },
           message: messageData.message,
+          senderModel: messageData.senderModel || null,
+          type: messageData?.type || null,
           createdAt:
             messageData.createdAt ||
             messageData.timestamp ||
@@ -163,15 +240,36 @@ const Messaging = () => {
 
         // Update messages state with the new message
         setMessages((prevMessages) => {
-          const updatedMessages = [...prevMessages, newMessage];
-          return updatedMessages;
+          if (messageData?.type === "system_welcome") {
+            // ensure only one welcome message exists
+            const withoutWelcome = prevMessages.filter((m) => m?.type !== "system_welcome");
+            return [...withoutWelcome, newMessage];
+          }
+          return [...prevMessages, newMessage];
         });
+
+        // If this is a non-persistent welcome message, auto-remove after 15s
+        if (messageData?.type === "system_welcome") {
+          setTimeout(() => {
+            setMessages((prev) => prev.filter((m) => m !== newMessage));
+          }, 15000);
+        }
 
         // Reset real-time status after a delay
         setTimeout(() => {
           setRealTimeStatus("idle");
         }, 3000);
       }
+    });
+
+    newSocket.on("messageEdited", (data) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._id === data._id ? { ...m, message: data.message, editedAt: data.editedAt } : m))
+      );
+    });
+
+    newSocket.on("messageDeleted", (data) => {
+      setMessages((prev) => prev.filter((m) => m._id !== data._id));
     });
 
     newSocket.on("roomJoined", (data) => {
@@ -199,6 +297,21 @@ const Messaging = () => {
     loadMessages();
   }, []);
 
+  // Load mention directory
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = getToken();
+        if (!token) return;
+        const res = await apiHandler.GetApi(`${BASE_URL}/chat/directory`, token);
+        const people = Array.isArray(res?.people) ? res.people : [];
+        setDirectory(people);
+        const owner = people.find((p) => String(p.teamMemberId || "").toUpperCase() === "OWNER");
+        setOwnerName(owner ? String(owner.name || "") : "");
+      } catch {}
+    })();
+  }, []);
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     // Scroll to bottom immediately when new messages arrive
@@ -212,7 +325,32 @@ const Messaging = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      if (mentionOpen) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionIndex((i) => i + 1);
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionIndex((i) => Math.max(0, i - 1));
+          return;
+        }
+        if (e.key === "Enter") {
+          // select current
+          const match = getMentionMatches()[mentionIndex] || null;
+          if (match) {
+            e.preventDefault();
+            insertMention(match.name);
+          }
+          return;
+        }
+        if (e.key === "Escape") {
+          setMentionOpen(false);
+          return;
+        }
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         if (newMessage.trim() && isConnected) {
           handleSendMessage(e);
@@ -224,9 +362,65 @@ const Messaging = () => {
     return () => document.removeEventListener("keydown", handleKeyPress);
   }, [newMessage, isConnected]);
 
-  // Handle sending message
+  const getMentionMatches = () => {
+    const at = newMessage.lastIndexOf("@");
+    if (at === -1) return [];
+    // Extract characters from @ until space
+    const rest = newMessage.slice(at + 1);
+    const stop = rest.search(/[\s]/);
+    const token = stop === -1 ? rest : rest.slice(0, stop);
+    const query = token.toLowerCase();
+    const selfTmId = String(currentUser?.teamMemberId || "").toLowerCase();
+    const selfName = (
+      (currentUser?.name || `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`).trim()
+    ).toLowerCase();
+    const base = query.length === 0
+      ? directory
+      : directory.filter((p) => (p.name || "").toLowerCase().includes(query));
+    // Exclude self by teamMemberId or by name; also exclude OWNER when current user is owner
+    const filtered = base.filter((p) => {
+      const tm = String(p.teamMemberId || "").toLowerCase();
+      const nm = String(p.name || "").trim().toLowerCase();
+      if (selfTmId && tm && tm === selfTmId) return false;
+      if (selfName && nm === selfName) return false;
+      if ((currentUser?.role || "").toLowerCase() === "owner" && tm === "owner") return false;
+      return true;
+    });
+    return filtered.slice(0, 10);
+  };
+
+  const insertMention = (name) => {
+    const at = newMessage.lastIndexOf("@");
+    if (at === -1) return;
+    const rest = newMessage.slice(at + 1);
+    const stop = rest.search(/[\s]/);
+    const after = stop === -1 ? "" : rest.slice(stop);
+    const prefix = newMessage.slice(0, at);
+    const next = `${prefix}@${name}${after ? after : " "}`;
+    setNewMessage(next);
+    setMentionOpen(false);
+    setMentionIndex(0);
+  };
+
+  // Handle sending message (or saving edit)
   const handleSendMessage = async (e) => {
     e.preventDefault();
+
+    if (editingId) {
+      const text = newMessage.trim();
+      if (!text) {
+        setEditingId(null);
+        setEditText("");
+        return;
+      }
+      try {
+        await editMessageViaAPI(editingId, text);
+        setEditingId(null);
+        setEditText("");
+        setNewMessage("");
+      } catch (error) {}
+      return;
+    }
 
     if (!newMessage.trim() || !isConnected) return;
 
@@ -234,42 +428,30 @@ const Messaging = () => {
     setNewMessage("");
 
     try {
-      // Send message via API
-      const response = await sendMessageViaAPI(messageText);
-
-      if (response && response._id) {
-        // The message should be received via socket.io real-time
-        // If for some reason it's not, we can add it manually as a fallback
-        setTimeout(() => {
-          // Check if the message was received via socket
-          const messageReceived = messages.some(
-            (msg) =>
-              msg.message === messageText &&
-              msg.sender?.name ===
-                currentUser?.firstName + " " + currentUser?.lastName
-          );
-
-          if (!messageReceived) {
-            const fallbackMessage = {
-              _id: `fallback_${Date.now()}`,
-              sender: {
-                _id: currentUser?._id,
-                name: currentUser?.firstName + " " + currentUser?.lastName,
-                email: currentUser?.email,
-              },
-              message: messageText,
-              createdAt: new Date().toISOString(),
-            };
-
-            setMessages((prev) => [...prev, fallbackMessage]);
-          }
-        }, 2000); // Wait 2 seconds before fallback
-      }
+      await sendMessageViaAPI(messageText);
     } catch (error) {
       console.error("Failed to send message:", error);
-      // Restore the message if sending failed
       setNewMessage(messageText);
     }
+  };
+
+  const startEdit = (msg) => {
+    setEditingId(msg._id);
+    setEditText(msg.message);
+    setNewMessage(msg.message);
+    inputRef.current?.focus();
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+    setNewMessage("");
+  };
+
+  const handleDelete = async (msg) => {
+    try {
+      await deleteMessageViaAPI(msg._id);
+    } catch (error) {}
   };
 
   // Format timestamp
@@ -344,43 +526,11 @@ const Messaging = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Team Chat</h1>
-              <div className="flex items-center space-x-2 mt-1">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isConnected ? "bg-green-500" : "bg-red-500"
-                  }`}
-                ></span>
-                <span className="text-sm text-gray-500">
-                  {isConnected ? "Connected" : "Disconnected"}
-                </span>
-                {isConnected && currentUser?.companyName && (
-                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                    Room: {currentUser.companyName}
-                  </span>
-                )}
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  {messages.length} messages
-                </span>
-                {/* Real-time Status */}
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    realTimeStatus === "active"
-                      ? "text-green-600 bg-green-50 animate-pulse"
-                      : "text-gray-600 bg-gray-100"
-                  }`}
-                >
-                  Real-time: {realTimeStatus === "active" ? "Active" : "Ready"}
-                </span>
-                {lastMessageTime && (
-                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                    Last: {formatTime(lastMessageTime)}
-                  </span>
-                )}
-              </div>
+              <div className="mt-1" />
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 ml-auto">
             <div className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg">
               <div
                 className={`w-2 h-2 rounded-full ${
@@ -390,13 +540,6 @@ const Messaging = () => {
               <span className="text-sm font-medium text-gray-700">
                 {isConnected ? "Online" : "Offline"}
               </span>
-            </div>
-
-            {/* Debug Info */}
-            <div className="text-xs text-gray-500">
-              {currentUser?.companyName && (
-                <span>Company: {currentUser.companyName}</span>
-              )}
             </div>
           </div>
         </div>
@@ -510,6 +653,13 @@ const Messaging = () => {
                               `${currentUser.firstName} ${currentUser.lastName}`) ||
                           (currentUser.name &&
                             message.sender.name === currentUser.name));
+                      const roleLc = String(currentUser?.role || "").toLowerCase();
+                      const canDeleteAny = roleLc === "owner" || roleLc === "admin";
+                      const targetIsOwner =
+                        (message?.senderModel || "").toLowerCase() === "owner" ||
+                        String(message?.sender?.role || "").toLowerCase() === "owner" ||
+                        (ownerName && String(message?.sender?.name || "").trim().toLowerCase() === String(ownerName).trim().toLowerCase());
+                      const canSeeMenu = isOwnMessage || roleLc === "owner" || (roleLc === "admin" && !targetIsOwner);
 
                       return (
                         <div
@@ -519,67 +669,100 @@ const Messaging = () => {
                           }`}
                         >
                           <div
-                            className={`max-w-xs lg:max-w-md ${
+                            className={`relative group max-w-xs lg:max-w-md ${
                               isOwnMessage ? "order-2" : "order-1"
                             }`}
                           >
                             {/* Sender Info */}
                             <div
-                              className={`flex items-center space-x-2 mb-2 ${
-                                isOwnMessage ? "justify-end" : "justify-start"
-                              }`}
+                              className={`flex items-center space-x-2 mb-2 justify-start`}
                             >
-                              {!isOwnMessage && (
-                                <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-sm font-medium">
-                                    {message.sender?.name
-                                      ?.charAt(0)
-                                      ?.toUpperCase() || "U"}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div
-                                className={`text-sm ${
-                                  isOwnMessage ? "text-right" : "text-left"
-                                }`}
-                              >
-                                <span
-                                  className={`font-medium ${
-                                    isOwnMessage
-                                      ? "text-blue-600"
-                                      : "text-gray-700"
-                                  }`}
-                                >
-                                  {message.sender?.name || "Unknown User"}
-                                </span>
-                                <span className="text-gray-400 ml-2">
-                                  {formatTime(message.createdAt)}
+                              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                                <span className="text-white text-sm font-medium">
+                                  {message.sender?.name
+                                    ?.charAt(0)
+                                    ?.toUpperCase() || "U"}
                                 </span>
                               </div>
 
-                              {isOwnMessage && (
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-sm font-medium">
-                                    {message.sender?.name
-                                      ?.charAt(0)
-                                      ?.toUpperCase() || "U"}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex-1 flex items-center justify-between text-sm">
+                                <span className="font-bold text-gray-900">
+                                  {message.sender?.name || "Unknown User"}
+                                </span>
+                                <span className="text-gray-400 ml-2 whitespace-nowrap">
+                                  {formatTime(message.createdAt)}
+                                </span>
+                              </div>
+                              
                             </div>
 
-                            {/* Message Bubble */}
+                            {/* Message Container */}
                             <div
-                              className={`px-4 py-3 rounded-lg shadow-sm ${
-                                isOwnMessage
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-white text-gray-900 border border-gray-200"
-                              }`}
+                              className={"relative px-4 py-3 rounded-lg shadow-sm bg-white text-gray-900 border border-gray-200 min-w-[230px]"}
                             >
-                              <p className="text-sm leading-relaxed">
-                                {message.message}
-                              </p>
+                              {canSeeMenu && (
+                                <button
+                                  type="button"
+                                  onClick={() => setMenuFor(menuFor === (message._id || i) ? null : (message._id || i))}
+                                  className={`absolute right-1 top-1 translate-y-0 flex items-center justify-center h-6 w-6 rounded hover:bg-black/10 text-current`}
+                                  title="More"
+                                >
+                                  <span className="text-lg leading-none">⋮</span>
+                                </button>
+                              )}
+                              {canSeeMenu && menuFor === (message._id || i) && (
+                                <div className={`absolute z-10 right-1 top-7 w-44 rounded-md border bg-white shadow-lg text-sm`}
+                                  onMouseLeave={() => setMenuFor(null)}
+                                >
+                                  {isOwnMessage && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMenuFor(null);
+                                        startEdit(message);
+                                      }}
+                                      className="w-full px-3 py-2 hover:bg-blue-50 text-right"
+                                    >
+                                      <span className="font-medium text-gray-800">Edit</span>
+                                    </button>
+                                  )}
+                                  {(() => {
+                                    const roleLc = String(currentUser?.role || "").toLowerCase();
+                                    const targetIsOwner =
+                                      (message?.senderModel || "").toLowerCase() === "owner" ||
+                                      String(message?.sender?.role || "").toLowerCase() === "owner" ||
+                                      (ownerName && String(message?.sender?.name || "").trim().toLowerCase() === String(ownerName).trim().toLowerCase());
+                                    const canDelete = isOwnMessage || roleLc === "owner" || (roleLc === "admin" && !targetIsOwner);
+                                    return (
+                                      canDelete && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setMenuFor(null);
+                                            handleDelete(message);
+                                          }}
+                                          className="w-full px-3 py-2 hover:bg-red-50 text-red-600 text-right"
+                                        >
+                                          <span className="font-medium">Delete</span>
+                                        </button>
+                                      )
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1">
+                              <p className="text-sm leading-relaxed text-gray-900">
+                                    {renderWithMentions(message.message, message.mentions)}
+                                  </p>
+                                  {message.editedAt && (
+                                    <div className={"mt-1 text-[10px] text-gray-400"}>
+                                      edited
+                                    </div>
+                                  )}
+                                </div>
+                                {/* inline Edit/Delete removed; now accessible via the three-dots menu */}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -596,24 +779,88 @@ const Messaging = () => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4 flex-shrink-0">
+      <div className="bg-white border-t border-gray-200 px-6 py-4 flex-shrink-0 relative">
         <form onSubmit={handleSendMessage} className="flex items-end space-x-4">
           <div className="flex-1">
             <input
               ref={inputRef}
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setNewMessage(val);
+                const at = val.lastIndexOf("@");
+                if (at >= 0) {
+                  setMentionOpen(true);
+                } else {
+                  setMentionOpen(false);
+                }
+              }}
               placeholder={
-                isConnected
-                  ? "Type your message... (Ctrl+Enter to send)"
-                  : "Connecting..."
+                isConnected ? "Type your message... (Enter to send)" : "Connecting..."
               }
               disabled={!isConnected}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
 
+          {mentionOpen && getMentionMatches().length > 0 && (
+            <div className="absolute w-72 max-h-64 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+              style={{
+                bottom: 80,
+                left: (() => {
+                  try {
+                    const at = newMessage.lastIndexOf("@");
+                    if (at === -1) return 24;
+                    const temp = document.createElement("span");
+                    temp.style.visibility = "hidden";
+                    temp.style.position = "absolute";
+                    temp.style.whiteSpace = "pre";
+                    temp.style.font = window.getComputedStyle(inputRef.current).font;
+                    temp.textContent = newMessage.slice(0, at + 1);
+                    document.body.appendChild(temp);
+                    const width = temp.getBoundingClientRect().width;
+                    document.body.removeChild(temp);
+                    const inputRect = inputRef.current.getBoundingClientRect();
+                    return Math.min(inputRect.width - 320, 24 + width);
+                  } catch {
+                    return 24;
+                  }
+                })()
+              }}
+            >
+              {getMentionMatches().map((p, idx) => (
+                <button
+                  key={p.teamMemberId || p.name || idx}
+                  type="button"
+                  onClick={() => insertMention(p.name)}
+                  className={`w-full text-left px-3 py-2 text-sm ${idx === mentionIndex ? "bg-blue-50" : "bg-white"}`}
+                >
+                  {p.name}
+                  <span className="text-gray-400 text-xs ml-2">{p.teamMemberId}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {editingId ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="px-4 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || !isConnected}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
           <button
             type="submit"
             disabled={!newMessage.trim() || !isConnected}
@@ -636,6 +883,7 @@ const Messaging = () => {
               <span>Send</span>
             </div>
           </button>
+          )}
         </form>
       </div>
     </div>

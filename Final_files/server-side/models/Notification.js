@@ -16,6 +16,7 @@ const notificationSchema = new mongoose.Schema(
 				"team_created",
 				"team_member_added",
 				"project_member_added",
+				"chat_mention",
 			],
 			required: true,
 		},

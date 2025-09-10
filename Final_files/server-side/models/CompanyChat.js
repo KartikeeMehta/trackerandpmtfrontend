@@ -14,8 +14,10 @@ const companyChatMessageSchema = new mongoose.Schema(
     },
 		message: { type: String, required: true },
 		createdAt: { type: Date, default: Date.now },
+		editedAt: { type: Date },
+		mentions: { type: [String], default: [] }, // store mentioned names or identifiers
 	},
-	{ _id: false }
+	{ _id: true }
 );
 
 const companyChatSchema = new mongoose.Schema({

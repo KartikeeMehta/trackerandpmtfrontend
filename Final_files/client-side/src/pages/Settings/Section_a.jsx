@@ -47,6 +47,7 @@ const Section_a = () => {
     subtask_deadline: { label: "Subtask Deadline", desc: "Reminders for upcoming subtask deadlines" },
     team_created: { label: "Team Created", desc: "When you are added to a new team" },
     team_member_added: { label: "Team Member Added", desc: "When you are added to a team" },
+    chat_mention: { label: "Chat Mention", desc: "Notify when someone mentions you with @ in chat" },
   };
 
   const handlePasswordChange = async (e) => {

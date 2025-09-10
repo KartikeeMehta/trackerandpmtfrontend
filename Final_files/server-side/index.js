@@ -505,13 +505,17 @@ io.on("connection", async (socket) => {
       socket.join(companyRoom);
     }
 
-    // Join personal room for employees to receive notifications
+    // Join personal room for notifications
     if (isEmployee && user.teamMemberId) {
       const personalRoom = `userRoom:${companyName}:${user.teamMemberId}`;
       socket.join(personalRoom);
+    } else if (!isEmployee && companyName) {
+      // Owner room uses special id 'OWNER'
+      const ownerRoom = `userRoom:${companyName}:OWNER`;
+      socket.join(ownerRoom);
     }
 
-    // Send welcome message only to this user
+    // Send welcome message only to this user (non-persistent)
     socket.emit("receiveMessage", {
       sender: {
         _id: user._id,
@@ -520,6 +524,7 @@ io.on("connection", async (socket) => {
       },
       message: "Welcome message from server on connect",
       timestamp: new Date(),
+      type: "system_welcome",
     });
 
     // Listen for incoming chat messages
