@@ -19,6 +19,7 @@ router.post("/break/end", employeeTrackerController.breakEnd);
 // Status and data retrieval
 router.get("/status", employeeTrackerController.getCurrentStatus);
 router.get("/summary/daily", employeeTrackerController.getDailySummary);
+router.get("/summary/monthly", employeeTrackerController.getMonthlySummary);
 router.get("/breaks", employeeTrackerController.getBreaksForDate);
 // HR attendance (owner/admin)
 router.get("/attendance", employeeTrackerController.getAttendanceForDate);

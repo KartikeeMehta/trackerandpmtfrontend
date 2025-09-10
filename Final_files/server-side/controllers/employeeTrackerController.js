@@ -714,6 +714,199 @@ exports.getDailySummary = async (req, res) => {
   }
 };
 
+// Aggregate a user's work for a specific month (YYYY-MM, IST)
+exports.getMonthlySummary = async (req, res) => {
+  try {
+    let tracker = null;
+    const { teamMemberId } = req.query || {};
+
+    if (teamMemberId) {
+      const role = (req.user?.role || "").toLowerCase();
+      if (!["owner", "admin", "manager"].includes(role)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view other members",
+        });
+      }
+      const Employee = require("../models/Employee");
+      const member = await Employee.findOne({ teamMemberId });
+      if (!member) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Employee not found" });
+      }
+      const EmployeeTracker = require("../models/EmployeeTracker");
+      tracker = await EmployeeTracker.findOne({ employeeId: member._id });
+      if (!tracker) {
+        return res.json({
+          success: true,
+          month: req.query?.month || "",
+          summary: null,
+        });
+      }
+    } else {
+      tracker = await getOrCreateTrackerForReq(req);
+    }
+
+    // Target month in format YYYY-MM (IST)
+    const monthParam = (req.query?.month || "").toString();
+    const nowIST = toISTDateString(new Date()); // YYYY-MM-DD
+    const targetMonth =
+      monthParam && monthParam.length >= 7
+        ? monthParam.slice(0, 7)
+        : nowIST.slice(0, 7);
+
+    const isOnTargetMonth = (d) =>
+      toISTDateString(d).slice(0, 7) === targetMonth;
+
+    // Collect sessions for the target month (closed + maybe current)
+    const sessions = [];
+    for (const s of tracker.workSessions || []) {
+      if (s?.startTime && isOnTargetMonth(s.startTime)) sessions.push(s);
+    }
+    if (tracker.currentSession && tracker.currentSession.isActive) {
+      if (isOnTargetMonth(tracker.currentSession.startTime)) {
+        sessions.push(tracker.currentSession);
+      }
+    }
+
+    const summary = {
+      month: targetMonth, // YYYY-MM
+      sessionsCount: 0,
+      breaksCount: 0,
+      totalWorkTime: 0,
+      totalBreakTime: 0,
+      totalIdleTime: 0,
+      totalProductiveTime: 0,
+      totalKeystrokes: 0,
+      totalMouseClicks: 0,
+      totalScreenshots: 0,
+      averageActivityPercentage: 0,
+      days: [],
+    };
+
+    if (sessions.length > 0) {
+      summary.sessionsCount = sessions.length;
+      summary.totalWorkTime = sessions.reduce(
+        (t, s) => t + (s.duration || 0),
+        0
+      );
+      summary.totalBreakTime = sessions.reduce(
+        (t, s) => t + (s.totalBreakTime || 0),
+        0
+      );
+      summary.totalIdleTime = sessions.reduce(
+        (t, s) => t + (s.idleTime || 0),
+        0
+      );
+      summary.totalProductiveTime = sessions.reduce((t, s) => {
+        const duration = s.duration || 0;
+        const breaks = s.totalBreakTime || 0;
+        const idle = s.idleTime || 0;
+        return t + Math.max(0, duration - breaks - idle);
+      }, 0);
+      summary.totalKeystrokes = sessions.reduce(
+        (t, s) => t + (s.totalKeystrokes || 0),
+        0
+      );
+      summary.totalMouseClicks = sessions.reduce(
+        (t, s) => t + (s.totalMouseClicks || 0),
+        0
+      );
+      summary.totalScreenshots = sessions.reduce(
+        (t, s) => t + (s.totalScreenshots || 0),
+        0
+      );
+      summary.breaksCount = sessions.reduce(
+        (t, s) => t + (s.breaks?.length || 0),
+        0
+      );
+
+      if (summary.totalWorkTime > 0) {
+        summary.averageActivityPercentage =
+          ((summary.totalProductiveTime + summary.totalBreakTime) /
+            summary.totalWorkTime) *
+          100;
+      }
+      // Build per-day rollups (YYYY-MM-DD in IST)
+      const dayMap = new Map();
+      const ensure = (dateStr) => {
+        if (!dayMap.has(dateStr)) {
+          dayMap.set(dateStr, {
+            date: dateStr,
+            attended: 0,
+            sessions: 0,
+            workedMinutes: 0,
+            breakMinutes: 0,
+            idleMinutes: 0,
+            firstPunchIn: null,
+            lastPunchOut: null,
+            activityPercentage: 0,
+          });
+        }
+        return dayMap.get(dateStr);
+      };
+
+      const istDate = (d) => toISTDateString(d);
+
+      // closed sessions
+      for (const s of tracker.workSessions || []) {
+        if (!s?.startTime) continue;
+        const dstr = istDate(s.startTime);
+        if (dstr.slice(0, 7) !== targetMonth) continue;
+        const row = ensure(dstr);
+        row.attended = 1;
+        row.sessions += 1;
+        row.workedMinutes += Number(s.duration || 0);
+        row.breakMinutes += Number(s.totalBreakTime || 0);
+        row.idleMinutes += Number(s.idleTime || 0);
+        const firstIn = s.startTimeIST || formatISTTime(s.startTime);
+        const lastOut = s.endTime
+          ? s.endTimeIST || formatISTTime(s.endTime)
+          : null;
+        if (!row.firstPunchIn) row.firstPunchIn = firstIn;
+        row.lastPunchOut = lastOut || row.lastPunchOut;
+      }
+      // current session if belongs to this month
+      if (tracker.currentSession && tracker.currentSession.isActive) {
+        const cs = tracker.currentSession;
+        if (cs.startTime && istDate(cs.startTime).slice(0, 7) === targetMonth) {
+          const dstr = istDate(cs.startTime);
+          const row = ensure(dstr);
+          row.attended = 1;
+          row.sessions += 1;
+          row.workedMinutes += Number(cs.duration || 0);
+          row.breakMinutes += Number(cs.totalBreakTime || 0);
+          row.idleMinutes += Number(cs.idleTime || 0);
+          const firstIn = cs.startTimeIST || formatISTTime(cs.startTime);
+          if (!row.firstPunchIn) row.firstPunchIn = firstIn;
+          // lastPunchOut remains null for active
+        }
+      }
+
+      // finalize per-day activity percentage and push to array
+      for (const row of dayMap.values()) {
+        if (row.workedMinutes > 0) {
+          row.activityPercentage =
+            ((Math.max(0, row.workedMinutes - row.idleMinutes) +
+              row.breakMinutes) /
+              row.workedMinutes) *
+            100;
+        }
+        summary.days.push(row);
+      }
+    }
+
+    return res.json({ success: true, summary });
+  } catch (e) {
+    console.error("getMonthlySummary error:", e);
+    return res.status(500).json({
+      success: false,
+      message: e.message || "Failed to get monthly summary",
+    });
+  }
+};
+
 // Helpers (controller-local)
 function toISTDateString(dateLike) {
   if (!dateLike) return "";
@@ -943,6 +1136,13 @@ exports.getAttendanceForDate = async (req, res) => {
         totalWorkTime = sessions.reduce((t, s) => t + (s.duration || 0), 0);
 
         // Collect earliest break start and latest break end for the target date
+        const typeLabel = (t) => {
+          if (t === "tea_break") return "Tea Break";
+          if (t === "lunch_break") return "Lunch/Dinner Break";
+          if (t === "meeting_break") return "Meeting Break";
+          if (t === "manual") return "Manual Break";
+          return "Break";
+        };
         for (const s of sessions) {
           for (const b of s.breaks || []) {
             if (!b?.startTime) continue;
@@ -959,6 +1159,10 @@ exports.getAttendanceForDate = async (req, res) => {
             }
             if (b.breakType === "manual" && b.reason && b.reason.trim()) {
               manualBreakReason = b.reason.trim();
+            }
+            // If there is no explicit reason, use default type label
+            if (!breakReason && (!b.reason || !b.reason.trim())) {
+              breakReason = typeLabel(b.breakType);
             }
           }
         }

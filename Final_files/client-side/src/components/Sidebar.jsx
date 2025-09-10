@@ -11,6 +11,8 @@ import {
   PanelLeftOpen,
   PanelLeftClose,
   MessageCircle,
+  CalendarDays,
+  UserCheck,
 } from "lucide-react";
 // import notificationManager from "@/utils/notificationManager";
 import { api_url, image_url } from "@/api/Api";
@@ -121,16 +123,6 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TIME TRACKING",
       items: [
-        // HR Management for owner/admin
-        ...(isOwnerAdmin
-          ? [
-              {
-                to: "/hr-management",
-                label: "HR Management",
-                icon: Users,
-              },
-            ]
-          : []),
         ...(canAccessTeamMembers
           ? [
               {
@@ -148,6 +140,26 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           : []),
       ],
     },
+    // New HR MANAGEMENT section
+    ...(isOwnerAdmin
+      ? [
+          {
+            label: "HR MANAGEMENT",
+            items: [
+              {
+                to: "/hr-management",
+                label: "Attendance Register",
+                icon: CalendarDays,
+              },
+              {
+                to: "/hr-attendance",
+                label: "Member Timesheets",
+                icon: UserCheck,
+              },
+            ],
+          },
+        ]
+      : []),
     {
       label: "COMMUNICATION",
       items: [{ to: "/messaging", label: "Messaging", icon: MessageCircle }],
@@ -438,7 +450,11 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
             className="text-slate-600 w-7 h-7 hover:text-blue-600 transition-colors p-1.5 rounded-md hover:bg-slate-100"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
+            {collapsed ? (
+              <PanelLeftOpen size={22} />
+            ) : (
+              <PanelLeftClose size={22} />
+            )}
           </button>
         </div>
       </div>
