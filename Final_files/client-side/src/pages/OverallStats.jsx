@@ -1129,7 +1129,7 @@ export default function OverallStatsPage() {
   };
 
   return (
-    <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       <div className="mb-4">
         <h1 className="text-3xl md:text-4xl text-gray-800 drop-shadow-sm font-display font-bold">
           Overall Stats

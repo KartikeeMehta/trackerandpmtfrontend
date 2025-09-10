@@ -1277,7 +1277,7 @@ function Section_a() {
   };
 
   return (
-    <div className="max-w-[1440px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 m-auto p-6 min-h-screen">
       {/* Greeting */}
       <div className="relative">
         <div className="backdrop-blur-md bg-white/40 border border-white/60 shadow-sm rounded-xl px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between">
