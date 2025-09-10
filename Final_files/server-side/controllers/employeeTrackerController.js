@@ -884,14 +884,14 @@ exports.getMonthlySummary = async (req, res) => {
         }
       }
 
-      // finalize per-day activity percentage and push to array
+      // finalize per-day productivity percentage and push to array
       for (const row of dayMap.values()) {
         if (row.workedMinutes > 0) {
-          row.activityPercentage =
-            ((Math.max(0, row.workedMinutes - row.idleMinutes) +
-              row.breakMinutes) /
+          const pct =
+            (Math.max(0, row.workedMinutes - row.idleMinutes) /
               row.workedMinutes) *
             100;
+          row.activityPercentage = Math.max(0, Math.min(100, pct));
         }
         summary.days.push(row);
       }
@@ -1194,5 +1194,117 @@ exports.getAttendanceForDate = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Failed to get attendance" });
+  }
+};
+
+// Company-wide monthly leaderboard
+exports.getLeaderboardMonthly = async (req, res) => {
+  try {
+    // Determine company scope from requester (owner/admin/employee)
+    let companyId = null;
+    let companyName = null;
+    // Try Employee first
+    const employee = await Employee.findById(req.user._id).select(
+      "companyName teamMemberId name email"
+    );
+    if (employee) {
+      const owner = await User.findOne({
+        companyName: employee.companyName,
+      }).select("_id companyName");
+      companyId = owner?._id || req.user._id;
+      companyName = owner?.companyName || employee.companyName;
+    } else {
+      // Owner/Admin
+      const owner = await User.findById(req.user._id).select("_id companyName");
+      companyId = owner?._id || req.user._id;
+      companyName = owner?.companyName || null;
+    }
+
+    if (!companyId) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company not found" });
+    }
+
+    // Target month
+    const monthParam = (req.query?.month || "").toString();
+    const nowIST = toISTDateString(new Date());
+    const targetMonth =
+      monthParam && monthParam.length >= 7
+        ? monthParam.slice(0, 7)
+        : nowIST.slice(0, 7);
+
+    const trackers = await EmployeeTracker.find({ companyId }).select(
+      "employeeId workSessions currentSession"
+    );
+
+    // Resolve employee meta: name and teamMemberId
+    const employees = await Employee.find({ companyName }).select(
+      "_id name email teamMemberId"
+    );
+    const idToMeta = new Map(
+      employees.map((e) => [
+        e._id.toString(),
+        { name: e.name || e.email, teamMemberId: e.teamMemberId },
+      ])
+    );
+
+    const isOnTargetMonth = (d) =>
+      toISTDateString(d).slice(0, 7) === targetMonth;
+
+    const rows = trackers.map((tr) => {
+      let worked = 0;
+      let idle = 0;
+      (tr.workSessions || []).forEach((s) => {
+        if (!s?.startTime) return;
+        if (isOnTargetMonth(s.startTime)) {
+          worked += Number(s.duration || 0);
+          idle += Number(s.idleTime || 0);
+        }
+      });
+      if (
+        tr.currentSession &&
+        tr.currentSession.isActive &&
+        isOnTargetMonth(tr.currentSession.startTime)
+      ) {
+        worked += Number(tr.currentSession.duration || 0);
+        idle += Number(tr.currentSession.idleTime || 0);
+      }
+      const productivity =
+        worked > 0
+          ? Math.max(
+              0,
+              Math.min(100, (Math.max(0, worked - idle) / worked) * 100)
+            )
+          : 0;
+      const meta = idToMeta.get(tr.employeeId.toString()) || {
+        name: "Unknown",
+        teamMemberId: "",
+      };
+      return {
+        employeeId: tr.employeeId,
+        name: meta.name,
+        teamMemberId: meta.teamMemberId,
+        workedMinutes: worked,
+        idleMinutes: idle,
+        productivity,
+      };
+    });
+
+    // Rank by productivity desc, then worked time desc
+    rows.sort((a, b) => {
+      if (b.productivity !== a.productivity)
+        return b.productivity - a.productivity;
+      return b.workedMinutes - a.workedMinutes;
+    });
+
+    rows.forEach((r, idx) => (r.rank = idx + 1));
+
+    return res.json({ success: true, month: targetMonth, rows });
+  } catch (error) {
+    console.error("getLeaderboardMonthly error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to get leaderboard" });
   }
 };

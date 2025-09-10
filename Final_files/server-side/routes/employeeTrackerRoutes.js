@@ -23,5 +23,10 @@ router.get("/summary/monthly", employeeTrackerController.getMonthlySummary);
 router.get("/breaks", employeeTrackerController.getBreaksForDate);
 // HR attendance (owner/admin)
 router.get("/attendance", employeeTrackerController.getAttendanceForDate);
+// Leaderboard (company-wide monthly)
+router.get(
+  "/leaderboard/monthly",
+  employeeTrackerController.getLeaderboardMonthly
+);
 
 module.exports = router;

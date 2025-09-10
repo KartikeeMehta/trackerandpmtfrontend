@@ -237,10 +237,10 @@ function HRMemberAttendanceDetail() {
                             {Math.round(c.worked) % 60}m
                           </div>
                           <div>
-                            Breaks: {Math.floor(c.breaks / 60)}h{" "}
-                            {Math.round(c.breaks) % 60}m
+                            Idle: {Math.floor(c.idle / 60)}h{" "}
+                            {Math.round(c.idle) % 60}m
                           </div>
-                          <div>Act: {c.activity.toFixed(0)}%</div>
+                          <div>Productivity: {c.activity.toFixed(0)}%</div>
                         </div>
                       )}
                     </>

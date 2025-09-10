@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import gsap from "gsap";
 import { Briefcase, Users, BarChart2, Sparkles } from "lucide-react";
 
 const features = [
@@ -22,26 +23,64 @@ const features = [
 
 const Section_a = () => {
   const navigate = useNavigate();
+  const sectionRef = useRef(null);
+  const heroCardRef = useRef(null);
+  const logoRef = useRef(null);
+  const ctaButtonsRef = useRef(null);
+  const featuresWrapRef = useRef(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        defaults: { ease: "power3.out", duration: 0.9 },
+      });
+      tl.from(logoRef.current, { y: -20, opacity: 0 })
+        .from(heroCardRef.current, { y: 20, opacity: 0, scale: 0.98 }, "-=0.4")
+        .from(
+          ctaButtonsRef.current?.children || [],
+          { y: 16, opacity: 0, stagger: 0.08 },
+          "-=0.5"
+        )
+        .from(
+          featuresWrapRef.current?.children || [],
+          { y: 22, opacity: 0, stagger: 0.08 },
+          "-=0.4"
+        );
+
+      // Subtle floating sparkles on hero card
+      gsap.to(heroCardRef.current, {
+        y: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+        duration: 3.2,
+      });
+
+      // Parallax on mouse move (very light)
+      const sectionEl = sectionRef.current;
+      const onMove = (e) => {
+        const rect = sectionEl.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width - 0.5;
+        const relY = (e.clientY - rect.top) / rect.height - 0.5;
+        gsap.to(heroCardRef.current, {
+          x: relX * 4,
+          y: relY * 4,
+          duration: 0.4,
+          ease: "power2.out",
+        });
+      };
+      sectionEl?.addEventListener("mousemove", onMove);
+      return () => sectionEl?.removeEventListener("mousemove", onMove);
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
   return (
-    <section className="relative flex flex-col items-center justify-center min-h-screen px-4 py-10 overflow-hidden bg-[#dbeafe] font-sans">
-      {/* Decorative SVG Accent */}
-      <div className="absolute top-0 left-0 w-full flex justify-center pointer-events-none select-none z-0">
-        <svg
-          width="100%"
-          height="120"
-          viewBox="0 0 1440 120"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill="#e0e7ef"
-            fillOpacity="0.7"
-            d="M0,64L48,74.7C96,85,192,107,288,117.3C384,128,480,128,576,117.3C672,107,768,85,864,80C960,75,1056,85,1152,90.7C1248,96,1344,96,1392,96L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
-          />
-        </svg>
-      </div>
+    <section
+      ref={sectionRef}
+      className="bg-[url('./hero_section.png')] bg-cover relative flex flex-col items-center justify-center min-h-screen px-4 py-10 overflow-hidden bg-neutral-950 text-neutral-100 font-sans"
+    >
       {/* Logo */}
-      <div className="flex items-center gap-3 mt-8 mb-2 z-10">
+      <div ref={logoRef} className="flex items-center gap-3 mt-8 mb-2 z-10">
         <svg
           width="44"
           height="44"
@@ -58,26 +97,29 @@ const Section_a = () => {
             strokeLinejoin="round"
           />
         </svg>
-        <span className="text-2xl font-bold text-blue-700 tracking-tight">
+        <span className="text-2xl font-bold text-white tracking-tight">
           WorkOrbit
         </span>
       </div>
       {/* Hero Section */}
       <div className="relative z-10 w-full max-w-[1200px] mt-8 mb-12">
-        <div className="bg-white/90 rounded-2xl shadow-xl px-8 py-10 flex flex-col items-center border border-blue-100">
-          <Sparkles className="h-10 w-10 text-blue-400 mb-2 animate-pulse" />
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight leading-tight">
-            WorkOrbit:
-            <span className="text-blue-600">Project Management Tool</span>
+        <div
+          ref={heroCardRef}
+          className="bg-[#ffffff12] backdrop-blur rounded-2xl shadow-xl px-8 py-10 flex flex-col items-center border border-[#ffffff40]"
+        >
+          <Sparkles className="h-10 w-10 text-indigo-400 mb-2 animate-pulse" />
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">
+            WorkOrbit:{" "}
+            <span className="text-indigo-400">Project Management Tool</span>
           </h1>
-          <p className="text-lg text-gray-700 mb-8 font-medium text-center">
+          <p className="text-lg text-neutral-300 mb-8 font-medium text-center">
             The all-in-one project management tool for IT companies. Plan,
             track, and deliver projects efficiently with seamless collaboration
             and clear analytics.
           </p>
           <button
             onClick={() => navigate("/Register")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-md transition-transform transform hover:scale-105"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-lg text-lg font-semibold shadow-md transition-transform transform hover:scale-105"
           >
             Get Started Free
           </button>
@@ -85,7 +127,10 @@ const Section_a = () => {
       </div>
 
       {/* Navigation Buttons (Top) */}
-      <div className="flex flex-col sm:flex-row gap-4 mt-6 z-10 mb-10">
+      <div
+        ref={ctaButtonsRef}
+        className="flex flex-col sm:flex-row gap-4 mt-6 z-10 mb-10"
+      >
         <button
           onClick={() => navigate("/Login")}
           type="button"
@@ -103,17 +148,20 @@ const Section_a = () => {
       </div>
 
       {/* Features Section */}
-      <div className="flex flex-wrap justify-center gap-8 mb-16 z-10">
+      <div
+        ref={featuresWrapRef}
+        className="flex flex-wrap justify-center gap-8 mb-16 z-10"
+      >
         {features.map((feature, idx) => (
           <div
             key={idx}
-            className="bg-white border border-blue-100 rounded-xl shadow p-6 w-72 flex flex-col items-center hover:shadow-lg transition-shadow duration-200"
+            className="bg-[#ffffff12] backdrop-blur border border-[#ffffff40] rounded-xl shadow p-6 w-72 flex flex-col items-center hover:shadow-lg transition-shadow duration-200"
           >
             {feature.icon}
-            <h3 className="mt-4 text-xl font-bold text-gray-800">
+            <h3 className="mt-4 text-xl font-bold text-white">
               {feature.title}
             </h3>
-            <p className="mt-2 text-gray-500 text-center">{feature.desc}</p>
+            <p className="mt-2 text-neutral-300 text-center">{feature.desc}</p>
           </div>
         ))}
       </div>

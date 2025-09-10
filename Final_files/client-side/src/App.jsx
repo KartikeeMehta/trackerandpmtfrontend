@@ -29,6 +29,7 @@ import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
 import OverallStatsPage from "./pages/OverallStats";
 import PeopleTracking from "./pages/PeopleTracking";
+import Leaderboard from "./pages/Leaderboard";
 import HRManagement from "./pages/HRManagement";
 import HRMemberAttendance from "./pages/HRMemberAttendance";
 import HRMemberAttendanceDetail from "./pages/HRMemberAttendanceDetail";
@@ -237,6 +238,16 @@ function App() {
               <ProtectedRoute roles={["owner", "admin", "manager"]}>
                 <MainLayout>
                   <PeopleTracking />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Leaderboard />
                 </MainLayout>
               </ProtectedRoute>
             }

@@ -13,6 +13,7 @@ import {
   MessageCircle,
   CalendarDays,
   UserCheck,
+  Trophy,
 } from "lucide-react";
 // import notificationManager from "@/utils/notificationManager";
 import { api_url, image_url } from "@/api/Api";
@@ -123,6 +124,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
     {
       label: "TIME TRACKING",
       items: [
+        { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
         ...(canAccessTeamMembers
           ? [
               {
