@@ -88,6 +88,8 @@ export default function TrackerPage() {
 
   // Guard against overlapping fetches and enforce IST date normalization
   const breaksRequestRef = useRef(0);
+  // Cache breaks by date to show instantly while refreshing in background
+  const breaksCacheRef = useRef(new Map()); // key: IST date (YYYY-MM-DD) => { date, breaks, totals }
   const toISTDate = (dateLike) =>
     new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Kolkata",
@@ -96,43 +98,81 @@ export default function TrackerPage() {
       day: "2-digit",
     }).format(dateLike ? new Date(dateLike) : new Date());
 
-  const fetchBreaks = async (dateStr) => {
-    try {
-      const reqId = ++breaksRequestRef.current;
-      const token = localStorage.getItem("token");
-      const istDate = toISTDate(dateStr || new Date());
-      const qs = `?date=${encodeURIComponent(istDate)}`;
-      const res = await apiHandler.GetApi(
-        `${api_url.employeeTrackerBreaks}${qs}`,
-        token
+  // Helper: timeout wrapper
+  const withTimeout = (promise, ms = 2500) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), ms)
+      ),
+    ]);
+
+  const fetchBreaks = async (dateStr, { useCacheFirst = true } = {}) => {
+    const reqId = ++breaksRequestRef.current;
+    const token = localStorage.getItem("token");
+    const istDate = toISTDate(dateStr || new Date());
+    const qs = `?date=${encodeURIComponent(istDate)}`;
+
+    // 1) Show cache immediately if present
+    if (useCacheFirst && breaksCacheRef.current.has(istDate)) {
+      const cached = breaksCacheRef.current.get(istDate);
+      setBreaksData(cached);
+    }
+
+    // 2) Fetch fresh with one quick retry on failure/timeout
+    const attemptFetch = async () =>
+      withTimeout(
+        apiHandler.GetApi(`${api_url.employeeTrackerBreaks}${qs}`, token),
+        2500
       );
+
+    try {
+      let res = null;
+      try {
+        res = await attemptFetch();
+      } catch (e1) {
+        // brief backoff then retry once
+        await new Promise((r) => setTimeout(r, 300));
+        res = await attemptFetch();
+      }
 
       // Drop stale responses
       if (reqId !== breaksRequestRef.current) return;
 
       if (res?.success) {
-        setBreaksData({
+        const payload = {
           date: res.date || istDate,
           breaks: Array.isArray(res.breaks) ? res.breaks : [],
-          totals: res.totals || {
-            count: 0,
-            totalMinutes: 0,
-            totalHMS: "00:00:00",
-          },
-        });
+          totals:
+            res.totals || {
+              count: 0,
+              totalMinutes: 0,
+              totalHMS: "00:00:00",
+            },
+        };
+        // Update state and cache
+        setBreaksData(payload);
+        breaksCacheRef.current.set(istDate, payload);
       } else {
-        setBreaksData({
+        const empty = {
           date: istDate,
           breaks: [],
           totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
-        });
+        };
+        setBreaksData(empty);
+        breaksCacheRef.current.set(istDate, empty);
       }
     } catch {
-      setBreaksData({
-        date: toISTDate(dateStr || new Date()),
-        breaks: [],
-        totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
-      });
+      // network/timeout after retry → keep cache if any, otherwise set empty
+      if (reqId !== breaksRequestRef.current) return;
+      const fallback =
+        breaksCacheRef.current.get(istDate) || {
+          date: istDate,
+          breaks: [],
+          totals: { count: 0, totalMinutes: 0, totalHMS: "00:00:00" },
+        };
+      setBreaksData(fallback);
+      breaksCacheRef.current.set(istDate, fallback);
     }
   };
 
@@ -266,6 +306,23 @@ export default function TrackerPage() {
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
   }, [status]);
+
+  // Display helper: map reason per requirements
+  const displayBreakReason = (b) => {
+    try {
+      const type = String(b?.breakType || "").toLowerCase();
+      if (type === "manual" || type === "manual_break") {
+        return b?.reason || "—";
+      }
+      if (type.includes("tea")) return "Tea";
+      if (type.includes("lunch") || type.includes("dinner"))
+        return "Lunch/Dinner";
+      if (type.includes("meeting")) return "Meeting";
+      return b?.reason || "—";
+    } catch {
+      return b?.reason || "—";
+    }
+  };
 
   // Calculate daily productivity trends moved to Overall Stats
   const dailyProductivityData = [];
@@ -1550,7 +1607,7 @@ export default function TrackerPage() {
                           </span>
                         </td>
                         <td className="py-4 px-4 text-gray-700 font-medium">
-                          {b.reason || "—"}
+                          {displayBreakReason(b)}
                         </td>
                         <td className="py-4 px-4 tabular-nums text-gray-600 font-medium">
                           {b.startTime || "—"}

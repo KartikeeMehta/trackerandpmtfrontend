@@ -114,7 +114,8 @@ const Section_a = () => {
         // If this is an employee login, set currentEmployee from 'user'
         if (userType === "employee") {
           setCurrentEmployee(u);
-          if ((u.role || "").toLowerCase() === "teammember") {
+          const roleLc = (u.role || "").toLowerCase();
+          if (roleLc === "teammember" || roleLc === "teamlead") {
             setSelectedMember(u);
           }
         }
@@ -130,7 +131,8 @@ const Section_a = () => {
         const e = JSON.parse(storedEmployee);
         setUserRole(e.role || "teamMember");
         setCurrentEmployee(e);
-        if ((e.role || "").toLowerCase() === "teammember") {
+        const roleLc = (e.role || "").toLowerCase();
+        if (roleLc === "teammember" || roleLc === "teamlead") {
           setSelectedMember(e);
         }
         return;

@@ -1037,15 +1037,17 @@ export default function OverallStatsPage() {
   };
 
   const IdleTrend = ({ days }) => {
-    const chartHeight = 160;
+    const chartHeight = 260;
     const chartWidth = 420;
-    const padding = 32;
+    const padding = 36;
     const innerWidth = chartWidth - padding * 2;
     const innerHeight = chartHeight - padding * 2;
-    const max = Math.max(60, ...days.map((d) => d.idleMin));
+    const CAP_MINUTES = 180;
+    const max = CAP_MINUTES;
     const points = days.map((d, i) => {
       const x = padding + (i / (days.length - 1)) * innerWidth;
-      const y = padding + (1 - d.idleMin / max) * innerHeight;
+      const v = Math.min(Number(d.idleMin) || 0, CAP_MINUTES);
+      const y = padding + (1 - v / max) * innerHeight;
       return { x, y, d };
     });
     const path = points
@@ -1071,8 +1073,8 @@ export default function OverallStatsPage() {
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             className="overflow-visible"
           >
-            {[0, 20, 40, 60].map((v) => {
-              const y = padding + (1 - v / max) * innerHeight;
+            {[0, 30, 60, 90, 120, 150, 180].map((v) => {
+              const y = padding + (1 - v / CAP_MINUTES) * innerHeight;
               return (
                 <g key={v}>
                   <line
@@ -1088,7 +1090,7 @@ export default function OverallStatsPage() {
                     x={padding - 8}
                     y={y + 4}
                     textAnchor="end"
-                    className="text-xs fill-gray-500"
+                    className="text-xs font-semibold fill-gray-700"
                   >
                     {v}m
                   </text>
