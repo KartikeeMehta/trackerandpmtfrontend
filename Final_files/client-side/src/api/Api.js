@@ -73,8 +73,6 @@ export const api_url = {
   employeeTrackerBreaks: BASE_URL + "/employee-tracker/breaks",
   // --- HR Attendance ---
   hrAttendance: BASE_URL + "/employee-tracker/attendance",
-  // --- HR Settings ---
-  hrSettings: BASE_URL + "/hr-settings",
 };
 
 export const Methods = {

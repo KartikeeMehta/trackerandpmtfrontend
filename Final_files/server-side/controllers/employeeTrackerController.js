@@ -506,10 +506,34 @@ exports.getCurrentStatus = async (req, res) => {
     } catch (err) {
       console.error("recalculateCurrentSessionTimes error:", err);
     }
-    // Avoid persisting on every poll to reduce churn; rely on explicit actions to save
-    const payload = tracker.getCurrentStatus();
-    // Treat this call as a heartbeat from the desktop app
+    // Heartbeat and stale-session auto-end
     const now = new Date();
+    try {
+      tracker.lastHeartbeatAt = now;
+      // If an active session exists but heartbeat is too old, auto end it
+      if (
+        tracker.currentSession &&
+        tracker.currentSession.isActive &&
+        tracker.lastHeartbeatAt &&
+        tracker.currentSession.lastActivity &&
+        now.getTime() - tracker.currentSession.lastActivity.getTime() >
+          3 * 60 * 1000 // 3 minutes
+      ) {
+        console.log(
+          "⛔ Auto-ending stale session due to heartbeat timeout for employee:",
+          tracker.employeeId
+        );
+        tracker.endWorkSession();
+        await tracker.save();
+      } else {
+        await tracker.save();
+      }
+    } catch (err) {
+      console.error("Heartbeat persist/auto-end error:", err);
+    }
+
+    // Avoid persisting on every response beyond the above
+    const payload = tracker.getCurrentStatus();
     payload.paired = true;
     payload.lastHeartbeatAt = now;
     payload.isIdle = !!tracker._lastIdleStart;

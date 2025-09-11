@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -17,12 +17,10 @@ import {
 } from "lucide-react";
 // import notificationManager from "@/utils/notificationManager";
 import { api_url, image_url } from "@/api/Api";
-import { FeatureFlagsContext } from "./FeatureFlagsProvider";
 import { apiHandler } from "@/api/ApiHandler";
 
 const Sidebar = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
-  const { loading: flagsLoading, hrEnabled } = useContext(FeatureFlagsContext);
   // Notifications disabled on sidebar per requirements
   const [badges, setBadges] = useState({
     tasks: 0,
@@ -144,8 +142,8 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
           : []),
       ],
     },
-    // New HR MANAGEMENT section (visible only when feature enabled)
-    ...(isOwnerAdmin && hrEnabled
+    // New HR MANAGEMENT section
+    ...(isOwnerAdmin
       ? [
           {
             label: "HR MANAGEMENT",

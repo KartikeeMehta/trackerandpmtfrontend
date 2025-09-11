@@ -29,7 +29,6 @@ import TrackerConnectPageWrapper from "./pages/TrackerConnect";
 import TrackerPage from "./pages/Tracker";
 import OverallStatsPage from "./pages/OverallStats";
 import PeopleTracking from "./pages/PeopleTracking";
-import HRGuard from "./components/HRGuard";
 import Leaderboard from "./pages/Leaderboard";
 import HRManagement from "./pages/HRManagement";
 import HRMemberAttendance from "./pages/HRMemberAttendance";
@@ -237,11 +236,9 @@ function App() {
             path="/people-tracking"
             element={
               <ProtectedRoute roles={["owner", "admin", "manager"]}>
-                <HRGuard>
-                  <MainLayout>
-                    <PeopleTracking />
-                  </MainLayout>
-                </HRGuard>
+                <MainLayout>
+                  <PeopleTracking />
+                </MainLayout>
               </ProtectedRoute>
             }
           />
@@ -249,11 +246,9 @@ function App() {
             path="/leaderboard"
             element={
               <ProtectedRoute>
-                <HRGuard>
-                  <MainLayout>
-                    <Leaderboard />
-                  </MainLayout>
-                </HRGuard>
+                <MainLayout>
+                  <Leaderboard />
+                </MainLayout>
               </ProtectedRoute>
             }
           />
@@ -261,11 +256,9 @@ function App() {
             path="/hr-management"
             element={
               <ProtectedRoute roles={["owner", "admin"]}>
-                <HRGuard>
-                  <MainLayout>
-                    <HRManagement />
-                  </MainLayout>
-                </HRGuard>
+                <MainLayout>
+                  <HRManagement />
+                </MainLayout>
               </ProtectedRoute>
             }
           />
@@ -273,11 +266,9 @@ function App() {
             path="/hr-attendance"
             element={
               <ProtectedRoute roles={["owner", "admin"]}>
-                <HRGuard>
-                  <MainLayout>
-                    <HRMemberAttendance />
-                  </MainLayout>
-                </HRGuard>
+                <MainLayout>
+                  <HRMemberAttendance />
+                </MainLayout>
               </ProtectedRoute>
             }
           />
@@ -285,11 +276,9 @@ function App() {
             path="/hr-attendance/:teamMemberId"
             element={
               <ProtectedRoute roles={["owner", "admin"]}>
-                <HRGuard>
-                  <MainLayout>
-                    <HRMemberAttendanceDetail />
-                  </MainLayout>
-                </HRGuard>
+                <MainLayout>
+                  <HRMemberAttendanceDetail />
+                </MainLayout>
               </ProtectedRoute>
             }
           />

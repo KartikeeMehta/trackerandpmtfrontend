@@ -937,6 +937,13 @@ const Track = () => {
                 console.error("❌ Activity update error:", e);
               });
           }
+
+          // Lightweight heartbeat to keep session fresh
+          fetch(`${API.base}/employee-tracker/status`, {
+            method: "GET",
+            headers: getAuthHeaders(),
+            credentials: "include",
+          }).catch(() => {});
         } catch (e) {
           console.error("Failed to fetch activity counts:", e);
         }

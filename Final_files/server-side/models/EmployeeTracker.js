@@ -349,6 +349,10 @@ const employeeTrackerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    lastHeartbeatAt: {
+      type: Date,
+      default: null,
+    },
     lastPunchIn: {
       type: Date,
       default: null,
