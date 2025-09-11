@@ -1,0 +1,738 @@
+{
+  "timestamp": "2025-09-10T18-30-13-926Z",
+  "count": 11,
+  "data": [
+    {
+      "summaryMeta": {
+        "lastEditedBy": "68a86a959e4c877bf771165c",
+        "lastEditedByName": "Kartikee Mehta",
+        "lastEditedAt": "2025-09-09T13:40:47.759Z"
+      },
+      "_id": "68a86e039e4c877bf7711d04",
+      "project_id": "WS-Pr-1",
+      "project_name": "Project Flow",
+      "client_name": "In-House Project",
+      "project_description": "This is project management system.",
+      "start_date": "2025-08-01",
+      "end_date": "2025-08-27",
+      "project_status": "ongoing",
+      "project_lead": "WS-021",
+      "team_members": [
+        "WS-008",
+        "WS-016",
+        "WS-006"
+      ],
+      "starred": false,
+      "team_id": "68a86bc49e4c877bf7711850",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a858604b179ac3b49d1215",
+      "deletedAt": null,
+      "phases": [
+        {
+          "phase_id": "WS-ph-1",
+          "title": "Phase 1 (The Development)",
+          "dueDate": "2025-08-28",
+          "status": "In Progress",
+          "comments": [
+            {
+              "text": "Review it",
+              "commentedBy": "68a858604b179ac3b49d1215",
+              "commentedByName": "Rajender Kashyap",
+              "timestamp": "2025-08-28T17:13:26.388Z"
+            }
+          ],
+          "subtasks": [
+            {
+              "subtask_id": "WS-ph-1-1",
+              "subtask_title": "The Backend Structure",
+              "description": "The proper development of backend with proper implementations routes and controllers",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-016",
+              "priority": "Low",
+              "status": "Completed",
+              "dueDate": "2025-08-23T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-22T13:21:32.952Z",
+              "updatedAt": "2025-09-10T16:59:19.935Z"
+            },
+            {
+              "subtask_id": "WS-ph-1-5",
+              "subtask_title": "Test Subtask",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-016",
+              "priority": "Low",
+              "status": "Completed",
+              "dueDate": "2025-08-28T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-25T16:32:09.494Z",
+              "updatedAt": "2025-08-25T17:42:58.804Z"
+            },
+            {
+              "subtask_id": "WS-ph-1-4",
+              "subtask_title": "test",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-016",
+              "priority": "Critical",
+              "status": "Completed",
+              "dueDate": "2025-08-30T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-27T10:33:24.010Z",
+              "updatedAt": "2025-09-09T13:40:40.923Z"
+            }
+          ],
+          "description": "Early stages of development.\n"
+        },
+        {
+          "phase_id": "WS-ph-6",
+          "title": "Phase 2",
+          "description": "Test",
+          "dueDate": "2025-09-10",
+          "status": "Pending",
+          "comments": [],
+          "subtasks": [
+            {
+              "subtask_id": "WS-ph-6-1",
+              "subtask_title": "UI/UX design for the super admin dashboard.",
+              "description": "UI/UX design for the super admin dashboard.",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:51:03.190Z",
+              "updatedAt": "2025-09-10T17:51:03.190Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-2",
+              "subtask_title": "UI/UX design for the super admin dashboard.",
+              "description": "UI/UX design for the super admin dashboard.",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:51:42.628Z",
+              "updatedAt": "2025-09-10T17:51:42.628Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-3",
+              "subtask_title": "UI/UX design for the super admin dashboard.",
+              "description": "UI/UX design for the super admin dashboard.",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:52:22.947Z",
+              "updatedAt": "2025-09-10T17:52:22.947Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-4",
+              "subtask_title": "Test",
+              "description": "Test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:54:47.985Z",
+              "updatedAt": "2025-09-10T17:54:47.985Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-5",
+              "subtask_title": "Test",
+              "description": "Test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:56:05.717Z",
+              "updatedAt": "2025-09-10T17:56:05.717Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-6",
+              "subtask_title": "test",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:59:12.078Z",
+              "updatedAt": "2025-09-10T17:59:12.078Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-7",
+              "subtask_title": "test",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T17:59:35.955Z",
+              "updatedAt": "2025-09-10T17:59:35.955Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-8",
+              "subtask_title": "Test",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T18:00:08.694Z",
+              "updatedAt": "2025-09-10T18:00:08.694Z"
+            },
+            {
+              "subtask_id": "WS-ph-6-9",
+              "subtask_title": "Test",
+              "description": "test",
+              "assigned_team": "Frontend And Backend",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T18:03:41.317Z",
+              "updatedAt": "2025-09-10T18:03:41.317Z"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2025-08-22T13:17:55.511Z",
+      "updatedAt": "2025-09-10T18:03:41.318Z",
+      "__v": 13,
+      "summary": "<b>Hi I am testing Summary ok fine ok</b>"
+    },
+    {
+      "summary": "",
+      "_id": "68a8923fd0605fd993e66ebf",
+      "project_id": "MPL-Pr-1",
+      "project_name": "Umpires Project",
+      "client_name": "Mark",
+      "project_description": "test",
+      "start_date": "2025-08-23",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "MPL-003",
+      "team_members": [
+        "MPL-004",
+        "MPL-005",
+        "MPL-002"
+      ],
+      "starred": false,
+      "team_id": "68a891ffd0605fd993e66e64",
+      "companyName": "Munish Pvt. Ltd.",
+      "createdBy": "68a87b87d0605fd993e66c8e",
+      "deletedAt": null,
+      "phases": [
+        {
+          "phase_id": "MPL-ph-1",
+          "title": "Umpires Phase 1",
+          "dueDate": "2025-08-22",
+          "status": "Pending",
+          "comments": [],
+          "subtasks": [
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-1",
+              "subtask_title": "Umpires Subtask",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-003",
+              "status": "Pending",
+              "dueDate": "2025-08-22T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-22T15:53:35.648Z",
+              "updatedAt": "2025-08-22T15:53:35.648Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-2",
+              "subtask_title": "Newwwwww",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "dueDate": "2025-08-22T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-22T16:47:17.753Z",
+              "updatedAt": "2025-08-22T16:47:17.753Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-3",
+              "subtask_title": "Subtaskkkkkkk",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T16:50:36.231Z",
+              "updatedAt": "2025-08-22T16:50:36.231Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-4",
+              "subtask_title": "Heyyyyy",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T16:56:27.528Z",
+              "updatedAt": "2025-08-22T16:56:27.528Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-5",
+              "subtask_title": "HHHHHHHeeeeeellllllloooooo",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "dueDate": "2025-08-22T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-22T16:58:15.211Z",
+              "updatedAt": "2025-08-22T16:58:15.211Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-6",
+              "subtask_title": "test",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T17:05:03.074Z",
+              "updatedAt": "2025-08-22T17:05:03.074Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-7",
+              "subtask_title": "abcdef",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T17:07:35.912Z",
+              "updatedAt": "2025-08-22T17:07:35.912Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-8",
+              "subtask_title": "test",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T17:09:40.691Z",
+              "updatedAt": "2025-08-22T17:09:40.691Z"
+            },
+            {
+              "priority": "Low",
+              "subtask_id": "MPL-ph-1-9",
+              "subtask_title": "mnbvc",
+              "description": "test",
+              "assigned_team": "Umpires Union",
+              "assigned_member": "MPL-002",
+              "status": "Pending",
+              "images": [],
+              "createdAt": "2025-08-22T17:15:18.390Z",
+              "updatedAt": "2025-08-22T17:15:18.390Z"
+            }
+          ]
+        },
+        {
+          "phase_id": "MPL-ph-2",
+          "title": "New",
+          "dueDate": "2025-08-23",
+          "status": "Pending",
+          "comments": [],
+          "subtasks": []
+        }
+      ],
+      "createdAt": "2025-08-22T15:52:31.168Z",
+      "updatedAt": "2025-08-22T17:15:18.390Z",
+      "__v": 3
+    },
+    {
+      "summary": "",
+      "_id": "68ad806dd5e54b090a43792c",
+      "project_id": "WS-Pr-3",
+      "project_name": "Rachel Wright",
+      "client_name": "Rachel",
+      "project_description": "Build Template and proper validation and creation of contact form submissions.",
+      "start_date": "2025-08-26",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68ac52b19e4c877bf7714b3d",
+      "deletedAt": null,
+      "phases": [
+        {
+          "phase_id": "WS-ph-8",
+          "title": "Phase 1 (Build Template)",
+          "description": "Build Templates - 3",
+          "dueDate": "2025-08-27",
+          "status": "In Progress",
+          "comments": [
+            {
+              "text": "Phase 1 in progress",
+              "commentedBy": "68a868b99e4c877bf77111dd",
+              "commentedByName": "Gagan Thakur",
+              "timestamp": "2025-08-26T09:40:22.712Z"
+            }
+          ],
+          "subtasks": [
+            {
+              "subtask_id": "WS-ph-8-1",
+              "subtask_title": "Build 1st template",
+              "description": "The template in elementor",
+              "assigned_team": "Word Press",
+              "assigned_member": "WS-018",
+              "priority": "High",
+              "status": "Completed",
+              "dueDate": "2025-08-26T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-26T09:41:14.243Z",
+              "updatedAt": "2025-09-09T11:27:39.866Z"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2025-08-26T09:37:49.120Z",
+      "updatedAt": "2025-09-09T11:27:39.866Z",
+      "__v": 3
+    },
+    {
+      "summary": "",
+      "_id": "68b038d8ad71544aceeafed6",
+      "project_id": "WS-Pr-4",
+      "project_name": "Expert Shopify Developer Needed for Site Tweaks",
+      "client_name": "Sarah Hierstaetter",
+      "project_description": "We are seeking a highly skilled software engineer with extensive experience in Shopify to help us finalise our existing Shopify site. The ideal candidate will be tasked with implementing design changes based on provided mockups and ensuring the site functions smoothly. If you have a strong portfolio of Shopify projects and a keen eye for detail, we would love to see your application. Please tell us about relevant examples of your past work and how you would approach this project. Experience working with subscription services is a plus.",
+      "start_date": "2025-08-22",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-003",
+      "team_members": [
+        "WS-001",
+        "WS-014",
+        "WS-024",
+        "WS-025"
+      ],
+      "starred": false,
+      "team_id": "68a869c69e4c877bf7711514",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-08-28T11:09:12.381Z",
+      "updatedAt": "2025-08-28T13:44:54.764Z",
+      "__v": 2
+    },
+    {
+      "summary": "",
+      "_id": "68b039a4ad71544aceeaff59",
+      "project_id": "WS-Pr-5",
+      "project_name": "Experienced WordPress Developer Needed for 25-Page Website",
+      "client_name": "Dmitry Shats",
+      "project_description": "Content Population for WordPress Website (25 Pages, WPBakery, UX Awareness Required)\n\nWe have a WordPress website (teamrv.dreamhosters.com) with a ready-made template and design elements. The task is to populate approximately 25 pages using content from prepared Microsoft Word documents. This is a fixed-price project with an expected duration of 1 week. Please provide your total cost for the entire project.\n\nScope of work:\n\n- Open each WordPress page and the corresponding Word document\n- Review the document and decide how to best structure the content visually. This requires a basic understanding of UX principles. Some content may look best in a table, some may work better as tiles or cards, and certain text may be more effective as a banner or highlight section\n- Use WPBakery Page Builder to format and place the content into the page\n- Ensure the layout is clean, consistent, and aligned with the template’s design language\n- Generate missing illustrations using AI tools and insert them appropriately\n- Verify that each page displays correctly on both desktop and mobile devices\n\nDeliverables:\n\n- 25 fully populated and formatted WordPress pages\n- Clear, structured layouts that enhance readability and user experience\n- Relevant illustrations added where needed\n- All pages tested for responsive design on desktop and mobile\n\nRequirements:\n\n- Strong experience with WordPress page editing and WPBakery Page Builder\n- Ability to apply basic UX and layout principles when structuring content\n- Attention to detail and accuracy\n\nTimeline:\n\n- Day 2: First 3 pages delivered for review\n- Day 4: 10 pages completed\n- Day 7: All 25 pages completed and accepted\n\nCommunication:\n\n- Russian and English are both acceptable\n- Timezone: EST, with some asynchronous communication expected\n- Channel: Upwork messages or another tool if agreed\n\nLooking forward to working together.",
+      "start_date": "2025-08-22",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [
+        {
+          "phase_id": "WS-ph-9",
+          "title": "Phase 1 (Content Update)",
+          "description": "Content Update",
+          "dueDate": "2025-08-29",
+          "status": "Pending",
+          "comments": [],
+          "subtasks": [
+            {
+              "subtask_id": "WS-ph-9-1",
+              "subtask_title": "Content Update For All Pages ",
+              "description": "Content Update For All Pages ",
+              "assigned_team": "Word Press",
+              "assigned_member": "WS-015",
+              "priority": "High",
+              "status": "Completed",
+              "dueDate": "2025-08-29T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-28T14:15:50.664Z",
+              "updatedAt": "2025-08-29T17:21:32.770Z"
+            }
+          ]
+        },
+        {
+          "phase_id": "WS-ph-10",
+          "title": "Phase 2 ( Content Testing )",
+          "description": "Content Testing",
+          "dueDate": "2025-08-28",
+          "status": "Completed",
+          "comments": [],
+          "subtasks": [
+            {
+              "subtask_id": "WS-ph-10-1",
+              "subtask_title": "Content Testing",
+              "description": "Content Testing",
+              "assigned_team": "Word Press",
+              "assigned_member": "WS-015",
+              "priority": "Critical",
+              "status": "Completed",
+              "dueDate": "2025-08-28T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-08-28T14:18:23.676Z",
+              "updatedAt": "2025-08-29T11:31:48.221Z"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2025-08-28T11:12:36.475Z",
+      "updatedAt": "2025-08-29T17:21:32.771Z",
+      "__v": 13
+    },
+    {
+      "summary": "",
+      "_id": "68b175bd9ccfb2a387771823",
+      "project_id": "WS-Pr-6",
+      "project_name": "Build Webflow Masonry Grid",
+      "client_name": "Travis W.",
+      "project_description": "Update the grid on our case studies page to use masonry / dynamic row height.",
+      "start_date": "2025-08-27",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-08-29T09:41:17.688Z",
+      "updatedAt": "2025-08-29T09:41:17.688Z",
+      "__v": 0
+    },
+    {
+      "summary": "",
+      "_id": "68b176389ccfb2a387771856",
+      "project_id": "WS-Pr-7",
+      "project_name": "Website Cloning for Wiim Products in Iceland",
+      "client_name": "Andri Steinn Johannsson",
+      "project_description": "I need new product added to our website",
+      "start_date": "2025-08-28",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-08-29T09:43:20.346Z",
+      "updatedAt": "2025-08-29T09:43:20.346Z",
+      "__v": 0
+    },
+    {
+      "summary": "",
+      "_id": "68b176399ccfb2a387771870",
+      "project_id": "WS-Pr-8",
+      "project_name": "Website Cloning for Wiim Products in Iceland",
+      "client_name": "Andri Steinn Johannsson",
+      "project_description": "I need new product added to our website",
+      "start_date": "2025-08-28",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-08-29T09:43:21.814Z",
+      "updatedAt": "2025-08-29T09:43:21.814Z",
+      "__v": 0
+    },
+    {
+      "summary": "",
+      "_id": "68b176e79ccfb2a3877718a0",
+      "project_id": "WS-Pr-9",
+      "project_name": "Webpage Development on Shift4Shop Framework",
+      "client_name": "Sam Bagdassarian",
+      "project_description": "We are seeking a skilled developer with experience in the Shift4Shop framework to build a professional webpage. The ideal candidate should have a strong understanding of e-commerce solutions and be able to deliver a user-friendly and visually appealing website. The project requires collaboration to ensure the webpage meets our branding and functional needs. If you are passionate about creating seamless online shopping experiences and have a portfolio showcasing your Shift4Shop work, we would love to hear from you!",
+      "start_date": "2025-08-19",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-007",
+        "WS-010",
+        "WS-015",
+        "WS-018",
+        "WS-023"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-08-29T09:46:15.381Z",
+      "updatedAt": "2025-08-29T09:46:15.381Z",
+      "__v": 0
+    },
+    {
+      "summary": "",
+      "_id": "68b7224b5f7ac459e644355c",
+      "project_id": "WS-Pr-10",
+      "project_name": "Shopify Store Design Update & Wholesale Page Setup",
+      "client_name": "Oz Kar",
+      "project_description": "We are seeking an experienced Shopify developer to enhance our store's design and set up an advanced wholesale page. The ideal candidate should have a strong portfolio showcasing their previous work in Shopify design and functionality. You will be responsible for updating our current store layout, improving user experience, and integrating a seamless wholesale page tailored to our business needs. Please ensure to read the full job post before applying. Attention to detail and creativity are essential for this project.",
+      "start_date": "2025-01-09",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-003",
+      "team_members": [
+        "WS-009",
+        "WS-012",
+        "WS-014",
+        "WS-024",
+        "WS-025"
+      ],
+      "starred": false,
+      "team_id": "68a869c69e4c877bf7711514",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a869379e4c877bf77112e0",
+      "deletedAt": null,
+      "phases": [],
+      "createdAt": "2025-09-02T16:58:51.235Z",
+      "updatedAt": "2025-09-02T16:58:51.235Z",
+      "__v": 0
+    },
+    {
+      "summaryMeta": {
+        "lastEditedBy": "68a8645e0fa2017c29b87831",
+        "lastEditedByName": "Kapil Badyal",
+        "lastEditedAt": "2025-09-09T16:56:04.787Z"
+      },
+      "_id": "68bff1c7a9269cf31fc33920",
+      "project_id": "WS-Pr-11",
+      "project_name": "Coin Flow",
+      "client_name": "Gokul and Malik",
+      "project_description": "Project Summary:\n\nThis project will deliver a commercial-grade WooCommerce plugin (Coinflow) that enables merchants to accept cryptocurrency payments directly on their WordPress stores using the NowPayments API. The solution includes a WooCommerce plugin layer for checkout, refunds, and merchant dashboards, a middleware SaaS layer for licensing, logs, and partner fee tracking, and full integration with NowPayments for payment and refund processing.",
+      "start_date": "2025-09-09",
+      "end_date": "Ongoing",
+      "project_status": "ongoing",
+      "project_lead": "WS-017",
+      "team_members": [
+        "WS-023",
+        "WS-002",
+        "WS-026",
+        "WS-020",
+        "WS-005",
+        "WS-021",
+        "WS-018",
+        "WS-010",
+        "WS-007"
+      ],
+      "starred": false,
+      "team_id": "68a869f79e4c877bf7711574",
+      "companyName": "Webblaze Softech",
+      "createdBy": "68a8645e0fa2017c29b87831",
+      "deletedAt": null,
+      "phases": [
+        {
+          "phase_id": "WS-Pr-11-ph-1",
+          "title": "Phase 1 (Week 1–2): UI/UX of Super Admin Dashboard",
+          "description": "Phase 1 (Week 1–2): UI/UX of Super Admin Dashboard:",
+          "dueDate": "2025-09-19",
+          "status": "Pending",
+          "comments": [],
+          "subtasks": [
+            {
+              "subtask_id": "WS-Pr-11-ph-1-1",
+              "subtask_title": "Test",
+              "description": "test",
+              "assigned_team": "Word Press",
+              "assigned_member": "WS-026",
+              "priority": "High",
+              "status": "Pending",
+              "dueDate": "2025-09-19T00:00:00.000Z",
+              "images": [],
+              "createdAt": "2025-09-10T18:17:05.773Z",
+              "updatedAt": "2025-09-10T18:17:05.773Z"
+            }
+          ]
+        }
+      ],
+      "createdAt": "2025-09-09T09:22:15.292Z",
+      "updatedAt": "2025-09-10T18:17:05.773Z",
+      "__v": 10,
+      "summary": "hello"
+    }
+  ]
+}

@@ -5,16 +5,15 @@ function Header() {
   const navigate = useNavigate();
   const isAuthed = !!localStorage.getItem("token");
   return (
-    <header className="sticky top-0 z-20 bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-neutral-950/60 border-b border-neutral-800">
+    <header className="sticky top-0 z-20 bg-[#04050ff2] backdrop-blur supports-[backdrop-filter]:bg-[#04050ff2] border-b border-neutral-800 font-roboto">
       <div className="max-w-[1200px] mx-auto px-4 py-3 flex items-center justify-between text-neutral-200">
-        <Link to="/" className="flex items-center gap-2">
-          <img
-            src="./final_orbit_logo.png"
-            alt="WorkOrbit"
-            className="h-8 w-auto"
-          />
+        <Link to="/" className="flex items-center">
+          <img src="final_wo_logo.png" alt="" className="w-[100px]" />
+          {/* <span className="text-2xl font-bold text-[#2563eb] tracking-tight">
+            WorkOrbit
+          </span> */}
         </Link>
-        <nav className="hidden sm:flex items-center gap-6 text-sm">
+        <nav className="font- text-[16px] font-semibold hidden sm:flex items-center gap-6 text-sm">
           <a href="#features" className="text-neutral-300 hover:text-white">
             Features
           </a>

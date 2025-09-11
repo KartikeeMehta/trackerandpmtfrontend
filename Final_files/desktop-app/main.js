@@ -3,6 +3,7 @@ const {
   BrowserWindow,
   ipcMain,
   powerMonitor,
+  globalShortcut,
   Tray,
   Menu,
   nativeImage,
@@ -90,6 +91,7 @@ function createWindow() {
 let mainWindow = null;
 let tray = null;
 let isQuiting = false;
+let punchOutAck = false;
 
 function sendForcePunchOut() {
   try {
@@ -101,18 +103,49 @@ function sendForcePunchOut() {
   } catch (e) {}
 }
 
+// Listen for punch-out acknowledgment from renderer
+try {
+  ipcMain.on("tracker:punch-out-ack", () => {
+    punchOutAck = true;
+    // Proceed to quit immediately once ack received
+    try {
+      app.quit();
+    } catch (_) {}
+  });
+} catch (_) {}
+
 async function gracefulQuit() {
   if (isQuiting) return;
   isQuiting = true;
   // Ask renderer to punch out
   sendForcePunchOut();
-  // Give renderer a brief moment to finish network call
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  app.quit();
+  // Wait for ack up to 3 seconds
+  const start = Date.now();
+  while (!punchOutAck && Date.now() - start < 3000) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  try {
+    app.quit();
+  } catch (_) {}
 }
 
 app.whenReady().then(() => {
   mainWindow = createWindow();
+  // Register global shortcut to toggle DevTools: Ctrl+Shift+D
+  try {
+    const ok = globalShortcut.register("Control+Shift+D", () => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.toggleDevTools();
+        }
+      } catch (_) {}
+    });
+    if (!ok) {
+      console.log("Failed to register Ctrl+Shift+D shortcut");
+    }
+  } catch (e) {
+    console.log("Error registering global shortcut:", e.message);
+  }
   // Create system tray icon
   try {
     const iconPath = resolveIconPath();
@@ -181,6 +214,14 @@ app.on("before-quit", () => {
   stopIdleMonitor();
 });
 
+// Clean up global shortcuts on quit
+app.on("will-quit", () => {
+  try {
+    globalShortcut.unregister("Control+Shift+D");
+    globalShortcut.unregisterAll();
+  } catch (_) {}
+});
+
 // Handle system power events to force punch out
 try {
   powerMonitor.on("shutdown", (e) => {
@@ -189,9 +230,16 @@ try {
       sendForcePunchOut();
       // Delay shutdown very briefly to allow network call
       if (typeof e.preventDefault === "function") e.preventDefault();
-      setTimeout(() => {
-        app.quit();
-      }, 800);
+      const start = Date.now();
+      const waitAndQuit = async () => {
+        while (!punchOutAck && Date.now() - start < 3000) {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        try {
+          app.quit();
+        } catch (_) {}
+      };
+      waitAndQuit();
     } catch (_) {}
   });
 

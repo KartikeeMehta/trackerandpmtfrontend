@@ -2,7 +2,7 @@ import React from "react";
 
 function Footer() {
   return (
-    <footer className="pt-16 border-t border-neutral-950 bg-neutral-950 text-neutral-300">
+    <footer className="pt-16 border-t border-neutral-950 bg-[url('background_section_home_c.png')] bg-cover text-neutral-300 font-roboto">
       <div className="max-w-[1200px] mx-auto px-4 py-8 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm">
         <div>
           <div className="flex items-center gap-2 mb-2">

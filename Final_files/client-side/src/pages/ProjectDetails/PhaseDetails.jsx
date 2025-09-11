@@ -411,6 +411,7 @@ const PhaseDetails = () => {
       formData.append("assigned_member", newSubtask.assigned_member);
       formData.append("priority", newSubtask.priority);
       formData.append("phase_id", phaseId);
+      formData.append("projectId", projectId); // Add projectId to ensure correct project
       if (newSubtask.dueDate) formData.append("dueDate", newSubtask.dueDate);
 
       // Add selected images as files
@@ -434,15 +435,19 @@ const PhaseDetails = () => {
         (progress) => setUploadProgress(progress)
       );
 
+      console.log("🔍 addSubtask response:", response);
+
       if (!response.success) {
         throw new Error(response.message || "Failed to add subtask");
       }
 
       // Re-fetch subtasks
+      console.log("🔍 Re-fetching subtasks for projectId:", projectId);
       const subtasksResponse = await apiHandler.GetApi(
         api_url.getSubtasks + projectId,
         token
       );
+      console.log("🔍 Subtasks response:", subtasksResponse);
       if (
         subtasksResponse.success &&
         Array.isArray(subtasksResponse.subtasks)
@@ -451,6 +456,7 @@ const PhaseDetails = () => {
         const phaseSubtasks = subtasksResponse.subtasks.filter(
           (subtask) => String(subtask.phase_id) === String(phaseId)
         );
+        console.log("🔍 Filtered phase subtasks:", phaseSubtasks);
         setSubtasks(phaseSubtasks);
       }
       setShowAddSubtask(false);
@@ -684,11 +690,15 @@ const PhaseDetails = () => {
             <div className="flex items-center gap-2">
               <button
                 className={`px-3 py-1.5 text-sm rounded-md border border-gray-200 ${
-                  canEditPhase ? "hover:bg-gray-100" : "opacity-60 cursor-not-allowed"
+                  canEditPhase
+                    ? "hover:bg-gray-100"
+                    : "opacity-60 cursor-not-allowed"
                 }`}
                 onClick={() => {
                   if (!canEditPhase) {
-                    CustomToast.error("You don't have permission to edit this phase.");
+                    CustomToast.error(
+                      "You don't have permission to edit this phase."
+                    );
                     return;
                   }
                   setEditPhaseStatus(phase.status);
@@ -696,7 +706,7 @@ const PhaseDetails = () => {
                 }}
               >
                 Edit Phase
-                  </button>
+              </button>
             </div>
           </div>
         </div>
@@ -762,8 +772,12 @@ const PhaseDetails = () => {
                       <Target className="w-3 h-3 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-gray-900">Subtasks</h3>
-                      <p className="text-xs text-gray-500">{subtasks.length} total</p>
+                      <h3 className="text-base font-semibold text-gray-900">
+                        Subtasks
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {subtasks.length} total
+                      </p>
                     </div>
                   </div>
                   {userRole?.toLowerCase() !== "teammember" && (
@@ -776,15 +790,19 @@ const PhaseDetails = () => {
                     </button>
                   )}
                 </div>
-                
+
                 <div className="space-y-2">
                   {subtasks.length === 0 ? (
                     <div className="text-center py-8">
                       <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Target className="w-6 h-6 text-gray-400" />
                       </div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-1">No subtasks yet</h4>
-                      <p className="text-gray-500 text-xs">Create your first subtask to get started</p>
+                      <h4 className="text-sm font-medium text-gray-900 mb-1">
+                        No subtasks yet
+                      </h4>
+                      <p className="text-gray-500 text-xs">
+                        Create your first subtask to get started
+                      </p>
                     </div>
                   ) : (
                     subtasks.map((subtask) => (
@@ -796,13 +814,15 @@ const PhaseDetails = () => {
                         <div className="flex items-start gap-3">
                           {/* Compact Status Icon */}
                           <div className="flex-shrink-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                              subtask.status === "Completed" 
-                                ? "bg-emerald-100" 
-                                : subtask.status === "In Progress"
-                                ? "bg-blue-100"
-                                : "bg-amber-100"
-                            }`}>
+                            <div
+                              className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                                subtask.status === "Completed"
+                                  ? "bg-emerald-100"
+                                  : subtask.status === "In Progress"
+                                  ? "bg-blue-100"
+                                  : "bg-amber-100"
+                              }`}
+                            >
                               {subtask.status === "Completed" ? (
                                 <CheckCircle className="w-4 h-4 text-emerald-600" />
                               ) : subtask.status === "In Progress" ? (
@@ -812,7 +832,7 @@ const PhaseDetails = () => {
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -821,8 +841,8 @@ const PhaseDetails = () => {
                               </h4>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  subtask.priority === "Critical" 
-                                    ? "bg-red-100 text-red-700" 
+                                  subtask.priority === "Critical"
+                                    ? "bg-red-100 text-red-700"
                                     : subtask.priority === "High"
                                     ? "bg-amber-100 text-amber-700"
                                     : "bg-emerald-100 text-emerald-700"
@@ -831,43 +851,52 @@ const PhaseDetails = () => {
                                 {subtask.priority || "Low"}
                               </span>
                             </div>
-                            
+
                             <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                              {subtask.description || "No description available"}
+                              {subtask.description ||
+                                "No description available"}
                             </p>
-                            
+
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Assigned:</span>
+                                <span className="text-xs text-gray-500">
+                                  Assigned:
+                                </span>
                                 <span className="text-xs font-medium text-gray-700">
-                                  {getAssignedMemberName(subtask.assigned_member)}
+                                  {getAssignedMemberName(
+                                    subtask.assigned_member
+                                  )}
                                 </span>
                               </div>
-                              
+
                               {/* Compact Status indicator */}
-                              <div className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                subtask.status === "Completed" 
-                                  ? "bg-emerald-100 text-emerald-700" 
-                                  : subtask.status === "In Progress"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-amber-100 text-amber-700"
-                              }`}>
+                              <div
+                                className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  subtask.status === "Completed"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : subtask.status === "In Progress"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-amber-100 text-amber-700"
+                                }`}
+                              >
                                 {subtask.status || "Pending"}
                               </div>
                             </div>
-                            
+
                             {/* Compact Images section */}
                             {subtask.images && subtask.images.length > 0 && (
                               <div className="flex gap-1 mt-2">
-                                {subtask.images.slice(0, 3).map((image, index) => (
-                                  <div key={index} className="relative">
-                                    <img
-                                      src={image}
-                                      alt={`Subtask image ${index + 1}`}
-                                      className="w-6 h-6 rounded object-cover border border-gray-200"
-                                    />
-                                  </div>
-                                ))}
+                                {subtask.images
+                                  .slice(0, 3)
+                                  .map((image, index) => (
+                                    <div key={index} className="relative">
+                                      <img
+                                        src={image}
+                                        alt={`Subtask image ${index + 1}`}
+                                        className="w-6 h-6 rounded object-cover border border-gray-200"
+                                      />
+                                    </div>
+                                  ))}
                                 {subtask.images.length > 3 && (
                                   <div className="w-6 h-6 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-600">
                                     +{subtask.images.length - 3}
@@ -1188,12 +1217,16 @@ const PhaseDetails = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Phase</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Edit Phase
+              </h3>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
                   if (!canEditPhase) {
-                    CustomToast.error("You don't have permission to edit this phase.");
+                    CustomToast.error(
+                      "You don't have permission to edit this phase."
+                    );
                     return;
                   }
                   const token = localStorage.getItem("token");
@@ -1216,14 +1249,21 @@ const PhaseDetails = () => {
                         token
                       );
                       let foundPhase = null;
-                      if (phasesResponse.success && Array.isArray(phasesResponse.phases)) {
-                        foundPhase = phasesResponse.phases.find((p) => String(p.phase_id) === String(phaseId));
+                      if (
+                        phasesResponse.success &&
+                        Array.isArray(phasesResponse.phases)
+                      ) {
+                        foundPhase = phasesResponse.phases.find(
+                          (p) => String(p.phase_id) === String(phaseId)
+                        );
                       }
                       setPhase(foundPhase || null);
                       setShowEditPhaseModal(false);
                       CustomToast.success("Phase updated");
                     } else {
-                      CustomToast.error(response?.message || "Failed to update phase");
+                      CustomToast.error(
+                        response?.message || "Failed to update phase"
+                      );
                     }
                   } catch (err) {
                     CustomToast.error("Failed to update phase");
@@ -1232,7 +1272,9 @@ const PhaseDetails = () => {
               >
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phase Title</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phase Title
+                    </label>
                     <input
                       type="text"
                       name="phaseTitle"
@@ -1241,7 +1283,9 @@ const PhaseDetails = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
                     <textarea
                       name="phaseDescription"
                       defaultValue={phase?.description || ""}
@@ -1250,7 +1294,9 @@ const PhaseDetails = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date
+                    </label>
                     <input
                       type="date"
                       name="phaseDueDate"
@@ -1267,7 +1313,10 @@ const PhaseDetails = () => {
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
                     Update Phase
                   </button>
                 </div>

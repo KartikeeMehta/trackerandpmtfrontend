@@ -30,6 +30,12 @@
         onForcePunchOut(handler) {
           safeOn("tracker:force-punch-out", handler);
         },
+        // Notify main process that punch-out is completed
+        punchOutAck() {
+          try {
+            ir.send("tracker:punch-out-ack");
+          } catch (_) {}
+        },
         async getActivityCounts() {
           return await ir.invoke("get-activity-counts");
         },

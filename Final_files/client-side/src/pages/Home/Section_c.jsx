@@ -12,7 +12,10 @@ function Stat({ label, value, hint }) {
 
 function Section_c() {
   return (
-    <section id="leaderboard" className=" bg-neutral-950">
+    <section
+      id="leaderboard"
+      className=" bg-[url('./background_section_home_c.png')] bg-obtain font-roboto py-[80px]"
+    >
       <div className="max-w-[1200px] mx-auto px-4 py-12">
         <h2 className="text-2xl font-bold text-white mb-6">
           Motivate with Leaderboards

@@ -714,15 +714,12 @@ exports.addProjectPhase = async (req, res) => {
       .map((word) => word[0].toUpperCase())
       .join("");
 
-    // STEP 2: Count existing phases across all projects of this company
-    const allProjects = await Project.find({ companyName });
-    let totalPhases = 0;
-    allProjects.forEach((p) => {
-      totalPhases += (p.phases || []).length;
-    });
+    // STEP 2: Count existing phases in this specific project
+    const existingPhasesInProject = (project.phases || []).length;
 
-    // STEP 3: Generate phase_id
-    const phaseId = `${initials}-ph-${totalPhases + 1}`;
+    // STEP 3: Generate phase_id with project ID: projectId-ph-{index}
+    const phaseId = `${project.project_id}-ph-${existingPhasesInProject + 1}`;
+    console.log("🔍 Generated phase_id:", phaseId);
 
     const newPhase = {
       phase_id: phaseId,
@@ -1346,19 +1343,8 @@ exports.editSubtask = async (req, res) => {
         }
       }
     } else if (userRole === "manager") {
-      // Managers can edit subtasks but check hierarchical access
-      const projectCreator = await User.findOne({
-        companyName,
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy,
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Managers cannot edit subtasks in projects created by owners or admins",
-        });
-      }
+      // Managers can edit subtasks to any project in their company
+      // No additional restrictions needed
     }
     // Owner and admin have full access
 
@@ -1817,6 +1803,13 @@ exports.addSubtask = async (req, res) => {
     const userRole = req.user.role;
     const userTeamMemberId = req.user.teamMemberId;
 
+    console.log("🔍 addSubtask - Request body:", req.body);
+    console.log("🔍 addSubtask - User info:", {
+      companyName,
+      userRole,
+      userTeamMemberId,
+    });
+
     if (!subtask_title || !companyName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -1829,24 +1822,44 @@ exports.addSubtask = async (req, res) => {
       });
     }
 
+    // Get projectId from request body (passed from frontend)
+    const { projectId } = req.body;
+
     // If phase_id provided -> project subtask path; else handle general subtasks
     let project = null;
     let phase = null;
-    if (phase_id) {
+    if (phase_id && projectId) {
+      console.log(
+        "🔍 Looking for project with projectId:",
+        projectId,
+        "and phase_id:",
+        phase_id
+      );
       project = await Project.findOne({
-        "phases.phase_id": phase_id,
+        project_id: projectId,
         companyName,
       });
-      if (!project)
+      if (!project) {
+        console.log("❌ Project not found for projectId:", projectId);
         return res.status(404).json({ message: "Project not found" });
+      }
       phase = project.phases.find((p) => p.phase_id === phase_id);
-      if (!phase) return res.status(404).json({ message: "Phase not found" });
+      if (!phase) {
+        console.log("❌ Phase not found:", phase_id);
+        return res.status(404).json({ message: "Phase not found" });
+      }
+      console.log("✅ Found project and phase:", {
+        projectId: project.project_id,
+        phaseTitle: phase.title,
+      });
+    } else {
+      console.log("🔍 Creating general subtask (no phase_id or projectId)");
     }
 
     // Role-based access control for adding subtasks
     if (userRole === "teamLead") {
-      // Team leads can only add subtasks to their projects
-      if (project.project_lead !== userTeamMemberId) {
+      // Team leads can only add subtasks to their projects (only if project exists)
+      if (project && project.project_lead !== userTeamMemberId) {
         return res.status(403).json({
           success: false,
           message: "You can only add subtasks to projects you lead",
@@ -1868,19 +1881,8 @@ exports.addSubtask = async (req, res) => {
         }
       }
     } else if (userRole === "manager") {
-      // Managers can add subtasks but check hierarchical access
-      const projectCreator = await User.findOne({
-        companyName,
-        role: { $in: ["owner", "admin"] },
-        _id: project.createdBy,
-      });
-      if (projectCreator) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Managers cannot add subtasks to projects created by owners or admins",
-        });
-      }
+      // Managers can add subtasks to any project in their company
+      // No additional restrictions needed
     }
     // Owner and admin have full access
 
@@ -1892,16 +1894,18 @@ exports.addSubtask = async (req, res) => {
       finalAssignedTeam = team ? team.teamName : "Not assigned";
     }
 
-    // Subtask ID generation
-    // Subtask ID generation
+    // Subtask ID generation - New format: projectId-phaseId-subtaskIndex
     let subtask_id = "";
-    if (phase_id && phase) {
+    if (phase_id && phase && projectId) {
       const nextIndex = (phase.subtasks || []).length + 1;
+      // phase_id already contains projectId, so we can use it directly
       subtask_id = `${phase_id}-${nextIndex}`;
+      console.log("🔍 Generated subtask_id:", subtask_id);
     } else {
       const ts = Date.now();
       const rnd = Math.random().toString(36).slice(2, 6);
       subtask_id = `GEN-${ts}-${rnd}`;
+      console.log("🔍 Generated general subtask_id:", subtask_id);
     }
 
     // 🌟 Upload all images to Cloudinary (compressed)
@@ -2031,6 +2035,7 @@ exports.addSubtask = async (req, res) => {
       }
     }
 
+    console.log("✅ Subtask created successfully:", newSubtask);
     res.status(201).json({
       success: true,
       message: "Subtask added successfully",

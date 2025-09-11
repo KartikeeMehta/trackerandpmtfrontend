@@ -160,18 +160,55 @@ const Track = () => {
         },
         credentials: "include",
       });
-      const data = await res.json();
-
-      // If not paired and user is active, punch them out
-      if (data?.success && data.status !== "paired" && isActiveRef.current) {
-        console.log("⚠️ App disconnected from dashboard, punching out user");
-        await punchOut();
+      if (!res.ok) {
+        console.warn("Pairing status check failed with status", res.status);
+        // If on break, do not punch out during transient disconnects (e.g., sleep)
+        if (isOnBreakRef.current) {
+          console.log(
+            "☕ On break during pairing check failure - not punching out"
+          );
+          return;
+        }
+        console.log("⚠️ App disconnected from dashboard, forcing punch out");
+        try {
+          await punchOut();
+        } catch (e) {
+          // Ignore errors if already punched out
+        }
         // Redirect to connect page
+        localStorage.setItem("pf_route", "connect");
+        location.reload();
+        return;
+      }
+      const data = await res.json();
+      // If not paired, force punch-out regardless of local active state
+      if (!data?.success || data.status !== "paired") {
+        if (isOnBreakRef.current) {
+          console.log(
+            "☕ On break while pairing shows not paired - holding state, not punching out"
+          );
+          return;
+        }
+        console.log("⚠️ App disconnected from dashboard, forcing punch out");
+        try {
+          await punchOut();
+        } catch (e) {}
         localStorage.setItem("pf_route", "connect");
         location.reload();
       }
     } catch (error) {
       console.error("Error checking pairing status:", error);
+      // If on break, assume transient error and keep session
+      if (isOnBreakRef.current) {
+        console.log("☕ On break during pairing check error - ignoring");
+        return;
+      }
+      // Assume disconnected on any error when not on break
+      try {
+        await punchOut();
+      } catch (_) {}
+      localStorage.setItem("pf_route", "connect");
+      location.reload();
     }
   };
 
@@ -243,7 +280,7 @@ const Track = () => {
   const startPairingCheck = () => {
     if (pairingCheckRef.current) return;
     console.log("🔗 Starting pairing status check for disconnect detection");
-    pairingCheckRef.current = setInterval(checkPairingStatus, 15000); // Check every 15 seconds
+    pairingCheckRef.current = setInterval(checkPairingStatus, 5000); // Check every 5 seconds
   };
 
   const stopPairingCheck = () => {
@@ -803,9 +840,15 @@ const Track = () => {
     if (!window.tracker) return;
     const handler = async () => {
       try {
-        if (isActiveRef.current) {
-          console.log("⚠️ Force punch-out signal received from main");
-          await punchOut();
+        console.log("⚠️ Force punch-out signal received from main");
+        // Attempt punch out regardless of local state to be safe
+        await punchOut();
+        // Acknowledge to main that punch-out finished
+        if (
+          window.tracker &&
+          typeof window.tracker.punchOutAck === "function"
+        ) {
+          window.tracker.punchOutAck();
         }
       } catch (e) {}
     };
@@ -825,12 +868,29 @@ const Track = () => {
           return;
         }
 
-        // If user is active (not on break), punch out on lock/suspend
+        // If user is active (not on break), start idle instead of punch out
         if (isActiveRef.current) {
-          console.log(
-            `⚠️ Punching out due to ${powerEvent} (user not on break)`
-          );
-          await punchOut();
+          console.log(`🟡 Starting IDLE due to ${powerEvent}`);
+          // Mark local state idle
+          activityRef.current.idle = true;
+          activityRef.current.idleSince = Date.now();
+          // Notify backend
+          fetch(`${API.base}/employee-tracker/idle/start`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            credentials: "include",
+            body: JSON.stringify({
+              idleType: powerEvent === "lock" ? "lock" : "sleep",
+              startedAt: new Date().toISOString(),
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("🟡 Idle start (power) API response:", data);
+            })
+            .catch((e) => {
+              console.error("❌ Idle start (power) error:", e);
+            });
         }
       } catch (e) {
         console.error("Error handling power event:", e);
@@ -922,7 +982,7 @@ const Track = () => {
             </p>
           </div>
           <button
-            onClick={() => window.location.reload()}
+            onClick={checkPairingStatus}
             className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
             title="Refresh page"
           >

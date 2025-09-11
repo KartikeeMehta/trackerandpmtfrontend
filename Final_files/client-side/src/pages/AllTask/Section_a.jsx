@@ -530,6 +530,8 @@ const Section_a = () => {
       formData.append("description", newTask.description);
       formData.append("assigned_member", selectedMember.teamMemberId);
       if (selectedPhaseId) formData.append("phase_id", selectedPhaseId);
+      if (selectedProject)
+        formData.append("projectId", selectedProject.project_id); // Add projectId
       formData.append("priority", newTask.priority || "Low");
       if (newTask.dueDate) formData.append("dueDate", newTask.dueDate);
       if (selectedImages.length > 0) {

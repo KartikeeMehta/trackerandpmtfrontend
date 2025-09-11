@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-09-10T18-30-13-926Z",
+  "backupFiles": [
+    "D:\\Final_PMT\\Final_files\\server-side\\backups\\projects-backup-2025-09-10T18-30-13-926Z.json",
+    "D:\\Final_PMT\\Final_files\\server-side\\backups\\employees-backup-2025-09-10T18-30-13-926Z.json"
+  ],
+  "counts": {
+    "projects": 11,
+    "employees": 3,
+    "totalPhases": 8,
+    "totalSubtasks": 25,
+    "totalGeneralSubtasks": 4
+  }
+}

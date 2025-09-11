@@ -77,27 +77,12 @@ const Section_a = () => {
   return (
     <section
       ref={sectionRef}
-      className="bg-[url('./hero_section.png')] bg-cover relative flex flex-col items-center justify-center min-h-screen px-4 py-10 overflow-hidden bg-neutral-950 text-neutral-100 font-sans"
+      className="bg-[url('./hero_section.png')] bg-cover relative flex flex-col items-center justify-center min-h-screen px-4 py-10 overflow-hidden bg-neutral-950 text-neutral-100 font-roboto"
     >
       {/* Logo */}
-      <div ref={logoRef} className="flex items-center gap-3 mt-8 mb-2 z-10">
-        <svg
-          width="44"
-          height="44"
-          viewBox="0 0 44 44"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect width="44" height="44" rx="12" fill="#2563eb" />
-          <path
-            d="M13 29L22 15L31 29"
-            stroke="#fff"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="text-2xl font-bold text-white tracking-tight">
+      <div ref={logoRef} className="flex items-center mt-8 mb-2 z-10">
+        <img src="final_wo_logo.png" alt="" className="w-[120px]" />
+        <span className="text-[42px] font-bold text-white tracking-tight">
           WorkOrbit
         </span>
       </div>
@@ -109,7 +94,7 @@ const Section_a = () => {
         >
           <Sparkles className="h-10 w-10 text-indigo-400 mb-2 animate-pulse" />
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">
-            WorkOrbit:{" "}
+            WorkOrbit :{" "}
             <span className="text-indigo-400">Project Management Tool</span>
           </h1>
           <p className="text-lg text-neutral-300 mb-8 font-medium text-center">

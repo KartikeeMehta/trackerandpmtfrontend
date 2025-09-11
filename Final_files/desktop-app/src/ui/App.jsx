@@ -46,13 +46,21 @@ export default function App() {
           },
           credentials: "include",
         });
+        // Treat non-200 as disconnected
+        if (!res.ok) {
+          setRoute("connect");
+          return;
+        }
         const data = await res.json();
         if (data?.success && data.status === "paired") {
           setRoute("track");
-        } else if (data?.success && data.status !== "paired") {
+        } else {
           setRoute("connect");
         }
-      } catch (_) {}
+      } catch (_) {
+        // Network or parsing error: assume disconnected
+        setRoute("connect");
+      }
     })();
   }, []);
 

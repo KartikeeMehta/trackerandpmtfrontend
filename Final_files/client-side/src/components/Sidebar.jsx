@@ -305,7 +305,7 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
       <div className="flex items-center justify-between px-3 py-3 mt-2">
         <div className="flex items-center gap-2">
           {collapsed ? (
-            <img src="./colaspe_logo.png" alt="Logo" className="h-8 w-8" />
+            <img src="final_wo_logo.png" alt="Logo" className="w-[32px]" />
           ) : (
             <img src="./final_orbit_logo.png" alt="WorkOrbit" />
           )}

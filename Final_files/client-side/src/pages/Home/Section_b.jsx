@@ -37,7 +37,7 @@ const bullets = [
 
 function Section_b() {
   return (
-    <section id="features" className="bg-neutral-950">
+    <section id="features" className="bg-neutral-950 font-roboto">
       <div className="max-w-[1200px] mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
         <div>
           <h2 className="text-2xl font-bold text-white mb-3">

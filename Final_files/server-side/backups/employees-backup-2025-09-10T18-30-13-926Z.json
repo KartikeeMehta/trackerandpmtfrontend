@@ -1,0 +1,131 @@
+{
+  "timestamp": "2025-09-10T18-30-13-926Z",
+  "count": 3,
+  "data": [
+    {
+      "_id": "68a8645e0fa2017c29b87831",
+      "name": "Kapil Badyal",
+      "email": "Kapil@digiwbs.com",
+      "password": "$2b$10$hIC7JHHTqmDeJMzS5Qfqq.zjIZHUvUgr9qMrLbhBROQgTkpfVNBOS",
+      "teamMemberId": "WS-002",
+      "designation": "Project Manger / Design Lead",
+      "phoneNo": "Temp",
+      "companyName": "Webblaze Softech",
+      "mustChangePassword": false,
+      "passwordExpiresAt": null,
+      "tempPasswordResent": false,
+      "addedBy": "68a858604b179ac3b49d1215",
+      "role": "manager",
+      "location": "Mohali",
+      "createdAt": "2025-08-22T12:36:46.809Z",
+      "updatedAt": "2025-09-10T18:09:18.355Z",
+      "__v": 0,
+      "lastLogin": "2025-09-10T18:09:18.354Z",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YTg2NDVlMGZhMjAxN2MyOWI4NzgzMSIsImlhdCI6MTc1NzM1NjU2NCwiZXhwIjoxNzU3OTYxMzY0fQ.8KIBy7ohds1UW8Qf9s5_5cCy-PbKQGLxHoAtnHkng_Q",
+      "generalSubtasks": [
+        {
+          "subtask_id": "GEN-1756204534155-lpc6",
+          "subtask_title": "Newest General Subtask",
+          "description": "test",
+          "priority": "Low",
+          "status": "Pending",
+          "dueDate": "2025-08-27T00:00:00.000Z",
+          "images": [],
+          "createdAt": "2025-08-26T10:35:34.155Z",
+          "updatedAt": "2025-08-26T10:35:34.155Z"
+        }
+      ],
+      "pairingStatus": "paired",
+      "pairingOTP": null,
+      "pairingOTPExpiry": null,
+      "lastPaired": "2025-09-09T09:42:42.741Z"
+    },
+    {
+      "_id": "68a88e91d0605fd993e66d18",
+      "name": "Umpire",
+      "email": "umpire@yopmail.com",
+      "password": "$2b$10$Gvwr8fWGXqTGhFJNLnUkOOl69sSuct567dDVM4.UnuRJrj/7sqjZm",
+      "teamMemberId": "MPL-001",
+      "designation": "test",
+      "phoneNo": "test",
+      "companyName": "Munish Pvt. Ltd.",
+      "mustChangePassword": false,
+      "passwordExpiresAt": null,
+      "tempPasswordResent": false,
+      "addedBy": "68a87b87d0605fd993e66c8e",
+      "role": "admin",
+      "location": "test",
+      "createdAt": "2025-08-22T15:36:49.843Z",
+      "updatedAt": "2025-09-10T14:19:26.515Z",
+      "__v": 1,
+      "lastLogin": "2025-09-10T14:19:26.505Z",
+      "generalSubtasks": [
+        {
+          "subtask_id": "GEN-1757510835174-u3yd",
+          "subtask_title": "n",
+          "description": "n",
+          "priority": "Low",
+          "status": "Pending",
+          "dueDate": "2025-09-11T00:00:00.000Z",
+          "images": [],
+          "createdAt": "2025-09-10T13:27:15.174Z",
+          "updatedAt": "2025-09-10T13:27:15.174Z"
+        },
+        {
+          "subtask_id": "GEN-1757511479300-umcy",
+          "subtask_title": "Do this",
+          "description": "fast",
+          "priority": "Low",
+          "status": "Pending",
+          "dueDate": "2025-09-30T00:00:00.000Z",
+          "images": [],
+          "createdAt": "2025-09-10T13:37:59.300Z",
+          "updatedAt": "2025-09-10T13:37:59.300Z"
+        }
+      ],
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YTg4ZTkxZDA2MDVmZDk5M2U2NmQxOCIsImlhdCI6MTc1NzUwMjUwMiwiZXhwIjoxNzU4MTA3MzAyfQ.-xJHRxEA1ncjiBwH97I5W_hXyYCjFQ4YyIwosnCk9gM",
+      "pairingStatus": "pending",
+      "pairingOTP": "480446",
+      "pairingOTPExpiry": "2025-09-03T09:47:57.462Z",
+      "lastPaired": "2025-09-03T09:23:19.621Z"
+    },
+    {
+      "_id": "68ac52b19e4c877bf7714b3d",
+      "name": "Diptee Karmakar",
+      "email": "hr@webblazesofttech.com",
+      "password": "$2b$10$sH373CbDMfW5.xMEP2zMMeGgoKvdJfnqFa0OFhWzy7oQ882A6iZcy",
+      "teamMemberId": "WS-022",
+      "designation": "HR",
+      "phoneNo": "Temp",
+      "companyName": "Webblaze Softech",
+      "mustChangePassword": false,
+      "passwordExpiresAt": null,
+      "tempPasswordResent": false,
+      "addedBy": "68a858604b179ac3b49d1215",
+      "role": "admin",
+      "location": "Temp",
+      "createdAt": "2025-08-25T12:10:25.499Z",
+      "updatedAt": "2025-09-10T10:06:45.450Z",
+      "__v": 0,
+      "lastLogin": "2025-09-10T10:06:45.449Z",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YWM1MmIxOWU0Yzg3N2JmNzcxNGIzZCIsImlhdCI6MTc1NzQwNjA0OCwiZXhwIjoxNzU4MDEwODQ4fQ.I9BihGWlrikPhV6VvMPx7og5XKJt-itLDwogcaHI7B4",
+      "generalSubtasks": [
+        {
+          "subtask_id": "GEN-1756203227447-dffz",
+          "subtask_title": "General Subtask",
+          "description": "test",
+          "priority": "Low",
+          "status": "In Progress",
+          "dueDate": "2025-08-30T00:00:00.000Z",
+          "images": [],
+          "createdAt": "2025-08-26T10:13:47.447Z",
+          "updatedAt": "2025-08-26T10:34:52.781Z"
+        }
+      ],
+      "pairingStatus": "paired",
+      "pairingOTP": null,
+      "pairingOTPExpiry": null,
+      "lastPaired": "2025-09-09T08:22:12.449Z"
+    }
+  ]
+}
