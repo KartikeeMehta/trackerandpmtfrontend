@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
+const hrSettingsController = require("../controllers/hrSettingsController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const EmployeeController = require("../controllers/EmployeeController");
@@ -86,6 +87,9 @@ router.patch(
 );
 router.get("/profile", authMiddleware, userController.getUserProfile);
 router.post("/change-password", authMiddleware, userController.changePassword);
+// HR settings endpoints (owner/admin)
+router.get("/hr-settings", authMiddleware, hrSettingsController.getSettings);
+router.post("/hr-settings", authMiddleware, hrSettingsController.updateSettings);
 router.get(
   "/activity/recent",
   authMiddleware,

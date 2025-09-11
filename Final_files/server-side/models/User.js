@@ -33,6 +33,8 @@ const userSchema = new mongoose.Schema({
     default: "not_paired",
   },
   lastPaired: { type: Date },
+  // Feature flags
+  hrEnabled: { type: Boolean, default: true },
 });
 
 module.exports = mongoose.model("User", userSchema);

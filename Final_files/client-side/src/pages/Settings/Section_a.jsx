@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Shield, Eye, EyeOff, X, Check, AlertTriangle, Bell, Palette, Lock } from "lucide-react";
+import { Shield, Eye, EyeOff, X, Check, AlertTriangle, Bell, Palette, Lock, Cog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api_url } from "@/api/Api";
 import { apiHandler } from "@/api/ApiHandler";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import CustomToast from "@/components/CustomToast";
 import NotificationSettings from "@/components/NotificationSettings";
+import HRSettings from "./HRSettings";
 
 const Section_a = () => {
   const [loading, setLoading] = useState(false);
-  const navigate =useNavigate()
+  const navigate = useNavigate();
+  const location = useLocation();
   const [message, setMessage] = useState({ type: "", text: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -35,7 +37,38 @@ const Section_a = () => {
   }, []);
 
   // Tabs (side navigation)
-  const [activeTab, setActiveTab] = useState("security"); // 'security' | 'notifications'
+  const [activeTab, setActiveTab] = useState("security"); // 'security' | 'notifications' | 'hr'
+
+  // Role helpers
+
+  // Role helpers
+  const getUserRole = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      const user = raw ? JSON.parse(raw) : null;
+      return (user?.role || "teamMember").toLowerCase();
+    } catch {
+      return "teamMember";
+    }
+  };
+  const isOwnerAdmin = ["owner", "admin"].includes(getUserRole());
+
+  // Sync active tab with URL (?tab=security|notifications|hr)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    let tab = params.get("tab") || "security";
+    if (tab === "hr" && !isOwnerAdmin) tab = "security";
+    setActiveTab(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, isOwnerAdmin]);
+
+  const setTabAndNavigate = (tab) => {
+    if (tab === "hr" && !isOwnerAdmin) tab = "security";
+    const params = new URLSearchParams(location.search);
+    params.set("tab", tab);
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    setActiveTab(tab);
+  };
 
   const preferenceMeta = {
     project_created: { label: "Project Created", desc: "Receive notifications when a new project is assigned" },
@@ -184,7 +217,7 @@ const Section_a = () => {
             <nav className="flex flex-col gap-1">
               <button
                 type="button"
-                onClick={() => setActiveTab("security")}
+                onClick={() => setTabAndNavigate("security")}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
                   activeTab === "security" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-gray-700 hover:bg-gray-50"
                 }`}
@@ -193,16 +226,27 @@ const Section_a = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("notifications")}
+                onClick={() => setTabAndNavigate("notifications")}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
                   activeTab === "notifications" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 <span className="flex items-center gap-2"><Bell className="w-4 h-4" />Notifications</span>
               </button>
+              {isOwnerAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setTabAndNavigate("hr")}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    activeTab === "hr" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2"><Cog className="w-4 h-4" />HR Management</span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setActiveTab("appearance")}
+                onClick={() => setTabAndNavigate("appearance")}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
                   activeTab === "appearance" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-gray-700 hover:bg-gray-50"
                 }`}
@@ -212,7 +256,7 @@ const Section_a = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("privacy")}
+                onClick={() => setTabAndNavigate("privacy")}
                 className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
                   activeTab === "privacy" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-gray-700 hover:bg-gray-50"
                 }`}
@@ -406,6 +450,10 @@ const Section_a = () => {
                 This section is under maintenance
               </div>
             </div>
+          )}
+
+          {activeTab === "hr" && isOwnerAdmin && (
+            <HRSettings />
           )}
         </section>
       </div>

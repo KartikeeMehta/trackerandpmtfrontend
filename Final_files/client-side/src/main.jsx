@@ -3,13 +3,16 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { ToastContainer } from 'react-toastify'
+import FeatureFlagsProvider from './components/FeatureFlagsProvider.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ToastContainer
       style={{ marginTop: "70px" }}
     />
-    <App />
+    <FeatureFlagsProvider>
+      <App />
+    </FeatureFlagsProvider>
   </StrictMode>,
 )
 
